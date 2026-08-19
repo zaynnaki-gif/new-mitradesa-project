@@ -1,0 +1,165 @@
+/* GaleriPage.module.css */
+
+.pageHeader {
+  background-color: var(--color-navy-base);
+  color: var(--color-text-on-navy);
+  padding: var(--space-12) var(--space-4);
+  text-align: center;
+}
+
+.headerContent {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.pageTitle {
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  font-weight: 700;
+  margin-bottom: var(--space-3);
+  color: var(--color-text-on-navy);
+}
+
+.pageSubtitle {
+  color: rgba(255, 255, 255, 0.8);
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.content {
+  padding: var(--space-8) var(--space-4);
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.loadingState {
+  text-align: center;
+  padding: var(--space-12);
+}
+
+/* Gallery Grid */
+.galleryGrid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(2, 1fr);
+}
+
+@media (min-width: 640px) {
+  .galleryGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .galleryGrid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.galleryItem {
+  position: relative;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  background: none;
+}
+
+.galleryImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform var(--transition-slow);
+}
+
+.galleryItem:hover .galleryImage {
+  transform: scale(1.1);
+}
+
+.galleryOverlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
+  display: flex;
+  align-items: flex-end;
+  padding: var(--space-3);
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+
+.galleryItem:hover .galleryOverlay,
+.galleryItem:focus-visible .galleryOverlay {
+  opacity: 1;
+}
+
+.galleryName {
+  color: white;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Lightbox */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background-color: rgba(0, 0, 0, 0.95);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  cursor: pointer;
+}
+
+.lightboxClose {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: var(--radius-full);
+  color: white;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.lightboxClose:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.lightboxImage {
+  max-width: 90vw;
+  max-height: 85vh;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+  cursor: default;
+}
+
+.lightboxCaption {
+  margin-top: var(--space-4);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: var(--text-base);
+  text-align: center;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .content {
+    padding: var(--space-6) var(--space-4);
+  }
+}

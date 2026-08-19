@@ -1,0 +1,189 @@
+/* ============================================
+   MITRADESA Design Tokens
+   Based on normalization.md visual principles
+   ============================================ */
+
+:root {
+  /* --- CHROME (Navy - navbar, footer, overlay) --- */
+  --color-navy-base: #101A2E;
+  --color-navy-dark: #0A1220;
+  --color-navy-light: #1A2A40;
+
+  /* --- CONTENT (White backgrounds) --- */
+  --color-bg-base: #FFFFFF;
+  --color-bg-surface: #F8FAFC;
+  --color-bg-muted: #F1F5F9;
+
+  /* --- ACCENT (Amber - limited use) --- */
+  --color-accent: #C89B3C;
+  --color-accent-light: #D4AF6A;
+  --color-accent-dark: #A88432;
+
+  /* --- TEXT --- */
+  --color-text-on-navy: #FFFFFF;
+  --color-text-primary: #101A2E;
+  --color-text-secondary: #475569;
+  --color-text-muted: #94A3B8;
+
+  /* --- LEGACY TOKENS (mapped to new system) --- */
+  --color-primary: var(--color-navy-base);
+  --color-primary-dark: var(--color-navy-dark);
+  --color-secondary: var(--color-text-secondary);
+  --color-background: var(--color-bg-base);
+  --color-surface: var(--color-bg-surface);
+  --color-text: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-border: #E2E8F0;
+  --color-border-dark: #CBD5E1;
+  --color-error: #DC2626;
+  --color-success: #16A34A;
+  --color-warning: #F59E0B;
+  --color-info: #0EA5E9;
+
+  /* --- BORDERS --- */
+  --border-color-on-navy: rgba(255, 255, 255, 0.15);
+  --border-color: var(--color-border);
+
+  /* --- SPACING --- */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-24: 6rem;
+
+  /* --- TYPOGRAPHY --- */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-serif: Georgia, 'Times New Roman', serif;
+  --font-mono: 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+  --text-4xl: 2.25rem;
+  --text-5xl: 3rem;
+
+  --leading-tight: 1.25;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.625;
+
+  /* --- RADII --- */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --radius-full: 9999px;
+
+  /* --- SHADOWS --- */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+
+  /* --- TRANSITIONS --- */
+  --transition-fast: 150ms ease;
+  --transition-base: 200ms ease;
+  --transition-slow: 300ms ease;
+
+  /* --- LAYOUT --- */
+  --container-max: 1280px;
+  --header-height: 64px;
+  --footer-height: auto;
+}
+
+/* ============================================
+   BASE STYLES
+   ============================================ */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  line-height: var(--leading-normal);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--color-text);
+  background-color: var(--color-background);
+  min-height: 100vh;
+}
+
+/* Links */
+a {
+  color: var(--color-primary);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+a:hover {
+  color: var(--color-accent);
+}
+
+/* Buttons */
+button {
+  cursor: pointer;
+  font-family: inherit;
+}
+
+/* Form elements */
+input, textarea, select {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+/* Code */
+code {
+  font-family: var(--font-mono);
+}
+
+/* Images */
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+
+.container {
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: 0 var(--space-4);
+}
+
+@media (min-width: 768px) {
+  .container {
+    padding: 0 var(--space-6);
+  }
+}
+
+.text-center { text-align: center; }
+.text-left { text-align: left; }
+.text-right { text-align: right; }
+
+.text-muted { color: var(--color-text-muted); }
+.text-secondary { color: var(--color-text-secondary); }
+
+/* ============================================
+   RESPONSIVE BREAKPOINTS (for reference)
+   ============================================ */
+/*
+   sm: 640px
+   md: 768px
+   lg: 1024px
+   xl: 1280px
+*/

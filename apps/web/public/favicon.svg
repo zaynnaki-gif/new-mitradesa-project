@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <!-- Background circle -->
+  <circle cx="16" cy="16" r="15" fill="#101A2E"/>
+  <!-- Village/Home icon -->
+  <path d="M16 6L6 13v13a1 1 0 001 1h6v-8h6v8h6a1 1 0 001-1V13L16 6z" fill="#C89B3C"/>
+  <!-- Roof line -->
+  <path d="M16 5L4 14h24L16 5z" fill="#C89B3C"/>
+  <!-- Inner detail -->
+  <rect x="14" y="16" width="4" height="6" fill="#101A2E"/>
+</svg>

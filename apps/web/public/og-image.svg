@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <!-- Background -->
+  <rect width="512" height="512" fill="#101A2E"/>
+  <!-- Main village shape -->
+  <path d="M256 96L96 208v208a16 16 0 0016 16h96v-128h96v128h96a16 16 0 0016-16V208L256 96z" fill="#C89B3C"/>
+  <!-- Roof -->
+  <path d="M256 64L64 224h384L256 64z" fill="#C89B3C"/>
+  <!-- Door -->
+  <rect x="224" y="320" width="64" height="96" fill="#101A2E"/>
+  <!-- Window left -->
+  <rect x="144" y="256" width="48" height="48" fill="#101A2E" opacity="0.6"/>
+  <!-- Window right -->
+  <rect x="320" y="256" width="48" height="48" fill="#101A2E" opacity="0.6"/>
+  <!-- Accent line -->
+  <circle cx="256" cy="160" r="24" fill="#C89B3C" stroke="#101A2E" stroke-width="8"/>
+</svg>

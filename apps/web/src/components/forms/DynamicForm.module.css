@@ -1,0 +1,145 @@
+/* DynamicForm.module.css */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+/* Field wrapper */
+.fieldWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* Label */
+.label {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.labelRequired {
+  color: var(--color-error);
+  margin-left: var(--space-1);
+}
+
+/* Base input styles */
+.input {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-base);
+  font-family: inherit;
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-base);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(200, 155, 60, 0.1);
+}
+
+.input:disabled {
+  background-color: var(--color-bg-muted);
+  cursor: not-allowed;
+}
+
+.inputError {
+  border-color: var(--color-error);
+}
+
+.inputError:focus {
+  border-color: var(--color-error);
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+}
+
+/* Textarea */
+.textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+/* Select */
+.select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 0.5rem center;
+  background-repeat: no-repeat;
+  background-size: 1.5em 1.5em;
+  padding-right: 2.5rem;
+}
+
+/* Checkbox & Radio group */
+.checkboxGroup,
+.radioGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.checkboxLabel,
+.radioLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-base);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.checkboxInput,
+.radioInput {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
+/* Description */
+.description {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  margin-top: var(--space-1);
+}
+
+/* Error message */
+.error {
+  font-size: var(--text-sm);
+  color: var(--color-error);
+  margin-top: var(--space-1);
+}
+
+/* File input */
+.fileInput {
+  padding: var(--space-2);
+}
+
+.fileName {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  margin-top: var(--space-1);
+}
+
+/* Grid layout */
+.gridCols2 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+}
+
+@media (min-width: 768px) {
+  .gridCols2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Full width */
+.fullWidth {
+  grid-column: 1 / -1;
+}

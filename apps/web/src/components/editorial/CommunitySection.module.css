@@ -1,0 +1,176 @@
+/* CommunitySection Component Styles */
+
+/* ============================================
+   EDITORIAL COMMUNITY / PEOPLE
+   Human-centered section with photography
+   ============================================ */
+
+.community {
+  padding: var(--section-padding-y) 0;
+  background-color: var(--editorial-cream);
+}
+
+.communityInner {
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: 0 var(--space-6);
+}
+
+.communityHeader {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--grid-gap-lg);
+  align-items: end;
+  margin-bottom: var(--space-12);
+}
+
+.communityHeaderLeft {}
+
+.communityEyebrow {
+  font-size: var(--type-caption);
+  font-weight: 600;
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+  color: var(--amber-600);
+  margin-bottom: var(--space-4);
+  display: block;
+}
+
+.communityTitle {
+  font-family: var(--font-display);
+  font-size: var(--type-h1);
+  font-weight: 700;
+  line-height: var(--leading-heading);
+  letter-spacing: var(--tracking-tight);
+  color: var(--ink-deep);
+}
+
+.communityHeaderRight {
+  padding-bottom: var(--space-4);
+}
+
+.communityDescription {
+  font-size: var(--type-body-lg);
+  line-height: var(--leading-relaxed);
+  color: var(--ink-medium);
+}
+
+/* People Grid */
+.communityGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-6);
+}
+
+.personCard {
+  text-align: center;
+}
+
+.personImage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3/4;
+  overflow: hidden;
+  margin-bottom: var(--space-4);
+  background-color: var(--stone-200);
+}
+
+.personImage img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform var(--transition-slower) var(--ease-out-expo);
+}
+
+.personCard:hover .personImage img {
+  transform: scale(1.05);
+}
+
+.personName {
+  font-family: var(--font-display);
+  font-size: var(--type-h4);
+  font-weight: 600;
+  color: var(--ink-deep);
+  margin-bottom: var(--space-1);
+}
+
+.personRole {
+  font-size: var(--type-small);
+  color: var(--stone-500);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+}
+
+/* Statement Quote */
+.communityQuote {
+  position: relative;
+  padding: var(--space-12);
+  background-color: var(--editorial-white);
+  margin-top: var(--space-12);
+}
+
+.communityQuote::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(to right, var(--amber-400), var(--amber-600));
+}
+
+.communityQuoteText {
+  font-family: var(--font-display);
+  font-size: var(--type-h3);
+  font-weight: 400;
+  font-style: italic;
+  line-height: var(--leading-relaxed);
+  color: var(--ink-deep);
+  max-width: 800px;
+  margin: 0 auto var(--space-6);
+}
+
+.communityQuoteAuthor {
+  text-align: center;
+}
+
+.communityQuoteName {
+  font-weight: 600;
+  color: var(--ink-deep);
+}
+
+.communityQuoteRole {
+  font-size: var(--type-small);
+  color: var(--stone-500);
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .communityHeader {
+    grid-template-columns: 1fr;
+    gap: var(--space-6);
+  }
+
+  .communityGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .communityGrid {
+    grid-template-columns: 1fr;
+    gap: var(--space-8);
+  }
+
+  .communityTitle {
+    font-size: var(--type-h2);
+  }
+
+  .communityQuote {
+    padding: var(--space-8);
+  }
+
+  .communityQuoteText {
+    font-size: var(--type-h4);
+  }
+}

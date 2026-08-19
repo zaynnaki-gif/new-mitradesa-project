@@ -1,0 +1,95 @@
+version: '3.8'
+
+# ===========================================
+# MITRADESA Staging Infrastructure
+# ===========================================
+# This docker-compose file provisions:
+# 1. PostgreSQL database for staging
+# 2. Isolated from production and test
+# ===========================================
+
+services:
+  # -----------------------------------------
+  # STAGING DATABASE
+  # -----------------------------------------
+  postgres-staging:
+    image: postgres:15-alpine
+    container_name: mitradesa-postgres-staging
+    environment:
+      POSTGRES_USER: mitradesa_staging
+      POSTGRES_PASSWORD: staging_secure_password_2024
+      POSTGRES_DB: mitradesa_staging
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres-staging-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mitradesa_staging -d mitradesa_staging"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - mitradesa-staging-network
+
+  # -----------------------------------------
+  # STAGING FILE STORAGE (MinIO for S3-compatible)
+  # -----------------------------------------
+  minio-staging:
+    image: minio/minio:latest
+    container_name: mitradesa-minio-staging
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: mitradesa_staging
+      MINIO_ROOT_PASSWORD: staging_minio_password_2024
+      MINIO_DEFAULT_BUCKETS: mitradesa-staging
+    ports:
+      - "9000:9000"   # API
+      - "9001:9001"   # Console
+    volumes:
+      - minio-staging-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - mitradesa-staging-network
+
+  # -----------------------------------------
+  # MinIO Client (for bucket setup)
+  # -----------------------------------------
+  minio-setup:
+    image: minio/mc:latest
+    container_name: mitradesa-minio-setup-staging
+    depends_on:
+      minio-staging:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      sleep 5;
+      mc alias set local http://minio-staging:9000 mitradesa_staging staging_minio_password_2024;
+      mc mb local/mitradesa-staging --ignore-existing;
+      mc anonymous set download local/mitradesa-staging;
+      echo 'MinIO staging bucket created successfully';
+      exit 0;
+      "
+    networks:
+      - mitradesa-staging-network
+
+# ===========================================
+# VOLUMES
+# ===========================================
+volumes:
+  postgres-staging-data:
+    driver: local
+  minio-staging-data:
+    driver: local
+
+# ===========================================
+# NETWORKS
+# ===========================================
+networks:
+  mitradesa-staging-network:
+    driver: bridge

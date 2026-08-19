@@ -1,0 +1,165 @@
+/* ProfilPage.module.css */
+
+.pageHeader {
+  background-color: var(--color-navy-base);
+  color: var(--color-text-on-navy);
+  padding: var(--space-12) var(--space-4);
+  text-align: center;
+}
+
+.headerContent {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.pageTitle {
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  font-weight: 700;
+  margin-bottom: var(--space-3);
+  color: var(--color-text-on-navy);
+}
+
+.pageSubtitle {
+  color: rgba(255, 255, 255, 0.8);
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.content {
+  padding: var(--space-8) var(--space-4);
+}
+
+.container {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.grid {
+  display: grid;
+  gap: var(--space-6);
+}
+
+/* Card */
+.card {
+  background-color: var(--color-bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  background-color: var(--color-bg-base);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.cardIcon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-navy-base);
+  border-radius: var(--radius-md);
+  color: var(--color-accent);
+  flex-shrink: 0;
+}
+
+.cardIcon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.cardTitle {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--color-navy-base);
+}
+
+.cardBody {
+  padding: var(--space-5);
+}
+
+/* Info Grid */
+.infoGrid {
+  display: grid;
+  gap: var(--space-4);
+}
+
+@media (min-width: 640px) {
+  .infoGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.infoItem {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-3);
+  background-color: var(--color-bg-base);
+  border-radius: var(--radius-md);
+}
+
+.infoLabel {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--space-1);
+}
+
+.infoValue {
+  font-size: var(--text-base);
+  color: var(--color-text-primary);
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+/* Visi Misi Placeholder */
+.visiMisiPlaceholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: var(--space-8) var(--space-4);
+}
+
+.placeholderIcon {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-bg-muted);
+  border-radius: var(--radius-full);
+  margin-bottom: var(--space-4);
+  color: var(--color-text-muted);
+}
+
+.placeholderIcon svg {
+  width: 32px;
+  height: 32px;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .content {
+    padding: var(--space-6) var(--space-4);
+  }
+
+  .cardHeader {
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .cardBody {
+    padding: var(--space-4);
+  }
+
+  .visiMisiPlaceholder {
+    padding: var(--space-6) var(--space-2);
+  }
+}

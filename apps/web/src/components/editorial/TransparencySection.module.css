@@ -1,0 +1,209 @@
+/* TransparencySection Component Styles */
+
+/* ============================================
+   EDITORIAL TRANSPARENCY
+   Large editorial data presentation
+   ============================================ */
+
+.transparency {
+  padding: var(--section-padding-y) 0;
+  background-color: var(--editorial-offwhite);
+}
+
+.transparencyInner {
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: 0 var(--space-6);
+}
+
+.transparencyHeader {
+  text-align: center;
+  max-width: 700px;
+  margin: 0 auto var(--space-12);
+}
+
+.transparencyEyebrow {
+  font-size: var(--type-caption);
+  font-weight: 600;
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+  color: var(--amber-600);
+  margin-bottom: var(--space-4);
+  display: block;
+}
+
+.transparencyTitle {
+  font-family: var(--font-display);
+  font-size: var(--type-h2);
+  font-weight: 700;
+  line-height: var(--leading-heading);
+  letter-spacing: var(--tracking-tight);
+  color: var(--ink-deep);
+  margin-bottom: var(--space-4);
+}
+
+.transparencyDescription {
+  font-size: var(--type-body-lg);
+  line-height: var(--leading-relaxed);
+  color: var(--ink-medium);
+}
+
+/* Financial Highlights */
+.transparencyHighlights {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-8);
+  margin-bottom: var(--space-12);
+}
+
+.highlightCard {
+  padding: var(--space-8);
+  background-color: var(--editorial-white);
+  text-align: center;
+  border: 1px solid var(--stone-200);
+}
+
+.highlightLabel {
+  font-size: var(--type-small);
+  font-weight: 500;
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--stone-500);
+  margin-bottom: var(--space-3);
+}
+
+.highlightValue {
+  font-family: var(--font-display);
+  font-size: var(--type-h1);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--ink-deep);
+  margin-bottom: var(--space-2);
+}
+
+.highlightValueSuccess {
+  color: #166534;
+}
+
+.highlightValueDanger {
+  color: #991B1B;
+}
+
+.highlightValueInfo {
+  color: var(--amber-600);
+}
+
+.highlightNote {
+  font-size: var(--type-caption);
+  color: var(--stone-400);
+}
+
+/* Visual Data */
+.transparencyVisual {
+  background-color: var(--editorial-white);
+  padding: var(--space-8);
+  border: 1px solid var(--stone-200);
+}
+
+.transparencyVisualTitle {
+  font-family: var(--font-display);
+  font-size: var(--type-h4);
+  font-weight: 600;
+  color: var(--ink-deep);
+  margin-bottom: var(--space-6);
+  text-align: center;
+}
+
+.transparencyBars {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.transparencyBar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.transparencyBarLabel {
+  flex: 0 0 150px;
+  font-size: var(--type-small);
+  font-weight: 500;
+  color: var(--ink-medium);
+}
+
+.transparencyBarTrack {
+  flex: 1;
+  height: 8px;
+  background-color: var(--stone-100);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.transparencyBarFill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width var(--transition-slower) var(--ease-out-expo);
+}
+
+.transparencyBarValue {
+  flex: 0 0 100px;
+  text-align: right;
+  font-size: var(--type-small);
+  font-weight: 600;
+  color: var(--ink-deep);
+}
+
+/* Link */
+.transparencyLink {
+  margin-top: var(--space-10);
+  text-align: center;
+}
+
+.transparencyLink a {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--type-small);
+  font-weight: 600;
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--ink-medium);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+.transparencyLink a:hover {
+  color: var(--amber-600);
+  text-decoration: none;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .transparencyHighlights {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+}
+
+@media (max-width: 640px) {
+  .transparencyBar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
+
+  .transparencyBarLabel {
+    flex: none;
+  }
+
+  .transparencyBarTrack {
+    width: 100%;
+  }
+
+  .transparencyBarValue {
+    flex: none;
+    text-align: left;
+  }
+}

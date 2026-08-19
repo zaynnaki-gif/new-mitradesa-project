@@ -1,0 +1,12 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+
+# Disallow admin routes
+Disallow: /app
+Disallow: /admin
+Disallow: /login
+Disallow: /verifikasi
+
+# Sitemap
+Sitemap: /sitemap.xml

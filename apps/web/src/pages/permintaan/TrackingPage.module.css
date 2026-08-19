@@ -1,0 +1,354 @@
+/* Tracking Page Styles */
+
+.header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 3rem 1.5rem;
+  text-align: center;
+}
+
+.headerContent {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.title {
+  color: white !important;
+  margin-bottom: 0.5rem;
+}
+
+.subtitle {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.actions {
+  margin-top: 1.5rem;
+}
+
+.content {
+  padding: 2rem 1.5rem;
+  background: #f7fafc;
+  min-height: calc(100vh - 300px);
+}
+
+.container {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.statusCard {
+  background: white;
+  border-radius: 1rem;
+  padding: 2rem;
+  border: 1px solid #e2e8f0;
+  margin-bottom: 1.5rem;
+}
+
+.requestNumber {
+  text-align: center;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 1.5rem;
+}
+
+.number {
+  font-family: monospace;
+  color: #667eea;
+  margin-top: 0.5rem;
+}
+
+.serviceInfo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2rem;
+}
+
+.statusBadge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.statusBadge.blue {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.statusBadge.green {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.statusBadge.yellow {
+  background: #fef9c3;
+  color: #ca8a04;
+}
+
+.statusBadge.red {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.statusBadge.gray {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.statusBadge.purple {
+  background: #f3e8ff;
+  color: #9333ea;
+}
+
+/* Timeline */
+.timeline {
+  margin: 2rem 0;
+}
+
+.steps {
+  display: flex;
+  justify-content: space-between;
+  position: relative;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  flex: 1;
+  z-index: 1;
+}
+
+.stepIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  transition: all 0.3s;
+}
+
+.stepActive .stepIcon {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.stepCompleted .stepIcon {
+  background: #10b981;
+}
+
+.stepLabel {
+  margin-top: 0.75rem;
+  font-size: 0.75rem;
+  color: #718096;
+  text-align: center;
+}
+
+.stepActive .stepLabel {
+  color: #667eea;
+  font-weight: 600;
+}
+
+.stepCompleted .stepLabel {
+  color: #10b981;
+}
+
+.stepLine {
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  width: 100%;
+  height: 3px;
+  background: #e2e8f0;
+  z-index: 0;
+}
+
+.stepLineActive {
+  background: #10b981;
+}
+
+.rejected {
+  text-align: center;
+  padding: 2rem;
+}
+
+.rejectedIcon {
+  width: 64px;
+  height: 64px;
+  background: #fee2e2;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  color: #dc2626;
+  margin: 0 auto 1rem;
+}
+
+.rejectedText {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #dc2626;
+  margin-bottom: 0.5rem;
+}
+
+/* Dates */
+.dates {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e2e8f0;
+  margin-top: 1.5rem;
+}
+
+.dateItem {
+  text-align: center;
+}
+
+/* Documents */
+.documents {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.documentsTitle {
+  margin-bottom: 1rem;
+}
+
+.documentItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  background: #f7fafc;
+  border-radius: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.documentNumber {
+  font-family: monospace;
+  font-weight: 600;
+}
+
+.verifyLink {
+  color: #667eea;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.verifyLink:hover {
+  text-decoration: underline;
+}
+
+/* Search Card */
+.searchCard {
+  background: white;
+  padding: 2rem;
+  border-radius: 1rem;
+  border: 1px solid #e2e8f0;
+  text-align: center;
+}
+
+.searchTitle {
+  margin-bottom: 1rem;
+}
+
+.searchForm {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.searchInput {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.searchButton {
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.searchButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+/* Help Card */
+.helpCard {
+  text-align: center;
+  padding: 1.5rem;
+  background: #fffbeb;
+  border: 1px solid #fef3c7;
+  border-radius: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.helpTitle {
+  color: #92400e;
+  margin-bottom: 0.5rem;
+}
+
+/* Buttons */
+.primaryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.primaryButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.secondaryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  background: white;
+  color: #667eea;
+  border: 2px solid #667eea;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.secondaryButton:hover {
+  background: #f7fafc;
+}

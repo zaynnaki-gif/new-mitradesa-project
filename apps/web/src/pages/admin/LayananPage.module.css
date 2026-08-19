@@ -1,0 +1,175 @@
+/* LayananPage.module.css */
+
+.container {
+  padding: var(--space-6);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-6);
+}
+
+.title {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  color: var(--color-navy-base);
+}
+
+.addButton {
+  background-color: var(--color-accent);
+  color: var(--color-navy-base);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.addButton:hover {
+  background-color: var(--color-accent-light);
+}
+
+.tableContainer {
+  background-color: var(--color-bg-base);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: var(--text-sm);
+}
+
+.th {
+  background-color: var(--color-bg-surface);
+  padding: var(--space-3) var(--space-4);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.thCenter {
+  text-align: center;
+}
+
+.tr {
+  border-bottom: 1px solid var(--color-border);
+  transition: background-color var(--transition-fast);
+}
+
+.tr:hover {
+  background-color: var(--color-bg-muted);
+}
+
+.tr:last-child {
+  border-bottom: none;
+}
+
+.td {
+  padding: var(--space-3) var(--space-4);
+  color: var(--color-text-primary);
+}
+
+.tdCenter {
+  text-align: center;
+}
+
+.tdMono {
+  font-family: var(--font-mono);
+}
+
+.badgeActive {
+  background-color: #dcfce7;
+  color: #166534;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.badgeInactive {
+  background-color: #f1f5f9;
+  color: #475569;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.actionButton {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  margin-right: var(--space-3);
+}
+
+.actionButton:last-child {
+  margin-right: 0;
+}
+
+.actionEdit {
+  color: var(--color-info);
+}
+
+.actionEdit:hover {
+  text-decoration: underline;
+}
+
+.actionDelete {
+  color: var(--color-error);
+}
+
+.actionDelete:hover {
+  text-decoration: underline;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-6);
+}
+
+.pageButton {
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg-base);
+  cursor: pointer;
+}
+
+.pageButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pageInfo {
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+.loading {
+  padding: var(--space-6);
+  color: var(--color-text-secondary);
+}
+
+.error {
+  padding: var(--space-6);
+  color: var(--color-error);
+}
+
+.emptyState {
+  text-align: center;
+  padding: var(--space-8);
+  color: var(--color-text-secondary);
+}

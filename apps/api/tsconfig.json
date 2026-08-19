@@ -1,0 +1,24 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "baseUrl": "./src",
+    "paths": {
+      "@/*": ["./*"],
+      "@config/*": ["./config/*"],
+      "@controllers/*": ["./controllers/*"],
+      "@services/*": ["./services/*"],
+      "@repositories/*": ["./repositories/*"],
+      "@middleware/*": ["./middleware/*"],
+      "@routes/*": ["./routes/*"],
+      "@utils/*": ["./utils/*"]
+    },
+    "types": ["node", "jest"]
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "src/config/test-setup.ts"]
+}
