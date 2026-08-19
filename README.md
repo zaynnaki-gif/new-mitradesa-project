@@ -70,6 +70,12 @@ npm run test:e2e
 - [Implementation Contract](./docs/architecture/phase-0.5/12-IMPLEMENTATION-CONTRACT.md)
 - [Development Guide](./docs/development/)
 
+## Deployment
+
+Deployed automatically to Hostinger via GitHub Actions on push to `main` branch.
+
+See [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) for detailed deployment instructions.
+
 ## License
 
 Private - All rights reserved
