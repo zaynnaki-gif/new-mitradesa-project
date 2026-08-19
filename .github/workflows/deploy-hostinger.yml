@@ -24,9 +24,6 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
-      - name: Install sshpass
-        run: apt-get update && apt-get install -y sshpass
-
       - name: Create API .env file
         run: |
           cat > apps/api/.env << 'EOF'
@@ -49,15 +46,34 @@ jobs:
           tar -czf ../api-deploy.tar.gz dist package.json package-lock.json prisma .env
 
       - name: Deploy API to Hostinger
-        env:
-          SSH_HOST: ${{ secrets.HOSTINGER_HOST }}
-          SSH_USER: ${{ secrets.HOSTINGER_USER }}
-          SSH_PASS: ${{ secrets.HOSTINGER_PASSWORD }}
-          SSH_PORT: ${{ secrets.HOSTINGER_PORT }}
-          API_PATH: ${{ secrets.HOSTINGER_API_PATH }}
-        run: |
-          sshpass -p "$SSH_PASS" scp -P $SSH_PORT api-deploy.tar.gz $SSH_USER@$SSH_HOST:$API_PATH/
-          sshpass -p "$SSH_PASS" ssh -p $SSH_PORT $SSH_USER@$SSH_HOST "cd $API_PATH && tar -xzf api-deploy.tar.gz && rm api-deploy.tar.gz && npm install --omit=dev && npx prisma generate && npx prisma migrate deploy || echo 'Migration skipped' && pm2 restart mitradesa-api || (pm2 delete mitradesa-api 2>/dev/null; pm2 start npm --name 'mitradesa-api' -- start)"
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.HOSTINGER_HOST }}
+          username: ${{ secrets.HOSTINGER_USER }}
+          password: ${{ secrets.HOSTINGER_PASSWORD }}
+          port: ${{ secrets.HOSTINGER_PORT }}
+          command_timeout: 10m
+          source: "api-deploy.tar.gz"
+          target: "${{ secrets.HOSTINGER_API_PATH }}"
+          strip_components: 0
+          overwrite: true
+
+      - name: Run remote commands
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOSTINGER_HOST }}
+          username: ${{ secrets.HOSTINGER_USER }}
+          password: ${{ secrets.HOSTINGER_PASSWORD }}
+          port: ${{ secrets.HOSTINGER_PORT }}
+          command_timeout: 10m
+          script: |
+            cd ${{ secrets.HOSTINGER_API_PATH }}
+            tar -xzf api-deploy.tar.gz
+            rm api-deploy.tar.gz
+            npm install --omit=dev
+            npx prisma generate
+            npx prisma migrate deploy || echo "Migration skipped"
+            pm2 restart mitradesa-api || (pm2 delete mitradesa-api 2>/dev/null; pm2 start npm --name "mitradesa-api" -- start)
 
   deploy-web:
     name: Deploy Web
@@ -73,9 +89,6 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-
-      - name: Install sshpass
-        run: apt-get update && apt-get install -y sshpass
 
       - name: Create Web .env file
         run: |
@@ -95,12 +108,28 @@ jobs:
         run: tar -czf web-deploy.tar.gz -C apps/web dist
 
       - name: Deploy Web to Hostinger
-        env:
-          SSH_HOST: ${{ secrets.HOSTINGER_HOST }}
-          SSH_USER: ${{ secrets.HOSTINGER_USER }}
-          SSH_PASS: ${{ secrets.HOSTINGER_PASSWORD }}
-          SSH_PORT: ${{ secrets.HOSTINGER_PORT }}
-          WEB_PATH: ${{ secrets.HOSTINGER_WEB_PATH }}
-        run: |
-          sshpass -p "$SSH_PASS" scp -P $SSH_PORT web-deploy.tar.gz $SSH_USER@$SSH_HOST:$WEB_PATH/
-          sshpass -p "$SSH_PASS" ssh -p $SSH_PORT $SSH_USER@$SSH_HOST "cd $WEB_PATH && rm -rf * && tar -xzf web-deploy.tar.gz && rm web-deploy.tar.gz"
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.HOSTINGER_HOST }}
+          username: ${{ secrets.HOSTINGER_USER }}
+          password: ${{ secrets.HOSTINGER_PASSWORD }}
+          port: ${{ secrets.HOSTINGER_PORT }}
+          command_timeout: 10m
+          source: "web-deploy.tar.gz"
+          target: "${{ secrets.HOSTINGER_WEB_PATH }}"
+          strip_components: 0
+          overwrite: true
+
+      - name: Extract Web files
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOSTINGER_HOST }}
+          username: ${{ secrets.HOSTINGER_USER }}
+          password: ${{ secrets.HOSTINGER_PASSWORD }}
+          port: ${{ secrets.HOSTINGER_PORT }}
+          command_timeout: 10m
+          script: |
+            cd ${{ secrets.HOSTINGER_WEB_PATH }}
+            rm -rf *
+            tar -xzf web-deploy.tar.gz
+            rm web-deploy.tar.gz
