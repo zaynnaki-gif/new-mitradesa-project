@@ -26,6 +26,7 @@ jobs:
 
       - name: Create API .env file
         run: |
+          mkdir -p apps/api
           cat > apps/api/.env << 'EOF'
           ${{ secrets.HOSTINGER_API_ENV }}
           EOF
@@ -40,10 +41,14 @@ jobs:
       - name: Build API
         run: npm run build:api
 
-      - name: Create API archive
+      - name: Create API deployment package
         run: |
-          cd apps/api
-          tar -czf ../api-deploy.tar.gz dist package.json package-lock.json prisma .env
+          mkdir -p deploy-api
+          cp -r apps/api/dist deploy-api/
+          cp apps/api/.env deploy-api/.env
+          cp package.json package-lock.json deploy-api/
+          cp apps/api/package.json deploy-api/
+          tar -czf api-deploy.tar.gz -C deploy-api .
 
       - name: Deploy API to Hostinger
         uses: appleboy/scp-action@master
@@ -104,9 +109,6 @@ jobs:
         env:
           VITE_API_URL: ${{ secrets.PROD_API_URL }}
 
-      - name: Create Web archive
-        run: tar -czf web-deploy.tar.gz -C apps/web dist
-
       - name: Deploy Web to Hostinger
         uses: appleboy/scp-action@master
         with:
@@ -115,12 +117,12 @@ jobs:
           password: ${{ secrets.HOSTINGER_PASSWORD }}
           port: ${{ secrets.HOSTINGER_PORT }}
           command_timeout: 10m
-          source: "web-deploy.tar.gz"
+          source: "apps/web/dist/*"
           target: "${{ secrets.HOSTINGER_WEB_PATH }}"
           strip_components: 0
           overwrite: true
 
-      - name: Extract Web files
+      - name: Clean Web folder
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.HOSTINGER_HOST }}
@@ -130,6 +132,4 @@ jobs:
           command_timeout: 10m
           script: |
             cd ${{ secrets.HOSTINGER_WEB_PATH }}
-            rm -rf *
-            tar -xzf web-deploy.tar.gz
-            rm web-deploy.tar.gz
+            ls -la
