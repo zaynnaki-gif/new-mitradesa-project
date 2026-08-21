@@ -129,6 +129,7 @@ export const ADMIN_NAV_LINKS = [
   { label: 'Wilayah', href: '/admin/master/wilayah' },
   { label: 'Penduduk', href: '/admin/master/penduduk' },
   { label: 'Keluarga', href: '/admin/master/keluarga' },
+  { label: 'Referensi', href: '/admin/master/referensi' },
   { label: 'Identitas Desa', href: '/admin/master/identitas-desa' },
   { label: 'Perangkat Desa', href: '/admin/master/perangkat-desa' },
   { label: 'Layanan', href: '/admin/layanan' },
