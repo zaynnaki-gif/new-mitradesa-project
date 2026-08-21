@@ -141,3 +141,15 @@ export interface KeluargaListResponse {
   data: KeluargaResponse[];
   meta: PaginationMeta;
 }
+
+// ============================================
+// Export/Import Types
+// ============================================
+export interface ImportResult {
+  keluargaCreated: number;
+  keluargaUpdated: number;
+  pendudukCreated: number;
+  pendudukUpdated: number;
+  failed: number;
+  errors: string[];
+}

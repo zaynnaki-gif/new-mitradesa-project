@@ -1,0 +1,264 @@
+/* KeluargaPage Styles */
+
+.container {
+  padding: 1.5rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+  gap: 1rem;
+}
+
+.title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0 0 0.25rem 0;
+}
+
+.subtitle {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.headerActions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.filters {
+  background: var(--color-bg-surface);
+  padding: 1rem;
+  border-radius: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.searchForm {
+  display: flex;
+  gap: 0.5rem;
+  max-width: 400px;
+}
+
+.searchForm input {
+  flex: 1;
+}
+
+/* Table */
+.tableWrapper {
+  background: var(--color-bg-surface);
+  border-radius: 0.5rem;
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.table th {
+  background: var(--color-bg-hover);
+  font-weight: 600;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.table tbody tr:hover {
+  background: var(--color-bg-hover);
+}
+
+.table .noKk {
+  font-family: monospace;
+  font-size: 0.9rem;
+}
+
+.table .empty {
+  text-align: center;
+  padding: 3rem;
+  color: var(--color-text-secondary);
+}
+
+.table .actions {
+  white-space: nowrap;
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1rem;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+/* Modal Content */
+.detailModal {
+  min-width: 500px;
+}
+
+.detailHeader {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: 1rem;
+}
+
+.detailLabel {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  margin: 0 0 0.25rem 0;
+}
+
+.detailValue {
+  font-size: 1rem;
+  margin: 0;
+}
+
+/* Anggota Section */
+.anggotaSection {
+  margin-top: 1rem;
+}
+
+.anggotaHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.anggotaHeader h4 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.noAnggota {
+  text-align: center;
+  padding: 2rem;
+  color: var(--color-text-secondary);
+}
+
+.anggotaTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.anggotaTable th,
+.anggotaTable td {
+  padding: 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.anggotaTable th {
+  background: var(--color-bg-hover);
+  font-weight: 600;
+}
+
+/* Form */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 400px;
+}
+
+.rowFields {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+/* Import Modal */
+.importModal {
+  min-width: 400px;
+}
+
+.importInfo {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  margin-bottom: 1rem;
+}
+
+.importLoading {
+  margin: 1rem 0;
+  color: var(--color-primary);
+}
+
+.importResult {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: var(--color-bg-hover);
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.importResult p {
+  margin: 0.25rem 0;
+}
+
+.importErrors {
+  margin-top: 0.5rem;
+  color: var(--color-error);
+}
+
+.importErrors ul {
+  margin: 0.25rem 0 0 1.5rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .headerActions {
+    flex-wrap: wrap;
+  }
+
+  .searchForm {
+    max-width: none;
+  }
+
+  .rowFields {
+    grid-template-columns: 1fr;
+  }
+
+  .table td,
+  .table th {
+    padding: 0.5rem;
+    font-size: 0.875rem;
+  }
+
+  .detailModal {
+    min-width: auto;
+  }
+
+  .detailHeader {
+    grid-template-columns: 1fr;
+  }
+}

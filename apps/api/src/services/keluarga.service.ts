@@ -471,6 +471,256 @@ export class KeluargaService {
 
     return { message: 'Anggota dihapus dari keluarga' };
   }
+
+  /**
+   * Export all keluarga to CSV format
+   */
+  async exportToCsv(desaId?: bigint): Promise<string> {
+    const where: any = { deletedAt: null };
+    if (desaId) where.desaId = desaId;
+
+    const keluargaList = await prisma.keluarga.findMany({
+      where,
+      include: {
+        kepala: { select: { nik: true, namaLengkap: true } },
+        anggota: {
+          where: { isAktif: true },
+          include: {
+            penduduk: {
+              select: { nik: true, namaLengkap: true, hubunganKeluarga: true },
+            },
+          },
+        },
+      },
+      orderBy: { noKk: 'asc' },
+    });
+
+    // CSV Header
+    const headers = ['No_KK', 'Nama_Kepala', 'NIK_Kepala', 'Alamat', 'Dusun', 'RW', 'RT', 'Nama_Anggota', 'NIK_Anggota', 'Hubungan'];
+
+    // Generate rows - one row per anggota (including kepala)
+    const rows: string[][] = [];
+
+    for (const keluarga of keluargaList) {
+      // Kepala keluarga row
+      rows.push([
+        keluarga.noKk,
+        keluarga.kepala.namaLengkap,
+        keluarga.kepala.nik,
+        keluarga.alamat || '',
+        keluarga.dusun || '',
+        keluarga.rw || '',
+        keluarga.rt || '',
+        keluarga.kepala.namaLengkap,
+        keluarga.kepala.nik,
+        'KEPALA',
+      ]);
+
+      // Other anggota rows
+      for (const anggota of keluarga.anggota) {
+        if (anggota.penduduk.nik !== keluarga.kepala.nik) {
+          rows.push([
+            keluarga.noKk,
+            keluarga.kepala.namaLengkap,
+            keluarga.kepala.nik,
+            keluarga.alamat || '',
+            keluarga.dusun || '',
+            keluarga.rw || '',
+            keluarga.rt || '',
+            anggota.penduduk.namaLengkap,
+            anggota.penduduk.nik,
+            anggota.penduduk.hubunganKeluarga || anggota.hubungan,
+          ]);
+        }
+      }
+    }
+
+    // Convert to CSV string
+    const escapeCsv = (val: string) => {
+      if (val.includes(',') || val.includes('"') || val.includes('\n')) {
+        return `"${val.replace(/"/g, '""')}"`;
+      }
+      return val;
+    };
+
+    const csvLines = [
+      headers.join(','),
+      ...rows.map(row => row.map(escapeCsv).join(',')),
+    ];
+
+    return csvLines.join('\n');
+  }
+
+  /**
+   * Import keluarga from CSV data
+   */
+  async importFromCsv(
+    csvContent: string,
+    _actorId?: bigint,
+    _actorIp?: string,
+    _actorAgent?: string
+  ): Promise<{ keluargaCreated: number; keluargaUpdated: number; pendudukCreated: number; pendudukUpdated: number; failed: number; errors: string[] }> {
+    const lines = csvContent.split('\n').filter(line => line.trim());
+    if (lines.length < 2) {
+      return { keluargaCreated: 0, keluargaUpdated: 0, pendudukCreated: 0, pendudukUpdated: 0, failed: 0, errors: ['File CSV kosong atau tidak valid'] };
+    }
+
+    const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+    const parseRow = (row: string): Record<string, string> => {
+      const values = row.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || [];
+      const result: Record<string, string> = {};
+      headers.forEach((h, i) => {
+        result[h] = (values[i] || '').replace(/^"|"$/g, '').trim();
+      });
+      return result;
+    };
+
+    const result = {
+      keluargaCreated: 0,
+      keluargaUpdated: 0,
+      pendudukCreated: 0,
+      pendudukUpdated: 0,
+      failed: 0,
+      errors: [] as string[],
+    };
+
+    // Group by No_KK for batch processing
+    const keluargaMap = new Map<string, any[]>();
+
+    for (let i = 1; i < lines.length; i++) {
+      const row = parseRow(lines[i]);
+      if (!row['No_KK']) continue;
+
+      const keluargaData = keluargaMap.get(row['No_KK']) || [];
+      keluargaData.push({ row, line: i + 1 });
+      keluargaMap.set(row['No_KK'], keluargaData);
+    }
+
+    // Process each keluarga
+    for (const [noKk, anggotaRows] of keluargaMap) {
+      try {
+        // Find or create kepala keluarga (first KEPALA row)
+        const kepalaRow = anggotaRows.find(r => r.row['Hubungan'] === 'KEPALA');
+        if (!kepalaRow) {
+          result.failed++;
+          result.errors.push(`No KK ${noKk}: Tidak ada baris KEPALA`);
+          continue;
+        }
+
+        const kepalaNik = kepalaRow.row['NIK_Kepala']?.replace(/\D/g, '');
+        if (!kepalaNik || kepalaNik.length !== 16) {
+          result.failed++;
+          result.errors.push(`Baris ${kepalaRow.line}: NIK Kepala tidak valid`);
+          continue;
+        }
+
+        // Find or create penduduk for kepala
+        let kepala = await prisma.penduduk.findUnique({ where: { nik: kepalaNik } });
+        if (!kepala) {
+          kepala = await prisma.penduduk.create({
+            data: {
+              nik: kepalaNik,
+              namaLengkap: kepalaRow.row['Nama_Kepala'] || '',
+              tempatLahir: '',
+              tanggalLahir: new Date('1970-01-01'),
+              jenisKelamin: 'L',
+              statusPerkawinan: 'BK',
+              hubunganKeluarga: 'KEPALA',
+            },
+          });
+          result.pendudukCreated++;
+        } else {
+          result.pendudukUpdated++;
+        }
+
+        // Find or create keluarga
+        let keluarga = await prisma.keluarga.findFirst({
+          where: { noKk, deletedAt: null },
+        });
+
+        if (!keluarga) {
+          keluarga = await prisma.keluarga.create({
+            data: {
+              noKk,
+              kepalaId: kepala.id,
+              alamat: kepalaRow.row['Alamat'] || null,
+              dusun: kepalaRow.row['Dusun'] || null,
+              rw: kepalaRow.row['RW'] || null,
+              rt: kepalaRow.row['RT'] || null,
+            },
+          });
+          result.keluargaCreated++;
+
+          // Add kepala as anggota
+          await prisma.anggotaKeluarga.create({
+            data: {
+              keluargaId: keluarga.id,
+              pendudukId: kepala.id,
+              hubungan: 'KEPALA',
+              isAktif: true,
+            },
+          });
+        } else {
+          result.keluargaUpdated++;
+        }
+
+        // Process other anggota
+        for (const { row: anggotaRow, line } of anggotaRows) {
+          if (anggotaRow['Hubungan'] === 'KEPALA') continue;
+
+          const nik = anggotaRow['NIK_Anggota']?.replace(/\D/g, '');
+          if (!nik || nik.length !== 16) {
+            result.errors.push(`Baris ${line}: NIK tidak valid, dilewati`);
+            continue;
+          }
+
+          // Check if already in keluarga
+          const existing = await prisma.anggotaKeluarga.findFirst({
+            where: {
+              keluargaId: keluarga.id,
+              penduduk: { nik },
+              isAktif: true,
+            },
+          });
+          if (existing) continue;
+
+          // Find or create penduduk
+          let penduduk = await prisma.penduduk.findUnique({ where: { nik } });
+          if (!penduduk) {
+            penduduk = await prisma.penduduk.create({
+              data: {
+                nik,
+                namaLengkap: anggotaRow['Nama_Anggota'] || '',
+                tempatLahir: '',
+                tanggalLahir: new Date('1970-01-01'),
+                jenisKelamin: 'L',
+                statusPerkawinan: 'BK',
+                hubunganKeluarga: anggotaRow['Hubungan'] || 'ANAK',
+              },
+            });
+            result.pendudukCreated++;
+          } else {
+            result.pendudukUpdated++;
+          }
+
+          // Add as anggota
+          await prisma.anggotaKeluarga.create({
+            data: {
+              keluargaId: keluarga.id,
+              pendudukId: penduduk.id,
+              hubungan: anggotaRow['Hubungan'] || 'ANAK',
+              isAktif: true,
+            },
+          });
+        }
+      } catch (err: any) {
+        result.failed++;
+        result.errors.push(`No KK ${noKk}: ${err.message}`);
+      }
+    }
+
+    return result;
+  }
 }
 
 export const keluargaService = new KeluargaService();

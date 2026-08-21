@@ -178,4 +178,39 @@ router.delete(
   })
 );
 
+/**
+ * POST /api/keluarga/export - Export semua keluarga ke CSV
+ */
+router.post(
+  '/export',
+  authenticateInternal(),
+  authorize('keluarga.view'),
+  asyncHandler(async (_req, res) => {
+    const csv = await keluargaService.exportToCsv();
+    const date = new Date().toISOString().split('T')[0];
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="keluarga_${date}.csv"`);
+    return res.send('﻿' + csv); // BOM for UTF-8
+  })
+);
+
+/**
+ * POST /api/keluarga/import - Import keluarga dari CSV
+ */
+router.post(
+  '/import',
+  authenticateInternal(),
+  authorize('keluarga.create'),
+  asyncHandler(async (req, res) => {
+    const { csv } = req.body as { csv: string };
+    if (!csv) {
+      throw new Error('File CSV diperlukan');
+    }
+
+    const result = await keluargaService.importFromCsv(csv);
+
+    return response.success(res, result, 'Import selesai');
+  })
+);
+
 export default router;

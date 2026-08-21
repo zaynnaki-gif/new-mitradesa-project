@@ -48,6 +48,8 @@ const AppDashboard = lazy(() => import('./pages/AppDashboard'));
 const WilayahPage = lazy(() => import('./pages/admin/WilayahPage').then(m => ({ default: m.WilayahPage })));
 const IdentitasDesaPage = lazy(() => import('./pages/admin/IdentitasDesaPage'));
 const PerangkatDesaPage = lazy(() => import('./pages/admin/PerangkatDesaPage').then(m => ({ default: m.PerangkatDesaPage })));
+const PendudukPage = lazy(() => import('./pages/admin/penduduk/PendudukPage'));
+const KeluargaPage = lazy(() => import('./pages/admin/master/KeluargaPage').then(m => ({ default: m.default })));
 
 // Surat Template pages
 const TemplateListPage = lazy(() => import('./pages/admin/surat/TemplateListPage'));
@@ -158,6 +160,23 @@ function App() {
             />
 
             {/* Admin routes */}
+            {/* Admin Master Data routes */}
+            <Route
+              path="/admin/master/penduduk"
+              element={
+                <AdminRoute>
+                  <PendudukPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/master/keluarga"
+              element={
+                <AdminRoute>
+                  <KeluargaPage />
+                </AdminRoute>
+              }
+            />
             <Route
               path="/admin/master/wilayah"
               element={
