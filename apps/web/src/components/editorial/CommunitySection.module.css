@@ -1,176 +1,197 @@
-/* CommunitySection Component Styles */
-
-/* ============================================
-   EDITORIAL COMMUNITY / PEOPLE
-   Human-centered section with photography
-   ============================================ */
-
-.community {
-  padding: var(--section-padding-y) 0;
-  background-color: var(--editorial-cream);
+.communitySection {
+  padding: var(--space-24) 0;
+  background-color: var(--color-bg-muted);
 }
 
-.communityInner {
-  max-width: var(--container-max);
-  margin: 0 auto;
-  padding: 0 var(--space-6);
+.headerLayout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  margin-bottom: var(--space-16);
 }
 
-.communityHeader {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--grid-gap-lg);
-  align-items: end;
-  margin-bottom: var(--space-12);
+@media (min-width: 1024px) {
+  .headerLayout {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-end;
+  }
 }
 
-.communityHeaderLeft {}
+.headerLeft {
+  flex: 1;
+}
 
-.communityEyebrow {
-  font-size: var(--type-caption);
+.headerRight {
+  flex: 1;
+  max-width: 600px;
+}
+
+.eyebrow {
+  display: inline-block;
+  font-size: var(--text-sm);
   font-weight: 600;
-  letter-spacing: var(--tracking-widest);
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--amber-600);
-  margin-bottom: var(--space-4);
-  display: block;
+  color: var(--color-accent);
+  margin-bottom: var(--space-2);
 }
 
-.communityTitle {
-  font-family: var(--font-display);
-  font-size: var(--type-h1);
-  font-weight: 700;
-  line-height: var(--leading-heading);
-  letter-spacing: var(--tracking-tight);
-  color: var(--ink-deep);
+.title {
+  font-size: var(--text-4xl);
+  color: var(--color-navy-base);
 }
 
-.communityHeaderRight {
-  padding-bottom: var(--space-4);
-}
-
-.communityDescription {
-  font-size: var(--type-body-lg);
+.description {
+  font-size: var(--text-lg);
+  color: var(--color-text-secondary);
   line-height: var(--leading-relaxed);
-  color: var(--ink-medium);
+  margin-bottom: var(--space-6);
 }
 
-/* People Grid */
+.btnOutline {
+  display: inline-block;
+  padding: var(--space-3) var(--space-8);
+  border: 2px solid var(--color-navy-base);
+  color: var(--color-navy-base);
+  border-radius: var(--radius-full);
+  font-weight: 600;
+  transition: all var(--transition-base);
+}
+
+.btnOutline:hover {
+  background: var(--color-navy-base);
+  color: white;
+}
+
+/* Grid */
 .communityGrid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: var(--space-6);
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-8);
+  margin-bottom: var(--space-16);
+}
+
+@media (min-width: 768px) {
+  .communityGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .communityGrid {
+    grid-template-columns: repeat(4, 1fr);
+  }
 }
 
 .personCard {
   text-align: center;
+  group: hover;
 }
 
-.personImage {
+.personImageWrapper {
   position: relative;
   width: 100%;
   aspect-ratio: 3/4;
+  border-radius: var(--radius-2xl);
   overflow: hidden;
   margin-bottom: var(--space-4);
-  background-color: var(--stone-200);
+  box-shadow: var(--shadow-md);
 }
 
-.personImage img {
+.personImage {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform var(--transition-slower) var(--ease-out-expo);
+  transition: transform var(--transition-slow);
 }
 
-.personCard:hover .personImage img {
+.personCard:hover .personImage {
   transform: scale(1.05);
 }
 
+.avatarPlaceholder {
+  width: 100%;
+  height: 100%;
+  background: #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+}
+
+.avatarPlaceholder svg {
+  width: 48px;
+  height: 48px;
+}
+
+.imageOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(79, 70, 229, 0);
+  transition: background var(--transition-base);
+}
+
+.personCard:hover .imageOverlay {
+  background: rgba(79, 70, 229, 0.1);
+}
+
 .personName {
-  font-family: var(--font-display);
-  font-size: var(--type-h4);
-  font-weight: 600;
-  color: var(--ink-deep);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--color-navy-base);
   margin-bottom: var(--space-1);
 }
 
 .personRole {
-  font-size: var(--type-small);
-  color: var(--stone-500);
+  font-size: var(--text-sm);
+  color: var(--color-accent);
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: var(--tracking-wide);
+  letter-spacing: 0.05em;
 }
 
-/* Statement Quote */
-.communityQuote {
+/* Quote */
+.quoteWrapper {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.quoteBox {
   position: relative;
   padding: var(--space-12);
-  background-color: var(--editorial-white);
-  margin-top: var(--space-12);
-}
-
-.communityQuote::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: linear-gradient(to right, var(--amber-400), var(--amber-600));
-}
-
-.communityQuoteText {
-  font-family: var(--font-display);
-  font-size: var(--type-h3);
-  font-weight: 400;
-  font-style: italic;
-  line-height: var(--leading-relaxed);
-  color: var(--ink-deep);
-  max-width: 800px;
-  margin: 0 auto var(--space-6);
-}
-
-.communityQuoteAuthor {
+  border-radius: var(--radius-2xl);
   text-align: center;
 }
 
-.communityQuoteName {
-  font-weight: 600;
-  color: var(--ink-deep);
+.quoteIcon {
+  width: 48px;
+  height: 48px;
+  color: rgba(79, 70, 229, 0.2);
+  margin: 0 auto var(--space-6);
 }
 
-.communityQuoteRole {
-  font-size: var(--type-small);
-  color: var(--stone-500);
+.quoteText {
+  font-size: var(--text-2xl);
+  color: var(--color-navy-base);
+  line-height: var(--leading-relaxed);
+  font-style: italic;
+  font-family: var(--font-serif);
+  margin-bottom: var(--space-6);
 }
 
-/* Responsive */
-@media (max-width: 1024px) {
-  .communityHeader {
-    grid-template-columns: 1fr;
-    gap: var(--space-6);
-  }
-
-  .communityGrid {
-    grid-template-columns: repeat(2, 1fr);
-  }
+.quoteAuthor {
+  font-size: var(--text-sm);
 }
 
-@media (max-width: 640px) {
-  .communityGrid {
-    grid-template-columns: 1fr;
-    gap: var(--space-8);
-  }
+.quoteName {
+  font-weight: 700;
+  color: var(--color-navy-base);
+}
 
-  .communityTitle {
-    font-size: var(--type-h2);
-  }
-
-  .communityQuote {
-    padding: var(--space-8);
-  }
-
-  .communityQuoteText {
-    font-size: var(--type-h4);
-  }
+.quoteRole {
+  color: var(--color-text-secondary);
 }

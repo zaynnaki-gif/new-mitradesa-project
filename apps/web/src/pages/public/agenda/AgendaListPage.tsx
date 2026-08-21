@@ -1,9 +1,10 @@
 import { useAgendaList } from '@/hooks/useAgenda';
 import { PublicLayout } from '@/layouts';
-import { Typography } from '@/components/ui';
+
 import { LoadingState, EmptyState, ErrorState } from '@/components/states';
 import { useIdentitasDesa } from '@/hooks/useIdentitasDesa';
 import { useSEO, getPageTitle } from '@/hooks/useSeo';
+import { EditorialHero, EditorialSection } from '@/components/editorial';
 import styles from './AgendaListPage.module.css';
 
 export default function AgendaListPage() {
@@ -28,18 +29,12 @@ export default function AgendaListPage() {
 
   return (
     <PublicLayout>
-      <section className={styles.pageHeader}>
-        <div className={styles.headerContent}>
-          <Typography variant="h1" className={styles.pageTitle}>
-            Agenda Desa
-          </Typography>
-          <Typography variant="body1" className={styles.pageSubtitle}>
-            Jadwal kegiatan dan acara di {villageName}
-          </Typography>
-        </div>
-      </section>
+      <EditorialHero 
+        title="Agenda Desa" 
+        subtitle={`Jadwal kegiatan dan acara di ${villageName}`} 
+      />
 
-      <section className={styles.content}>
+      <EditorialSection alternate>
         <div className={styles.container}>
           {loading && <LoadingState message="Memuat jadwal agenda..." />}
 
@@ -103,7 +98,7 @@ export default function AgendaListPage() {
             </div>
           )}
         </div>
-      </section>
+      </EditorialSection>
     </PublicLayout>
   );
 }

@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { PublicLayout } from '@/layouts';
-import { Typography } from '@/components/ui';
+
 import { LoadingState, EmptyState, ErrorState } from '@/components/states';
 import { useUmkmList } from '@/hooks/useUmkm';
 import { useSEO, getPageTitle } from '@/hooks/useSeo';
+import { EditorialHero, EditorialSection } from '@/components/editorial';
 import styles from './UmkmListPage.module.css';
 
 export default function UmkmListPage() {
@@ -40,18 +41,12 @@ export default function UmkmListPage() {
 
   return (
     <PublicLayout>
-      <section className={styles.pageHeader}>
-        <div className={styles.headerContent}>
-          <Typography variant="h1" className={styles.pageTitle}>
-            Potensi UMKM Desa
-          </Typography>
-          <Typography variant="body1" className={styles.pageSubtitle}>
-            Dukung perekonomian lokal dengan produk-produk unggulan karya warga desa.
-          </Typography>
-        </div>
-      </section>
+      <EditorialHero 
+        title="Potensi UMKM Desa" 
+        subtitle="Dukung perekonomian lokal dengan produk-produk unggulan karya warga desa." 
+      />
 
-      <section className={styles.content}>
+      <EditorialSection alternate>
         <div className={styles.container}>
           {/* Search & Category Filter */}
           <div className={styles.filterSection}>
@@ -133,7 +128,7 @@ export default function UmkmListPage() {
             </div>
           )}
         </div>
-      </section>
+      </EditorialSection>
     </PublicLayout>
   );
 }

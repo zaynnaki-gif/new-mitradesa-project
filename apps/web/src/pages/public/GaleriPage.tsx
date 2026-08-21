@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { PublicLayout } from '@/layouts';
-import { Typography } from '@/components/ui';
+
 import { LoadingState, ErrorState, EmptyState } from '@/components/states';
 import { useIdentitasDesa } from '@/hooks/useIdentitasDesa';
 import { useSEO, getPageTitle } from '@/hooks/useSeo';
 import { API_URL } from '@/lib/constants';
+import { EditorialHero, EditorialSection } from '@/components/editorial';
 import styles from './GaleriPage.module.css';
 
 interface MediaItem {
@@ -62,20 +63,13 @@ export default function GaleriPage() {
 
   return (
     <PublicLayout>
-      {/* Page Header */}
-      <section className={styles.pageHeader}>
-        <div className={styles.headerContent}>
-          <Typography variant="h1" className={styles.pageTitle}>
-            Galeri
-          </Typography>
-          <Typography variant="body1" className={styles.pageSubtitle}>
-            Kumpulan foto dan video kegiatan {villageName}
-          </Typography>
-        </div>
-      </section>
+      <EditorialHero 
+        title="Galeri" 
+        subtitle={`Kumpulan foto dan video kegiatan ${villageName}`} 
+      />
 
       {/* Gallery Grid */}
-      <section className={styles.content}>
+      <EditorialSection alternate>
         <div className={styles.container}>
           {loading && (
             <LoadingState message="Memuat galeri..." />
@@ -120,7 +114,7 @@ export default function GaleriPage() {
             </div>
           )}
         </div>
-      </section>
+      </EditorialSection>
 
       {/* Lightbox Modal */}
       {selectedItem && (

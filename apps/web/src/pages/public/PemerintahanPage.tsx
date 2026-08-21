@@ -4,6 +4,7 @@ import { LoadingState, ErrorState, EmptyState } from '@/components/states';
 import { useIdentitasDesa } from '@/hooks/useIdentitasDesa';
 import { usePerangkatDesa } from '@/hooks/usePerangkatDesa';
 import { useSEO, getPageTitle } from '@/hooks/useSeo';
+import { EditorialHero, EditorialSection } from '@/components/editorial';
 import styles from './PemerintahanPage.module.css';
 
 export default function PemerintahanPage() {
@@ -63,20 +64,12 @@ export default function PemerintahanPage() {
 
   return (
     <PublicLayout>
-      {/* Page Header */}
-      <section className={styles.pageHeader}>
-        <div className={styles.headerContent}>
-          <Typography variant="h1" className={styles.pageTitle}>
-            Pemerintahan Desa
-          </Typography>
-          <Typography variant="body1" className={styles.pageSubtitle}>
-            Struktur pemerintahan dan perangkat desa {villageName}
-          </Typography>
-        </div>
-      </section>
+      <EditorialHero 
+        title="Pemerintahan Desa" 
+        subtitle={`Struktur pemerintahan dan perangkat desa ${villageName}`} 
+      />
 
-      {/* Content */}
-      <section className={styles.content}>
+      <EditorialSection alternate>
         <div className={styles.container}>
           {/* Loading/Error State for Identitas */}
           {isLoading && (
@@ -271,7 +264,7 @@ export default function PemerintahanPage() {
             </div>
           )}
         </div>
-      </section>
+      </EditorialSection>
     </PublicLayout>
   );
 }

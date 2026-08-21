@@ -51,6 +51,7 @@ const PerangkatDesaPage = lazy(() => import('./pages/admin/PerangkatDesaPage').t
 const PendudukPage = lazy(() => import('./pages/admin/penduduk/PendudukPage'));
 const KeluargaPage = lazy(() => import('./pages/admin/master/KeluargaPage').then(m => ({ default: m.default })));
 const ReferensiPage = lazy(() => import('./pages/admin/master/ReferensiPage').then(m => ({ default: m.default })));
+const LembagaPage = lazy(() => import('./pages/admin/lembaga/LembagaPage').then(m => ({ default: m.default })));
 
 // Surat Template pages
 const TemplateListPage = lazy(() => import('./pages/admin/surat/TemplateListPage'));
@@ -183,6 +184,14 @@ function App() {
               element={
                 <AdminRoute>
                   <ReferensiPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/master/lembaga"
+              element={
+                <AdminRoute>
+                  <LembagaPage />
                 </AdminRoute>
               }
             />

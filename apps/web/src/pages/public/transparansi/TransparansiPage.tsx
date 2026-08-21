@@ -1,9 +1,10 @@
 import { PublicLayout } from '@/layouts';
-import { Typography } from '@/components/ui';
+
 import { LoadingState, EmptyState } from '@/components/states';
 import { useIdentitasDesa } from '@/hooks/useIdentitasDesa';
 import { useSEO, getPageTitle } from '@/hooks/useSeo';
 import { useApbdes } from '@/hooks/useTransparansi';
+import { EditorialHero, EditorialSection } from '@/components/editorial';
 import styles from './TransparansiPage.module.css';
 
 export default function TransparansiPage() {
@@ -35,20 +36,12 @@ export default function TransparansiPage() {
 
   return (
     <PublicLayout>
-      {/* Page Header */}
-      <section className={styles.pageHeader}>
-        <div className={styles.headerContent}>
-          <Typography variant="h1" className={styles.pageTitle}>
-            Transparansi APBDes
-          </Typography>
-          <Typography variant="body1" className={styles.pageSubtitle}>
-            Informasi Anggaran Pendapatan dan Belanja {villageName} 
-            {apbdes ? ` Tahun Anggaran ${apbdes.tahun}` : ''}
-          </Typography>
-        </div>
-      </section>
+      <EditorialHero 
+        title="Transparansi APBDes" 
+        subtitle={`Informasi Anggaran Pendapatan dan Belanja ${villageName} ${apbdes ? ` Tahun Anggaran ${apbdes.tahun}` : ''}`} 
+      />
 
-      <section className={styles.content}>
+      <EditorialSection alternate>
         <div className={styles.container}>
           {loading && <LoadingState message="Memuat data transparansi..." />}
 
@@ -199,7 +192,7 @@ export default function TransparansiPage() {
             </>
           )}
         </div>
-      </section>
+      </EditorialSection>
     </PublicLayout>
   );
 }

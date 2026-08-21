@@ -8,8 +8,8 @@
 /* Container */
 .container {
   max-width: var(--container-max);
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 0 var(--space-6);
 }
 
 /* ============================================
@@ -17,28 +17,31 @@
    ============================================ */
 
 .pageHeader {
-  background-color: var(--editorial-cream);
-  padding: var(--space-16) 0;
-  border-bottom: 1px solid var(--stone-200);
+  background-color: var(--ink-deep);
+  color: var(--editorial-white);
+  padding: var(--space-16) var(--space-4) var(--space-20);
+  text-align: center;
 }
 
 .headerContent {
-  max-width: var(--container-max);
+  max-width: 800px;
   margin: 0 auto;
-  padding: 0 var(--space-6);
 }
 
 .pageTitle {
   font-family: var(--font-display);
-  font-size: var(--type-h1);
+  font-size: clamp(2.5rem, 5vw, 4rem);
   font-weight: 700;
-  color: var(--ink-deep);
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--space-4);
+  color: var(--editorial-white);
+  letter-spacing: var(--tracking-tight);
 }
 
 .pageSubtitle {
+  color: var(--stone-300);
+  max-width: 600px;
+  margin: 0 auto;
   font-size: var(--type-body-lg);
-  color: var(--ink-medium);
 }
 
 /* ============================================
@@ -46,8 +49,9 @@
    ============================================ */
 
 .content {
-  background-color: var(--editorial-white);
-  padding: var(--space-12) 0;
+  background-color: var(--editorial-cream);
+  padding: var(--space-8) var(--space-4) var(--space-24);
+  margin-top: calc(-1 * var(--space-12));
   min-height: 60vh;
 }
 
@@ -148,7 +152,8 @@
   position: relative;
   aspect-ratio: 16/10;
   overflow: hidden;
-  border-radius: var(--radius-lg);
+  border-radius: 0;
+  box-shadow: var(--shadow-md);
 }
 
 .featuredImage {
@@ -173,7 +178,7 @@
   text-transform: uppercase;
   background-color: var(--amber-500);
   color: var(--ink-deep);
-  border-radius: var(--radius-sm);
+  border-radius: 0;
 }
 
 .featuredContent {
@@ -254,7 +259,7 @@
 .newsGrid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-6);
+  gap: var(--space-8);
 }
 
 /* News Card */
@@ -262,8 +267,9 @@
   display: flex;
   flex-direction: column;
   background-color: var(--editorial-white);
-  border: 1px solid var(--stone-100);
-  border-radius: var(--radius-lg);
+  border: none;
+  border-radius: 0;
+  box-shadow: var(--shadow-sm);
   overflow: hidden;
   transition: all var(--transition-base);
 }

@@ -20,12 +20,8 @@ interface StatsSectionProps {
 
 export function StatsSection({
   data,
-  variant = 'default',
 }: StatsSectionProps) {
-  const { eyebrow, title, description, items } = data;
-  const isDark = variant === 'dark';
-  const isHorizontal = variant === 'horizontal';
-  const isMinimal = variant === 'minimal';
+  const { title, items } = data;
 
   const formatNumber = (value: number | string): string => {
     if (typeof value === 'string') return value;
@@ -33,28 +29,28 @@ export function StatsSection({
   };
 
   return (
-    <section
-      className={`${styles.stats} ${isDark ? styles.statsDark : ''} ${isHorizontal ? styles.statsHorizontal : ''} ${isMinimal ? styles.statsMinimal : ''}`}
-    >
-      <div className={styles.statsInner}>
-        {(eyebrow || title || description) && (
-          <header className={styles.statsHeader}>
-            {eyebrow && <span className={styles.statsEyebrow}>{eyebrow}</span>}
-            {title && <h2 className={styles.statsTitle}>{title}</h2>}
-            {description && (
-              <p className={styles.statsDescription}>{description}</p>
-            )}
-          </header>
+    <section className={styles.statsSection}>
+      <div className="container">
+        {title && (
+          <div className={`${styles.statsHeader} animate-fade-up`}>
+            <h2 className={styles.statsTitle}>{title}</h2>
+          </div>
         )}
 
         <div className={styles.statsGrid}>
           {items.map((item, index) => (
-            <div key={index} className={styles.statItem}>
-              <span className={styles.statNumber}>{formatNumber(item.value)}</span>
-              <span className={styles.statLabel}>{item.label}</span>
-              {item.description && (
-                <p className={styles.statDescription}>{item.description}</p>
-              )}
+            <div 
+              key={index} 
+              className={`${styles.statCard} glass animate-fade-up`} 
+              style={{ animationDelay: `${index * 100}ms` }}
+            >
+              <div className={styles.statContent}>
+                <span className={styles.statNumber}>{formatNumber(item.value)}</span>
+                <span className={styles.statLabel}>{item.label}</span>
+                {item.description && (
+                  <p className={styles.statDescription}>{item.description}</p>
+                )}
+              </div>
             </div>
           ))}
         </div>

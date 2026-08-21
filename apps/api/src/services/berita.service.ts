@@ -3,8 +3,22 @@ import { ApiError } from '../utils/response.js';
 import { Prisma } from '@prisma/client';
 import { CreateBeritaInput, UpdateBeritaInput, QueryBeritaInput } from '../dto/cms.dto.js';
 import { getInstanceContext } from '../config/instance.js';
+import sanitizeHtml from 'sanitize-html';
 
 export class BeritaService {
+  /**
+   * Helper to sanitize rich text
+   */
+  private sanitizeContent(content?: string): string | undefined {
+    if (!content) return content;
+    return sanitizeHtml(content, {
+      allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img', 'h1', 'h2', 'span']),
+      allowedAttributes: {
+        ...sanitizeHtml.defaults.allowedAttributes,
+        '*': ['style', 'class'],
+      }
+    });
+  }
   /**
    * Get all berita with pagination
    */
@@ -321,12 +335,14 @@ export class BeritaService {
       }
     }
 
+    const sanitizedKonten = this.sanitizeContent(data.konten);
+
     const berita = await prisma.berita.create({
       data: {
         judul: data.judul,
         slug: data.slug,
         excerpt: data.excerpt,
-        konten: data.konten,
+        konten: sanitizedKonten,
         gambarUrl: data.gambarUrl,
         status: data.status ?? 'DRAFT',
         kategoriId: data.kategoriId ? BigInt(data.kategoriId) : null,
@@ -404,7 +420,7 @@ export class BeritaService {
     if (data.judul !== undefined) updateData.judul = data.judul;
     if (data.slug !== undefined) updateData.slug = data.slug;
     if (data.excerpt !== undefined) updateData.excerpt = data.excerpt;
-    if (data.konten !== undefined) updateData.konten = data.konten;
+    if (data.konten !== undefined) updateData.konten = this.sanitizeContent(data.konten);
     if (data.gambarUrl !== undefined) updateData.gambarUrl = data.gambarUrl;
     if (data.status !== undefined) updateData.status = data.status;
     if (data.kategoriId !== undefined) {

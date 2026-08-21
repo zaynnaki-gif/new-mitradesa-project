@@ -5,6 +5,7 @@ import { useIdentitasDesa } from '@/hooks/useIdentitasDesa';
 import { useLayananList } from '@/hooks/useLayanan';
 import { useSEO, getPageTitle } from '@/hooks/useSeo';
 import { LoadingState, ErrorState } from '@/components/states';
+import { EditorialHero, EditorialSection } from '@/components/editorial';
 import styles from './LayananPage.module.css';
 
 export default function LayananPage() {
@@ -54,20 +55,12 @@ export default function LayananPage() {
 
   return (
     <PublicLayout>
-      {/* Page Header */}
-      <section className={styles.pageHeader}>
-        <div className={styles.headerContent}>
-          <Typography variant="h1" className={styles.pageTitle}>
-            Layanan Desa
-          </Typography>
-          <Typography variant="body1" className={styles.pageSubtitle}>
-            Informasi layanan administrasi {villageName}
-          </Typography>
-        </div>
-      </section>
+      <EditorialHero 
+        title="Layanan Desa" 
+        subtitle={`Informasi layanan administrasi ${villageName}`} 
+      />
 
-      {/* Content */}
-      <section className={styles.content}>
+      <EditorialSection alternate>
         <div className={styles.container}>
           {loading ? (
             <LoadingState message="Memuat layanan..." />
@@ -185,7 +178,7 @@ export default function LayananPage() {
             </Link>
           </div>
         </div>
-      </section>
+      </EditorialSection>
     </PublicLayout>
   );
 }

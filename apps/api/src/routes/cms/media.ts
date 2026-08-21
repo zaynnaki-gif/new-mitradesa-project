@@ -3,8 +3,17 @@ import { asyncHandler, response } from '../../utils/response.js';
 import { authenticateInternal, authorize } from '../../middleware/index.js';
 
 import { mediaService, CreateMediaInput } from '../../services/media.service.js';
-import { validateMimeType } from '../../services/storage/index.js';
+import { validateMimeType, getStorageProvider, getFileType } from '../../services/storage/index.js';
 import { z } from 'zod';
+import multer from 'multer';
+
+// Use memory storage for multer since we process buffer to storage provider
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB max limit, service will restrict further
+  }
+});
 
 const router = Router();
 
@@ -126,6 +135,60 @@ router.get(
   asyncHandler(async (req, res) => {
     const media = await mediaService.findBySlug(req.params.slug);
     return response.success(res, media, 'Detail Media');
+  })
+);
+
+/**
+ * POST /api/media/upload - Upload new media file
+ * Security: Validates MIME type, file size, extensions, and limits
+ */
+router.post(
+  '/upload',
+  authenticateInternal(),
+  authorize('media.upload'),
+  upload.single('file'),
+  asyncHandler(async (req, res) => {
+    const file = req.file;
+    if (!file) {
+      return response.error(res, 400, 'BAD_REQUEST', 'File tidak ditemukan');
+    }
+
+    if (!validateMimeType(file.mimetype)) {
+      return response.error(res, 400, 'BAD_REQUEST', 'Tipe file tidak diizinkan');
+    }
+
+    const { deskripsi, kategori, alt } = req.body;
+    let nama = req.body.nama || file.originalname.split('.')[0];
+    
+    // Generate simple slug if not provided
+    let slug = req.body.slug || nama.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '-' + Date.now();
+
+    // Determine file type
+    const fileTypeEnum = getFileType(file.mimetype);
+
+    // Upload to storage provider
+    const storageProvider = getStorageProvider();
+    const storageFile = await storageProvider.upload(file.buffer, {
+      filename: file.originalname,
+      contentType: file.mimetype,
+    });
+
+    // Create record in database
+    const uploadedById = req.user?.accountId;
+    const data: CreateMediaInput = {
+      nama,
+      slug,
+      deskripsi,
+      fileUrl: storageFile.url,
+      fileType: fileTypeEnum,
+      fileSize: storageFile.size,
+      mimeType: storageFile.mimeType,
+      alt,
+      kategori,
+    };
+
+    const media = await mediaService.create(data, uploadedById);
+    return response.created(res, media, 'File berhasil diupload');
   })
 );
 

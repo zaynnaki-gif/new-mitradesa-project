@@ -29,35 +29,55 @@ export function StatementSection({
 
   if (isQuote) {
     return (
+      <section className={`${styles.statement} ${styles.statementDark}`}>
+        <div className={styles.statementInner}>
+          <blockquote className={styles.statementQuote}>
+            <span className={styles.statementQuoteMark}>"</span>
+            <p className={styles.statementQuoteText}>{title}</p>
+            {author && (
+              <cite className={styles.statementQuoteAuthor}>
+                <span className={styles.statementQuoteDash}>—</span>
+                {author}
+              </cite>
+            )}
+          </blockquote>
+        </div>
+      </section>
+    );
+  }
+
+  if (isCentered) {
+    return (
       <section className={`${styles.statement} ${styles.statementCentered}`}>
         <div className={styles.statementInner}>
           <div className={styles.statementContent}>
-            <blockquote className={styles.statementQuote}>
-              {eyebrow && <span className={styles.statementEyebrow}>{eyebrow}</span>}
-              <p className={styles.statementQuoteText}>{title}</p>
-              {author && (
-                <footer className={styles.statementQuoteAuthor}>{author}</footer>
-              )}
-            </blockquote>
+            {eyebrow && <span className={styles.statementEyebrow}>{eyebrow}</span>}
+            <h2 className={styles.statementTitle}>{title}</h2>
+            {bodyContent && (
+              <div className={styles.statementBody}>{bodyContent}</div>
+            )}
           </div>
         </div>
       </section>
     );
   }
 
+  // Default: Editorial asymmetric layout
   return (
-    <section
-      className={`${styles.statement} ${isCentered ? styles.statementCentered : ''}`}
-    >
+    <section className={`${styles.statement} ${styles.statementEditorial}`}>
       <div className={styles.statementInner}>
-        <div className={styles.statementContent}>
+        <div className={styles.statementGrid}>
+          {/* Left: Large title with eyebrow */}
           <div className={styles.statementLeft}>
             {eyebrow && <span className={styles.statementEyebrow}>{eyebrow}</span>}
-            <h2 className={styles.statementTitle}>{title}</h2>
+            <h2 className={styles.statementTitleLarge}>{title}</h2>
           </div>
+
+          {/* Right: Body text */}
           {bodyContent && (
             <div className={styles.statementRight}>
               <div className={styles.statementBody}>{bodyContent}</div>
+              <div className={styles.statementDivider} />
             </div>
           )}
         </div>

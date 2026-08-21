@@ -2,11 +2,11 @@
 
 /* ============================================
    EDITORIAL SPLIT MEDIA
-   Image and text side by side, alternating
+   Image and text with asymmetric editorial layout
    ============================================ */
 
 .split {
-  padding: var(--section-padding-y) 0;
+  padding: var(--space-24) 0;
   background-color: var(--editorial-cream);
 }
 
@@ -16,21 +16,22 @@
   padding: 0 var(--space-6);
 }
 
+/* Editorial asymmetric grid */
 .splitGrid {
   display: grid;
-  grid-template-columns: 55% 45%;
-  gap: var(--grid-gap-lg);
+  grid-template-columns: 50% 50%;
+  gap: var(--space-12);
   align-items: center;
 }
 
 .splitGridReverse {
   display: grid;
   grid-template-columns: 45% 55%;
-  gap: var(--grid-gap-lg);
+  gap: var(--space-12);
   align-items: center;
 }
 
-/* Image side */
+/* Image side - cinematic editorial */
 .splitImageWrapper {
   position: relative;
   overflow: hidden;
@@ -40,6 +41,11 @@
   width: 100%;
   aspect-ratio: 4/3;
   object-fit: cover;
+  transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.splitImageWrapper:hover .splitImage {
+  transform: scale(1.03);
 }
 
 .splitImageCaption {
@@ -47,10 +53,11 @@
   bottom: 0;
   left: 0;
   right: 0;
-  padding: var(--space-4) var(--space-6);
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
+  padding: var(--space-6) var(--space-8);
+  background: linear-gradient(to top, rgba(15, 23, 42, 0.85), transparent);
   color: var(--editorial-white);
   font-size: var(--type-small);
+  font-style: italic;
 }
 
 /* Content side */
@@ -64,25 +71,26 @@
   letter-spacing: var(--tracking-widest);
   text-transform: uppercase;
   color: var(--amber-600);
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--space-6);
   display: block;
 }
 
 .splitTitle {
   font-family: var(--font-display);
-  font-size: var(--type-h2);
+  font-size: clamp(2rem, 4vw, 3.5rem);
   font-weight: 700;
-  line-height: var(--leading-heading);
-  letter-spacing: var(--tracking-tight);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
   color: var(--ink-deep);
-  margin-bottom: var(--space-6);
+  margin-bottom: var(--space-8);
 }
 
 .splitBody {
   font-size: var(--type-body-lg);
-  line-height: var(--leading-relaxed);
+  line-height: 1.8;
   color: var(--ink-medium);
   margin-bottom: var(--space-8);
+  max-width: 520px;
 }
 
 .splitBody p {
@@ -93,27 +101,31 @@
   margin-bottom: 0;
 }
 
+/* Editorial link */
 .splitLink {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-3);
   font-size: var(--type-small);
   font-weight: 600;
   letter-spacing: var(--tracking-wide);
   text-transform: uppercase;
   color: var(--ink-deep);
   text-decoration: none;
-  transition: all var(--transition-fast);
+  transition: all 0.2s ease;
+  padding-bottom: var(--space-1);
+  border-bottom: 2px solid var(--ink-deep);
 }
 
 .splitLink:hover {
   color: var(--amber-600);
+  border-bottom-color: var(--amber-600);
   text-decoration: none;
-  gap: var(--space-3);
+  gap: var(--space-4);
 }
 
 .splitLink svg {
-  transition: transform var(--transition-fast);
+  transition: transform 0.2s ease;
 }
 
 .splitLink:hover svg {
@@ -136,10 +148,12 @@
 
 .splitDark .splitLink {
   color: var(--editorial-white);
+  border-bottom-color: var(--editorial-white);
 }
 
 .splitDark .splitLink:hover {
   color: var(--amber-400);
+  border-bottom-color: var(--amber-400);
 }
 
 /* Full width variant */
@@ -158,7 +172,7 @@
 
 .splitFull .splitImage {
   aspect-ratio: auto;
-  min-height: 500px;
+  min-height: 600px;
   height: 100%;
 }
 
@@ -168,6 +182,10 @@
 
 /* Responsive */
 @media (max-width: 1024px) {
+  .split {
+    padding: var(--space-16) 0;
+  }
+
   .splitGrid,
   .splitGridReverse {
     grid-template-columns: 1fr;
@@ -185,14 +203,22 @@
   .splitFull .splitContent {
     padding: var(--space-8) var(--space-6);
   }
+
+  .splitFull .splitImage {
+    min-height: 400px;
+  }
 }
 
 @media (max-width: 640px) {
   .splitTitle {
-    font-size: var(--type-h3);
+    font-size: clamp(1.75rem, 6vw, 2.5rem);
   }
 
   .splitBody {
     font-size: var(--type-body);
+  }
+
+  .splitLink {
+    font-size: var(--type-caption);
   }
 }

@@ -25,22 +25,22 @@
 :root {
   /* --- EDITORIAL COLOR SYSTEM --- */
 
-  /* Primary: Deep Ink (for strong text and accents) */
-  --ink-deep: #0F172A;
-  --ink-rich: #1E293B;
-  --ink-medium: #334155;
+  /* Primary: Deep Ink (Wesley Navy) */
+  --ink-deep: #253153;
+  --ink-rich: #1e2844;
+  --ink-medium: #3a4970;
 
-  /* Neutral: Warm Stone */
-  --stone-50: #FAFAF9;
-  --stone-100: #F5F5F4;
-  --stone-200: #E7E5E4;
-  --stone-300: #D6D3D1;
-  --stone-400: #A8A29E;
-  --stone-500: #78716C;
-  --stone-600: #57534E;
-  --stone-700: #44403C;
-  --stone-800: #292524;
-  --stone-900: #1C1917;
+  /* Neutral: Warm Stone (Wesley Off-White) */
+  --stone-50: #ffffff;
+  --stone-100: #F2F1F0;
+  --stone-200: #e5e3e0;
+  --stone-300: #d8d5d0;
+  --stone-400: #b5b0a8;
+  --stone-500: #928b80;
+  --stone-600: #6f685d;
+  --stone-700: #4b463f;
+  --stone-800: #282521;
+  --stone-900: #141210;
 
   /* Accent: Warm Amber (limited use, premium feel) */
   --amber-50: #FFFBEB;
@@ -55,11 +55,11 @@
   --amber-900: #78350F;
 
   /* Semantic Colors */
-  --editorial-cream: #FDFCFA;
+  --editorial-cream: #F2F1F0;
   --editorial-white: #FFFFFF;
-  --editorial-offwhite: #F8F7F5;
-  --editorial-warm-gray: #78716C;
-  --editorial-charcoal: #292524;
+  --editorial-offwhite: #F9F8F7;
+  --editorial-warm-gray: #928b80;
+  --editorial-charcoal: #282521;
 
   /* --- TYPOGRAPHY SCALE (Major Third - 1.25) --- */
   --type-display: clamp(3rem, 8vw, 6rem);

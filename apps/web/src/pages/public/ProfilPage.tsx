@@ -5,6 +5,7 @@ import { useIdentitasDesa } from '@/hooks/useIdentitasDesa';
 import { useStatistikDesa } from '@/hooks/useStatistikDesa';
 import { useHalaman } from '@/hooks/useHalaman';
 import { useSEO, getPageTitle } from '@/hooks/useSeo';
+import { EditorialHero, EditorialSection } from '@/components/editorial';
 import styles from './ProfilPage.module.css';
 
 export default function ProfilPage() {
@@ -26,20 +27,12 @@ export default function ProfilPage() {
 
   return (
     <PublicLayout>
-      {/* Page Header */}
-      <section className={styles.pageHeader}>
-        <div className={styles.headerContent}>
-          <Typography variant="h1" className={styles.pageTitle}>
-            Profil Desa
-          </Typography>
-          <Typography variant="body1" className={styles.pageSubtitle}>
-            Kenali lebih dekat tentang {villageName}
-          </Typography>
-        </div>
-      </section>
+      <EditorialHero 
+        title="Profil Desa" 
+        subtitle={`Kenali lebih dekat tentang ${villageName}`} 
+      />
 
-      {/* Content */}
-      <section className={styles.content}>
+      <EditorialSection alternate>
         <div className={styles.container}>
           {isLoading && (
             <LoadingState message="Memuat profil..." fullPage />
@@ -309,7 +302,7 @@ export default function ProfilPage() {
             </div>
           )}
         </div>
-      </section>
+      </EditorialSection>
     </PublicLayout>
   );
 }

@@ -21,10 +21,13 @@ export interface NavDropdownItem {
   description?: string;
 }
 
+export type DropdownVariant = 'editorial' | 'services' | 'image' | 'featured' | 'potensi' | 'informasi';
+
 export interface NavCategory {
   label: string;
   href?: string;
   dropdown?: {
+    variant?: DropdownVariant;
     description?: string;
     items: NavDropdownItem[];
     shortcuts?: NavDropdownItem[];
@@ -42,6 +45,7 @@ export const MEGA_NAV_STRUCTURE: NavCategory[] = [
     label: 'Tentang Desa',
     href: '/profil',
     dropdown: {
+      variant: 'editorial',
       description: 'Kenali identitas, sejarah, dan struktur pemerintahan desa kami.',
       items: [
         { label: 'Profil Desa', href: '/profil', description: 'Identitas dan visi misi desa' },
@@ -59,6 +63,7 @@ export const MEGA_NAV_STRUCTURE: NavCategory[] = [
     label: 'Layanan',
     href: '/layanan',
     dropdown: {
+      variant: 'services',
       description: 'Layanan administrasi dan permohonan dokumen desa.',
       items: [
         { label: 'Katalog Layanan', href: '/layanan', description: 'Semua layanan desa' },
@@ -76,6 +81,7 @@ export const MEGA_NAV_STRUCTURE: NavCategory[] = [
     label: 'Potensi',
     href: '/potensi',
     dropdown: {
+      variant: 'image',
       description: 'Jelajahi potensi dan produk lokal desa.',
       items: [
         { label: 'Potensi Desa', href: '/potensi', description: 'Sumber daya dan potensi' },
@@ -91,6 +97,7 @@ export const MEGA_NAV_STRUCTURE: NavCategory[] = [
   {
     label: 'Informasi',
     dropdown: {
+      variant: 'featured',
       items: [
         { label: 'Berita Desa', href: '/berita', description: 'Berita dan informasi terkini' },
         { label: 'Agenda Kegiatan', href: '/agenda', description: 'Jadwal dan event' },
@@ -130,6 +137,7 @@ export const ADMIN_NAV_LINKS = [
   { label: 'Penduduk', href: '/admin/master/penduduk' },
   { label: 'Keluarga', href: '/admin/master/keluarga' },
   { label: 'Referensi', href: '/admin/master/referensi' },
+  { label: 'Lembaga', href: '/admin/master/lembaga' },
   { label: 'Identitas Desa', href: '/admin/master/identitas-desa' },
   { label: 'Perangkat Desa', href: '/admin/master/perangkat-desa' },
   { label: 'Layanan', href: '/admin/layanan' },

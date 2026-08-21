@@ -23,7 +23,6 @@ import { useAgendaList } from '@/hooks/useAgenda';
 import { useApbdes } from '@/hooks/useTransparansi';
 import { useStatistikDesa } from '@/hooks/useStatistikDesa';
 import { APP_TAGLINE } from '@/lib/constants';
-import '@/styles/editorial/editorial.css';
 
 export default function HomePage() {
   const { data: identitas } = useIdentitasDesa();
@@ -45,7 +44,7 @@ export default function HomePage() {
     description: `${villageName}. ${APP_TAGLINE}. Portal informasi dan layanan administrasi desa.`,
   });
 
-  // Prepare hero data from API
+  // Prepare hero data from API - NO CTA
   const heroData = {
     title: villageName,
     subtitle: APP_TAGLINE,
@@ -62,16 +61,15 @@ export default function HomePage() {
     },
   };
 
-  // Prepare statement data
+  // Prepare statement data - editorial introduction
   const statementData = {
     eyebrow: 'Tentang Kami',
-    title: `${villageName} — Bersama Membangun Desa`,
-    body: `Website desa ini adalah pusat informasi resmi dan layanan digital untuk mewujudkan tata kelola desa yang transparan, inovatif, dan responsif terhadap kebutuhan warga. Kami berkomitmen untuk memberikan pelayanan terbaik bagi seluruh masyarakat.`,
+    title: `${villageName}`,
+    body: `Website desa ini adalah pusat informasi resmi dan layanan digital untuk mewujudkan tata kelola desa yang transparan, inovatif, dan responsif terhadap kebutuhan warga.`,
   };
 
-  // Prepare stats data from API
+  // Prepare stats data from API - large typography editorial
   const statsData = {
-    eyebrow: 'Demografi',
     title: villageName,
     items: [
       {
@@ -93,7 +91,7 @@ export default function HomePage() {
     ],
   };
 
-  // Prepare services data from API
+  // Prepare services data from API - editorial showcase
   const activeServices = services?.filter((s) => s.isActive).slice(0, 6) || [];
   const servicesData = {
     eyebrow: 'Layanan',
@@ -108,7 +106,7 @@ export default function HomePage() {
     })),
   };
 
-  // Prepare featured UMKM
+  // Prepare featured UMKM - visual showcase
   const featuredUmkm = umkms?.[0];
   const featureData = {
     eyebrow: 'Potensi Desa',
@@ -126,10 +124,10 @@ export default function HomePage() {
     })) || [],
   };
 
-  // Prepare news data from API
+  // Prepare news data from API - editorial story layout
   const newsData = {
     eyebrow: 'Berita',
-    title: 'Berita & Informasi',
+    title: 'Berita & Cerita',
     link: { label: 'Lihat Semua Berita', href: '/berita' },
     items:
       latestNews?.map((item) => ({
@@ -144,7 +142,7 @@ export default function HomePage() {
       })) || [],
   };
 
-  // Prepare agenda data from API
+  // Prepare agenda data from API - editorial timeline
   const agendaData = {
     eyebrow: 'Agenda',
     title: 'Jadwal Kegiatan',
@@ -159,7 +157,7 @@ export default function HomePage() {
       })) || [],
   };
 
-  // Prepare gallery data from API
+  // Prepare gallery data from API - editorial mosaic
   const galleryData = {
     eyebrow: 'Galeri',
     title: 'Dokumentasi',
@@ -175,8 +173,8 @@ export default function HomePage() {
 
   // Prepare community data from API
   const communityData = {
-    eyebrow: 'Aparatur Desa',
-    title: 'People of the Village',
+    eyebrow: 'Aparatur',
+    title: 'Perangkat Desa',
     description:
       'Perangkat desa yang berkomitmen melayani masyarakat dengan sepenuh hati.',
     people:
@@ -189,7 +187,7 @@ export default function HomePage() {
     link: { label: 'Selengkapnya', href: '/pemerintahan' },
   };
 
-  // Prepare transparency data from API
+  // Prepare transparency data from API - editorial data presentation
   const transparencyData = {
     eyebrow: 'Transparansi',
     title: 'APBDes',
@@ -201,10 +199,10 @@ export default function HomePage() {
     link: { label: 'Detail Transparansi', href: '/transparansi' },
   };
 
-  // Split media section for village story
+  // Village story - alternating layout for editorial feel
   const villageStoryData = {
     eyebrow: 'Profil',
-    title: `${villageName} — Desa Masa Depan`,
+    title: 'Desa Masa Depan',
     body: [
       'Desa kami terletak di wilayah yang strategis dengan potensi sumber daya alam dan manusia yang besar.',
       'Dengan semangat gotong royong, kami terus membangun desa untuk meningkatkan kesejahteraan masyarakat.',
@@ -217,40 +215,40 @@ export default function HomePage() {
 
   return (
     <PublicLayout>
-      {/* Section 01: Hero */}
+      {/* Section 01: Hero - Clean, NO CTA */}
       <HeroSection data={heroData} variant="default" />
 
-      {/* Section 02: Village Statement */}
+      {/* Section 02: Editorial Introduction - Asymmetric split */}
       <StatementSection data={statementData} variant="default" />
 
-      {/* Section 03: Village Story - Split Media */}
-      <SplitMediaSection data={villageStoryData} layout="image-left" />
+      {/* Section 03: Village Story - Alternating image/text */}
+      <SplitMediaSection data={villageStoryData} layout="image-right" variant="default" />
 
-      {/* Section 04: Village Statistics */}
+      {/* Section 04: Statistics - Large typography editorial */}
       <StatsSection data={statsData} variant="minimal" />
 
-      {/* Section 05: Services */}
+      {/* Section 05: Services - Editorial list showcase */}
       <ServicesSection data={servicesData} variant="list" />
 
-      {/* Section 06: Potensi Desa - Feature */}
+      {/* Section 06: UMKM/Potensi - Dark feature section */}
       <FeatureSection data={featureData} variant="default" />
 
-      {/* Section 07: Community - People */}
+      {/* Section 07: Community - People photography */}
       <CommunitySection data={communityData} />
 
-      {/* Section 08: News / Stories */}
+      {/* Section 08: News - Editorial featured story */}
       <NewsSection data={newsData} variant="featured" />
 
-      {/* Section 09: Agenda - Timeline */}
+      {/* Section 09: Agenda - Editorial timeline */}
       <TimelineSection data={agendaData} variant="default" />
 
-      {/* Section 10: Transparency */}
+      {/* Section 10: Transparency - Editorial data presentation */}
       <TransparencySection data={transparencyData} />
 
-      {/* Section 11: Gallery */}
+      {/* Section 11: Gallery - Editorial mosaic */}
       <GallerySection data={galleryData} variant="masonry" />
 
-      {/* Section 12: Final Statement */}
+      {/* Section 12: Closing Statement - Dark, no CTA */}
       <StatementSection
         data={{
           variant: 'quote',

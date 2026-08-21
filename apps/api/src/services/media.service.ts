@@ -186,6 +186,51 @@ export class MediaService {
       throw ApiError.badRequest('Format MIME type tidak valid');
     }
 
+    // Strict validation based on fileType
+    const mimeTypeStr = data.mimeType.toLowerCase();
+    switch (data.fileType) {
+      case 'IMAGE':
+        const validImageMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'];
+        if (!validImageMimes.includes(mimeTypeStr)) {
+          throw ApiError.badRequest('MIME type tidak sesuai dengan tipe file IMAGE');
+        }
+        // Limit image to 5MB
+        if (data.fileSize > 5 * 1024 * 1024) {
+          throw ApiError.badRequest('Ukuran file gambar maksimal 5MB');
+        }
+        break;
+      case 'DOCUMENT':
+        const validDocMimes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+        if (!validDocMimes.includes(mimeTypeStr)) {
+          throw ApiError.badRequest('MIME type tidak sesuai dengan tipe file DOCUMENT');
+        }
+        // Limit document to 10MB
+        if (data.fileSize > 10 * 1024 * 1024) {
+          throw ApiError.badRequest('Ukuran file dokumen maksimal 10MB');
+        }
+        break;
+      case 'VIDEO':
+        const validVideoMimes = ['video/mp4', 'video/webm', 'video/quicktime'];
+        if (!validVideoMimes.includes(mimeTypeStr)) {
+          throw ApiError.badRequest('MIME type tidak sesuai dengan tipe file VIDEO');
+        }
+        // Limit video to 50MB
+        if (data.fileSize > 50 * 1024 * 1024) {
+          throw ApiError.badRequest('Ukuran file video maksimal 50MB');
+        }
+        break;
+      case 'AUDIO':
+        const validAudioMimes = ['audio/mpeg', 'audio/wav', 'audio/ogg'];
+        if (!validAudioMimes.includes(mimeTypeStr)) {
+          throw ApiError.badRequest('MIME type tidak sesuai dengan tipe file AUDIO');
+        }
+        // Limit audio to 20MB
+        if (data.fileSize > 20 * 1024 * 1024) {
+          throw ApiError.badRequest('Ukuran file audio maksimal 20MB');
+        }
+        break;
+    }
+
     const media = await prisma.media.create({
       data: {
         nama: data.nama,
@@ -249,10 +294,58 @@ export class MediaService {
     }
 
     // Validate file type if being changed
-    if (data.fileType) {
+    let activeFileType = data.fileType || existing.fileType;
+    let activeMimeType = data.mimeType || existing.mimeType;
+    let activeFileSize = data.fileSize || existing.fileSize;
+
+    if (data.fileType || data.mimeType || data.fileSize) {
       const validFileTypes = ['IMAGE', 'VIDEO', 'AUDIO', 'DOCUMENT'];
-      if (!validFileTypes.includes(data.fileType)) {
+      if (!validFileTypes.includes(activeFileType)) {
         throw ApiError.badRequest('Tipe file tidak valid');
+      }
+
+      if (!activeMimeType.includes('/')) {
+        throw ApiError.badRequest('Format MIME type tidak valid');
+      }
+
+      const mimeTypeStr = activeMimeType.toLowerCase();
+      switch (activeFileType) {
+        case 'IMAGE':
+          const validImageMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'];
+          if (!validImageMimes.includes(mimeTypeStr)) {
+            throw ApiError.badRequest('MIME type tidak sesuai dengan tipe file IMAGE');
+          }
+          if (activeFileSize > 5 * 1024 * 1024) {
+            throw ApiError.badRequest('Ukuran file gambar maksimal 5MB');
+          }
+          break;
+        case 'DOCUMENT':
+          const validDocMimes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+          if (!validDocMimes.includes(mimeTypeStr)) {
+            throw ApiError.badRequest('MIME type tidak sesuai dengan tipe file DOCUMENT');
+          }
+          if (activeFileSize > 10 * 1024 * 1024) {
+            throw ApiError.badRequest('Ukuran file dokumen maksimal 10MB');
+          }
+          break;
+        case 'VIDEO':
+          const validVideoMimes = ['video/mp4', 'video/webm', 'video/quicktime'];
+          if (!validVideoMimes.includes(mimeTypeStr)) {
+            throw ApiError.badRequest('MIME type tidak sesuai dengan tipe file VIDEO');
+          }
+          if (activeFileSize > 50 * 1024 * 1024) {
+            throw ApiError.badRequest('Ukuran file video maksimal 50MB');
+          }
+          break;
+        case 'AUDIO':
+          const validAudioMimes = ['audio/mpeg', 'audio/wav', 'audio/ogg'];
+          if (!validAudioMimes.includes(mimeTypeStr)) {
+            throw ApiError.badRequest('MIME type tidak sesuai dengan tipe file AUDIO');
+          }
+          if (activeFileSize > 20 * 1024 * 1024) {
+            throw ApiError.badRequest('Ukuran file audio maksimal 20MB');
+          }
+          break;
       }
     }
 

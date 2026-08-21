@@ -46,20 +46,22 @@ export function SplitMediaSection({
     >
       <div className={styles.splitInner}>
         <div className={isReversed ? styles.splitGridReverse : styles.splitGrid}>
-          {/* Image */}
+          {/* Image - Large editorial */}
           <div className={styles.splitImageWrapper}>
             {image?.url && (
-              <img
-                src={image.url}
-                alt={image.alt || ''}
-                className={styles.splitImage}
-                loading="lazy"
-              />
-            )}
-            {image?.caption && (
-              <figcaption className={styles.splitImageCaption}>
-                {image.caption}
-              </figcaption>
+              <>
+                <img
+                  src={image.url}
+                  alt={image.alt || ''}
+                  className={styles.splitImage}
+                  loading="lazy"
+                />
+                {image?.caption && (
+                  <figcaption className={styles.splitImageCaption}>
+                    {image.caption}
+                  </figcaption>
+                )}
+              </>
             )}
           </div>
 
@@ -70,10 +72,10 @@ export function SplitMediaSection({
             {bodyContent && <div className={styles.splitBody}>{bodyContent}</div>}
             {link && (
               <Link to={link.href} className={styles.splitLink}>
-                {link.label}
+                <span>{link.label}</span>
                 <svg
-                  width="20"
-                  height="20"
+                  width="24"
+                  height="24"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"

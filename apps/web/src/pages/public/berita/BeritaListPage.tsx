@@ -5,6 +5,7 @@ import { LoadingState, ErrorState, EmptyState } from '@/components/states';
 import { useBeritaList, useKategori } from '@/hooks/useBerita';
 import { useIdentitasDesa } from '@/hooks/useIdentitasDesa';
 import { useSEO, getPageTitle } from '@/hooks/useSeo';
+import { EditorialHero, EditorialSection } from '@/components/editorial';
 import styles from './BeritaListPage.module.css';
 
 export default function BeritaListPage() {
@@ -76,18 +77,12 @@ export default function BeritaListPage() {
 
   return (
     <PublicLayout>
-      {/* Page Header */}
-      <section className={styles.pageHeader}>
-        <div className={styles.headerContent}>
-          <h1 className={styles.pageTitle}>Berita & Informasi</h1>
-          <p className={styles.pageSubtitle}>
-            Berita terbaru, pengumuman, dan informasi dari {villageName}
-          </p>
-        </div>
-      </section>
+      <EditorialHero 
+        title="Berita & Informasi" 
+        subtitle={`Berita terbaru, pengumuman, dan informasi dari ${villageName}`} 
+      />
 
-      {/* Content */}
-      <section className={styles.content}>
+      <EditorialSection alternate>
         <div className={styles.container}>
           {/* Search & Filter */}
           <div className={styles.filterSection}>
@@ -296,7 +291,7 @@ export default function BeritaListPage() {
             </nav>
           )}
         </div>
-      </section>
+      </EditorialSection>
     </PublicLayout>
   );
 }

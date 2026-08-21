@@ -1,12 +1,13 @@
 import { useParams, Link } from 'react-router-dom';
 import { PublicLayout } from '@/layouts';
-import { Typography } from '@/components/ui';
+
 import { LoadingState, ErrorState } from '@/components/states';
 import { useIdentitasDesa } from '@/hooks/useIdentitasDesa';
 import { useSEO } from '@/hooks/useSeo';
 import { API_URL } from '@/lib/constants';
 import { sanitizeHtml } from '@/lib/sanitize';
 import { useState, useEffect } from 'react';
+import { EditorialHero, EditorialSection } from '@/components/editorial';
 
 interface Halaman {
   id: string;
@@ -103,16 +104,12 @@ export default function HalamanPage() {
       </nav>
 
       {/* Page Header */}
-      <header className={styles.pageHeader}>
-        <div className={styles.headerContent}>
-          <Typography variant="h1" className={styles.pageTitle}>
-            {halaman.judul}
-          </Typography>
-        </div>
-      </header>
+      <EditorialHero 
+        title={halaman.judul} 
+      />
 
       {/* Page Content */}
-      <article className={styles.pageContent}>
+      <EditorialSection>
         <div className={styles.contentContainer}>
           {halaman.excerpt && (
             <p className={styles.pageExcerpt}>{halaman.excerpt}</p>
@@ -124,7 +121,7 @@ export default function HalamanPage() {
             />
           )}
         </div>
-      </article>
+      </EditorialSection>
 
       {/* Back Link */}
       <div className={styles.pageFooter}>

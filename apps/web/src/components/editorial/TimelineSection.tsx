@@ -8,7 +8,7 @@ export interface TimelineItem {
   tanggalSelesai?: string;
   lokasi?: string;
   waktu?: string;
-  status: 'MENDATANG' | 'BERLANGSUNG' | 'SELESAI' | 'BATAL';
+  status: 'MENDATANG' | 'BERLANGSUNG' | 'SELESAI' | 'BATAL' | string;
 }
 
 export interface TimelineData {
@@ -37,93 +37,65 @@ function formatDate(dateStr: string): { day: string; month: string; year: string
 
 function getStatusLabel(status: TimelineItem['status']): string {
   switch (status) {
-    case 'MENDATANG':
-      return 'Mendatang';
-    case 'BERLANGSUNG':
-      return 'Berlangsung';
-    case 'SELESAI':
-      return 'Selesai';
-    case 'BATAL':
-      return 'Dibatalkan';
-    default:
-      return status;
+    case 'MENDATANG': return 'Mendatang';
+    case 'BERLANGSUNG': return 'Berlangsung';
+    case 'SELESAI': return 'Selesai';
+    case 'BATAL': return 'Dibatalkan';
+    default: return status;
   }
 }
 
 function getStatusClass(status: TimelineItem['status']): string {
   switch (status) {
-    case 'MENDATANG':
-      return styles.timelineCardStatusUpcoming;
-    case 'BERLANGSUNG':
-      return styles.timelineCardStatusOngoing;
+    case 'MENDATANG': return styles.statusUpcoming;
+    case 'BERLANGSUNG': return styles.statusOngoing;
     case 'SELESAI':
-    case 'BATAL':
-      return styles.timelineCardStatusPast;
-    default:
-      return '';
+    case 'BATAL': return styles.statusPast;
+    default: return styles.statusDefault;
   }
 }
 
 export function TimelineSection({
   data,
-  variant = 'default',
 }: TimelineSectionProps) {
   const { eyebrow, title, link, items } = data;
-  const isHorizontal = variant === 'horizontal';
 
   return (
-    <section className={styles.timeline}>
-      <div className={styles.timelineInner}>
-        <header className={styles.timelineHeader}>
-          {eyebrow && <span className={styles.timelineEyebrow}>{eyebrow}</span>}
-          <h2 className={styles.timelineTitle}>{title}</h2>
-        </header>
+    <section className={styles.timelineSection}>
+      <div className="container">
+        <div className={`${styles.sectionHeader} animate-fade-up`}>
+          {eyebrow && <span className={styles.eyebrow}>{eyebrow}</span>}
+          <h2 className={`${styles.title} font-serif`}>{title}</h2>
+        </div>
 
-        <div className={`${styles.timelineContent} ${isHorizontal ? styles.timelineHorizontal : ''}`}>
-          {items.map((item) => {
+        <div className={styles.timelineContent}>
+          {items.map((item, index) => {
             const { day, month, year } = formatDate(item.tanggalMulai);
 
             return (
-              <article key={item.id} className={styles.timelineItem}>
+              <article 
+                key={item.id} 
+                className={`${styles.timelineItem} animate-fade-up`}
+                style={{ animationDelay: `${index * 100}ms` }}
+              >
                 <div className={styles.timelineDate}>
                   <span className={styles.timelineDay}>{day}</span>
-                  <span className={styles.timelineMonthYear}>
-                    {month} {year}
-                  </span>
+                  <span className={styles.timelineMonthYear}>{month} {year}</span>
                 </div>
+                
+                <div className={styles.timelineDot}></div>
+                
                 <div className={styles.timelineCard}>
-                  <h3 className={styles.timelineCardTitle}>{item.judul}</h3>
-                  <div className={styles.timelineCardMeta}>
-                    {item.waktu && (
-                      <span className={styles.timelineCardMetaItem}>
-                        <svg
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                        >
-                          <circle cx="12" cy="12" r="10" />
-                          <polyline points="12 6 12 12 16 14" />
-                        </svg>
-                        {item.waktu}
-                      </span>
-                    )}
+                  <h3 className={styles.cardTitle}>{item.judul}</h3>
+                  <div className={styles.cardMeta}>
                     {item.lokasi && (
-                      <span className={styles.timelineCardMetaItem}>
-                        <svg
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                        >
-                          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                          <circle cx="12" cy="10" r="3" />
-                        </svg>
+                      <span className={styles.metaItem}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" /></svg>
                         {item.lokasi}
                       </span>
                     )}
                   </div>
-                  <span className={`${styles.timelineCardStatus} ${getStatusClass(item.status)}`}>
+                  <span className={`${styles.statusBadge} ${getStatusClass(item.status)}`}>
                     {getStatusLabel(item.status)}
                   </span>
                 </div>
@@ -133,19 +105,9 @@ export function TimelineSection({
         </div>
 
         {link && (
-          <div className={styles.timelineLink}>
-            <Link to={link.href}>
-              {link.label}
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <polyline points="9,18 15,12 9,6" />
-              </svg>
+          <div className={`${styles.footerLink} animate-fade-up delay-400`}>
+            <Link to={link.href} className={styles.btnOutline}>
+              {link.label} &rarr;
             </Link>
           </div>
         )}

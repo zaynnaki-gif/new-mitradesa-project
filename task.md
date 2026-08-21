@@ -1,636 +1,813 @@
-# MITRADESA — PHASE 16.1A
-
-# CRITICAL PRODUCTION API ORIGIN RECOVERY
-
-# DO NOT REDESIGN
-
-# DO NOT USE MOCK DATA
-
-============================================================
-OBJECTIVE
 ============================================================
 
-Production frontend MITRADESA saat ini mengalami SYSTEMIC
-DATA FAILURE.
+# MANDATORY REFERENCE STUDY — WESLEY COLLEGE
 
-Evidence dari browser:
+============================================================
 
-SEMUA request API diarahkan ke:
+REFERENCE WEBSITE:
 
-http://localhost:3001/api/...
+https://www.wesleycollege-usyd.edu.au/
 
-dan mendapatkan:
+THIS IS A MANDATORY DESIGN RESEARCH STEP.
 
-ERR_CONNECTION_REFUSED
+Sebelum menulis atau mengubah kode navbar MITRADESA,
+AI AGENT WAJIB menggunakan browser / browser automation /
+available visual inspection skill untuk membuka website
+Wesley College secara LANGSUNG.
+
+Jangan hanya mengandalkan:
+
+- source code
+- sitemap
+- textual description
+- search result
+- asumsi
+- memory model
+
+Actual rendered website adalah source of truth untuk
+reference study.
+
+============================================================
+
+# 1. DIRECT BROWSER RECONNAISSANCE
+
+============================================================
+
+Buka secara langsung:
+
+https://www.wesleycollege-usyd.edu.au/
+
+Jika tersedia browser skill / browser automation skill,
+WAJIB gunakan skill tersebut.
+
+Jika tersedia screenshot / visual inspection capability,
+WAJIB gunakan capability tersebut.
+
+Jangan langsung coding sebelum reconnaissance selesai.
+
+============================================================
+
+# 2. STUDY NAVBAR IN DETAIL
+
+============================================================
+
+Audit secara visual:
+
+A. Initial navbar state
+
+Perhatikan:
+
+- tinggi navbar
+- posisi logo
+- typography
+- spacing antar menu
+- alignment
+- whitespace
+- warna
+- border
+- CTA
+- hover indicator
+- active indicator
+
+B. Open setiap menu utama.
+
+WAJIB mencoba:
+
+- hover
+- click
+- keyboard navigation jika tersedia
+
+Untuk setiap menu:
+
+capture / inspect:
+
+- ukuran dropdown
+- posisi dropdown
+- width
+- height
+- number of columns
+- typography hierarchy
+- heading
+- submenu
+- description
+- image
+- whitespace
+- divider
+- hover state
+- active state
+- animation
+- transition
+- overlay
+- relationship antara navbar dan dropdown
+
+============================================================
+
+# 3. STUDY DROPDOWN — PIXEL/COMPOSITION LEVEL
+
+============================================================
+
+Jangan hanya menyimpulkan:
+
+"Wesley menggunakan mega menu."
+
+Itu terlalu dangkal.
+
+Analisis:
+
+1. Bagaimana dropdown muncul?
+2. Apakah full-width atau constrained?
+3. Apakah panel mengikuti container website?
+4. Apakah dropdown memiliki overlay?
+5. Apakah navbar berubah ketika dropdown aktif?
+6. Berapa kolom?
+7. Bagaimana column spacing?
+8. Bagaimana heading kategori dibedakan dari link?
+9. Bagaimana link diberi hover feedback?
+10. Apakah ada visual/image?
+11. Apakah ada featured content?
+12. Bagaimana submenu bertingkat ditampilkan?
+13. Bagaimana dropdown ditutup?
+14. Bagaimana transisinya?
+15. Bagaimana behavior ketika mouse berpindah dari navbar
+    ke dropdown?
+16. Bagaimana behavior ketika viewport diperkecil?
+
+============================================================
+
+# 4. STUDY MOBILE NAVIGATION
+
+============================================================
+
+WAJIB inspect Wesley pada mobile viewport.
+
+Minimum:
+
+390x844
+
+Analisis:
+
+- hamburger
+- menu drawer
+- accordion
+- nested navigation
+- back navigation
+- close interaction
+- typography
+- spacing
+- active state
+- animation
+- scroll behavior
+
+Jangan mengasumsikan mobile hanya desktop yang diperkecil.
+
+============================================================
+
+# 5. STUDY RESPONSIVE BREAKPOINTS
+
+============================================================
+
+Inspect minimal:
+
+1440px
+1024px
+768px
+390px
+
+Catat perubahan:
+
+navbar
+dropdown
+navigation hierarchy
+spacing
+font
+mobile drawer
+
+Gunakan hasil observasi sebagai dasar implementasi
+MITRADESA.
+
+============================================================
+
+# 6. CREATE REFERENCE DESIGN SPEC
+
+============================================================
+
+SEBELUM CODING, AI AGENT WAJIB menghasilkan internal
+design specification berdasarkan hasil observasi.
+
+Minimal:
+
+REFERENCE_NAV_HEIGHT
+REFERENCE_CONTENT_WIDTH
+REFERENCE_DROPDOWN_WIDTH
+REFERENCE_DROPDOWN_COLUMNS
+REFERENCE_PADDING
+REFERENCE_GAP
+REFERENCE_FONT_SCALE
+REFERENCE_BORDER
+REFERENCE_SHADOW
+REFERENCE_ANIMATION
+REFERENCE_BREAKPOINTS
+
+Tidak perlu menyalin angka secara buta.
+
+Tujuannya memahami design system Wesley secara presisi
+kemudian menerjemahkannya ke Design System MITRADESA.
+
+============================================================
+
+# 7. IMPORTANT — DO NOT COPY BRANDING
+
+============================================================
+
+Yang dipelajari:
+
+LAYOUT
+COMPOSITION
+NAVIGATION BEHAVIOR
+INFORMATION ARCHITECTURE
+SPACING
+TYPOGRAPHY HIERARCHY
+INTERACTION
+RESPONSIVE BEHAVIOR
+EDITORIAL PRESENTATION
+
+Yang TIDAK boleh disalin:
+
+Wesley logo
+Wesley branding
+Wesley colors secara identik
+Wesley proprietary assets
+Wesley copywriting
+Wesley images
+Wesley content
+Wesley-specific icons
+
+MITRADESA harus tetap memiliki:
+
+MITRADESA BRAND IDENTITY
+DESA CONTEXT
+EXISTING COLOR SYSTEM
+EXISTING ROUTES
+EXISTING DATA
+
+============================================================
+
+# 8. TRANSLATE, DON'T CLONE
+
+============================================================
+
+Setelah memahami Wesley:
+
+Jangan membuat:
+
+"Wesley clone."
+
+Buat:
+
+"Wesley-inspired navigation architecture adapted
+for Mitradesa."
 
 Contoh:
 
-/api/identitas
-/api/public/berita
-/api/public/layanan
-/api/public/galeri
-/api/public/umkm
-/api/public/agenda
-/api/public/transparansi/apbdes
-/api/public/statistik
-/api/perangkat-desa/public
+Wesley:
 
-Stack trace juga menunjukkan:
+About Wesley
+Learning
+School Life
+Boarding
+School Community
+Enrol
+News
 
-useIdentitasDesa.ts
-→ GET http://localhost:3001/api/identitas
-→ ERR_CONNECTION_REFUSED
+MITRADESA:
 
-Ini menunjukkan production frontend kemungkinan dibuild dengan
-VITE_API_URL yang salah.
+Tentang Desa
+Layanan
+Potensi
+Informasi
+Kontak
 
-============================================================
-CRITICAL RULE
-============================================================
+Tetapi cara menyajikan dropdown:
 
-JANGAN:
-
-- redesign UI
-- membuat mock data
-- membuat fallback data palsu
-- mengubah business logic hanya agar screenshot bagus
-- mengganti API dengan static JSON
-- hardcode production API URL di component
-- menggunakan localhost sebagai API production
-
-PERBAIKI ROOT CAUSE.
+INSPIRED BY THE OBSERVED WESLEY EXPERIENCE.
 
 ============================================================
 
-1. # TRACE API CONFIGURATION
+# 9. MITRADESA MEGA MENU
 
-Audit seluruh repository.
-
-Cari:
-
-VITE_API_URL
-API_URL
-API_BASE_URL
-localhost:3001
-127.0.0.1:3001
-10.10.1.198
-/api/
-
-Cari seluruh penggunaan:
-
-fetch(
-axios
-useQuery
-React Query
-API services
-hooks
-stores
-
-Command/search:
-
-grep/search:
-
-VITE_API_URL
-localhost:3001
-127.0.0.1
-10.10.1.198
-/api/api/
-
-============================================================ 2. DETERMINE ACTUAL PRODUCTION API ORIGIN
 ============================================================
 
-Jangan menebak.
+Implementasikan:
 
-Temukan:
+BERANDA
 
-- staging API
-- production API
-- Hostinger API
-- deployment configuration
-- environment variables
-- server configuration
+TENTANG DESA ▾
 
-Inspect:
+LAYANAN ▾
 
-.env
-.env.local
-.env.development
-.env.production
-.env.staging
-.env.example
+POTENSI ▾
 
-package.json
+INFORMASI ▾
 
-Vite configuration
+KONTAK
 
-deployment configuration
+[MULAI LAYANAN]
 
-Hostinger configuration jika tersedia.
+Top-level navigation harus tetap ringkas.
 
-============================================================ 3. IMPORTANT VITE BEHAVIOR
-============================================================
+JANGAN kembali ke:
 
-Ingat:
-
-VITE\_\* variables di-embed ke JavaScript saat BUILD.
-
-Mengubah environment variable setelah dist dibuat
-tidak otomatis memperbaiki frontend.
-
-Karena itu:
-
-1. tentukan API URL yang benar
-2. set environment production
-3. rebuild frontend
-4. deploy dist baru
-5. verify browser
-
-============================================================ 4. API URL ARCHITECTURE
-============================================================
-
-Buat SATU canonical API configuration.
-
-Contoh architecture:
-
-VITE_API_URL=https://ACTUAL-API-DOMAIN/api
-
-Kemudian:
-
-const API_URL = import.meta.env.VITE_API_URL;
-
-Semua request menggunakan:
-
-${API_URL}/identitas
-
-${API_URL}/public/berita
-
-${API_URL}/public/umkm
-
-dst.
-
-JANGAN:
-
-${API_URL}/api/...
-
-jika API_URL sudah berakhiran /api.
-
-============================================================ 5. DEVELOPMENT VS PRODUCTION
-============================================================
-
-Development boleh:
-
-http://localhost:3001/api
-
-Production TIDAK BOLEH:
-
-http://localhost:3001/api
-
-Production browser harus menggunakan API yang dapat diakses
-dari internet / deployment environment.
-
-Pastikan tidak ada localhost yang ter-embed ke:
-
-apps/web/dist/
-
-Lakukan search terhadap generated JS:
-
-dist/assets/\*.js
-
-Cari:
-
-localhost:3001
-
-Jika ditemukan setelah production build:
-
-FAIL.
-
-============================================================ 6. CORS
-============================================================
-
-Setelah API origin benar, audit CORS.
-
-Production frontend:
-
-https://darkslategrey-beaver-503941.hostingersite.com
-
-harus diizinkan oleh backend.
-
-Cari:
-
-ALLOWED_ORIGINS
-CORS configuration
-helmet
-proxy
-reverse proxy
-
-JANGAN menggunakan:
-
-Access-Control-Allow-Origin: \*
-
-sebagai workaround production.
-
-Gunakan exact production origin.
-
-============================================================ 7. VERIFY API DIRECTLY
-============================================================
-
-Sebelum browser test, hit API langsung.
-
-Test endpoint:
-
-/api/identitas
-/api/public/berita?limit=4&page=1
-/api/public/layanan?limit=6&page=1
-/api/public/galeri?limit=8&page=1
-/api/public/umkm?limit=3
-/api/public/agenda?limit=3
-/api/public/statistik
-/api/public/transparansi/apbdes
-/api/perangkat-desa/public?aktif=true
-
-Catat:
-
-HTTP status
-response body
-content-type
-CORS headers
-latency
-
-Expected:
-
-200
-
-untuk public endpoints yang memang tersedia.
-
-============================================================ 8. VERIFY FRONTEND
-============================================================
-
-Setelah rebuild + redeploy:
-
-Open:
-
-https://darkslategrey-beaver-503941.hostingersite.com/
-
-Browser audit:
-
-Chromium
-Firefox
-WebKit
-
-Check:
-
-console
-network
-failed requests
-
-EXPECTED:
-
-0 ERR_CONNECTION_REFUSED
-
-0 localhost API requests
-
-0 unexpected 400
-
-0 unexpected 404
-
-0 unexpected 500
-
-0 failed fetch
-
-============================================================ 9. DATA VERIFICATION
-============================================================
-
-Setelah API hidup, pastikan data benar-benar berasal dari backend.
-
-Verify:
-
-Homepage
-
-- identitas
-- statistik
-- berita
-- layanan
-- galeri
-- perangkat desa
-- UMKM
-- agenda
-- transparansi
-
-UMKM
-
-- records
-- categories
-- images
-
+Beranda
+Layanan
 Berita
-
-- records
-- categories
-- images
-
 Agenda
-
-- records
-
-Galeri
-
-- media
-
+Transparansi
 Profil
+Pemerintahan
+Potensi
+UMKM
+Galeri
+...
 
-- identitas
-- sejarah
-- visi misi
-
-JANGAN membuat mock records.
-
-============================================================ 10. HARDCODED DATA SCAN
 ============================================================
 
-Setelah API recovery:
+# 10. DROPDOWN MUST FEEL LIKE WESLEY
 
-search seluruh:
-
-const umkm = [
-const berita = [
-const agenda = [
-const layanan = [
-const statistics = [
-
-Cari juga business values:
-
-nama desa
-alamat
-nomor telepon
-statistik penduduk
-jumlah dusun
-jumlah UMKM
-APBDes
-nama perangkat desa
-
-Classify:
-
-DESIGN CONSTANT
-SYSTEM CONSTANT
-BUSINESS DATA
-MOCK DATA
-TEST DATA
-
-Business data harus berasal dari backend/CMS/database.
-
-============================================================ 11. FIX VITE.SVG 404
 ============================================================
 
-Evidence tambahan:
+Jangan membuat dropdown:
 
-vite.svg → 404
+width 250px
+list vertical
+white box
+small text
 
-Cari siapa yang masih mereferensikan:
+Itu BUKAN target.
 
-vite.svg
+Target:
 
-Kemungkinan:
+LARGE EDITORIAL NAVIGATION PANEL.
 
-index.html
-favicon
-template Vite
-manifest
-component
+Dropdown harus terasa seperti sebuah
+"second navigation canvas".
 
-Remove obsolete Vite starter references.
+Contoh struktur konseptual:
 
-Jangan mengganti dengan asset random.
+┌────────────────────────────────────────────────────────────┐
+│ │
+│ TENTANG DESA │
+│ │
+│ Kenali identitas, sejarah, │
+│ pemerintahan dan masyarakat desa. │
+│ │
+│ PROFIL DESA PEMERINTAHAN KEPENDUDUKAN │
+│ Mengenal desa... Struktur desa... Data warga... │
+│ │
+└────────────────────────────────────────────────────────────┘
 
-Gunakan asset MITRADESA yang benar atau hapus reference
-jika memang tidak diperlukan.
+Tetapi jangan membuat semua dropdown dengan layout
+identik.
 
-============================================================ 12. DO NOT MASK API FAILURE
 ============================================================
 
-Jangan membuat:
+# 11. DROPDOWN VARIANTS
 
-if (!data) {
-return fakeData;
-}
-
-Jangan membuat:
-
-const fallback = [...]
-
-Jangan membuat:
-
-Failed API → static content
-
-API failure harus terlihat sebagai proper error state.
-
-============================================================ 13. ERROR STATE
 ============================================================
 
-Setiap data-driven page harus mempunyai:
+TENTANG DESA:
 
-LOADING
-ERROR
-EMPTY
-SUCCESS
+Editorial text + navigation.
 
-ERROR state:
+LAYANAN:
 
-Data tidak dapat dimuat.
+Navigation + optional featured service dari API.
 
-- Coba Lagi
+POTENSI:
 
-Technical error:
+Image + navigation.
 
-console/log
+INFORMASI:
 
-Jangan menampilkan:
+Featured content + navigation.
 
-Failed to fetch
+Tujuan:
 
-sebagai satu-satunya user-facing message.
+Setiap dropdown memiliki karakter sendiri.
 
-============================================================ 14. VERIFY ALL PUBLIC ROUTES
 ============================================================
 
-Test:
+# 12. VISUAL SCALE
 
-/
+============================================================
+
+Dropdown harus memiliki:
+
+large category heading
+
+small descriptive text
+
+large link typography
+
+subtle metadata
+
+generous spacing
+
+clear grouping
+
+Jangan menggunakan:
+
+tiny 12px navigation wall.
+
+Link utama harus mudah dipindai.
+
+============================================================
+
+# 13. OPEN/CLOSE BEHAVIOR
+
+============================================================
+
+Pelajari behavior Wesley secara langsung.
+
+Kemudian implementasikan equivalent behavior:
+
+- hover open pada desktop
+- click toggle
+- keyboard accessible
+- Escape close
+- outside click close
+- mouse transition tolerant
+- no accidental closing ketika cursor bergerak
+  dari navbar ke dropdown
+- subtle enter/exit animation
+
+Jangan menggunakan animation berlebihan.
+
+============================================================
+
+# 14. DROPDOWN WIDTH
+
+============================================================
+
+Jangan mengunci:
+
+width: 400px;
+
+Gunakan responsive strategy.
+
+Desktop:
+
+large constrained panel / viewport-aware panel.
+
+Tablet:
+
+sesuaikan available width.
+
+Jika reference menggunakan panel yang lebih luas,
+ikuti prinsip tersebut.
+
+Pastikan:
+
+dropdown tidak keluar viewport.
+
+============================================================
+
+# 15. OVERLAY
+
+============================================================
+
+Audit apakah reference menggunakan page dimming /
+overlay / visual separation.
+
+Jika ditemukan dalam reference:
+
+implementasikan versi MITRADESA.
+
+Contoh:
+
+navbar
+↓
+dropdown
+↓
+subtle page overlay
+
+Tujuan:
+
+menguatkan perception bahwa dropdown adalah
+navigation layer.
+
+Jangan membuat overlay terlalu gelap.
+
+============================================================
+
+# 16. DATA INTEGRITY
+
+============================================================
+
+Navigation STRUCTURE boleh static.
+
+Business content TIDAK BOLEH static.
+
+Contoh static:
+
+"Tentang Desa"
+"Informasi"
+"Potensi"
+
+Contoh TIDAK BOLEH hardcode:
+
+latest news
+featured image
+service records
+UMKM records
+agenda
+statistics
+
+Jika dropdown menampilkan data:
+
+AMBIL DARI EXISTING API/CMS.
+
+Jika API tidak memiliki data:
+
+render graceful empty state atau hide optional
+content block.
+
+JANGAN membuat dummy data.
+
+============================================================
+
+# 17. EXISTING ROUTES MUST REMAIN
+
+============================================================
+
 /profil
 /pemerintahan
 /kependudukan
-/kontak
-/galeri
 /layanan
 /layanan/tracking
-/berita
 /umkm
 /potensi
-/transparansi
+/galeri
+/berita
 /agenda
+/transparansi
+/kontak
 
-Setiap route:
+Tidak boleh diubah.
 
-API healthy
-data rendered
-no blank state caused by API failure
-no console application errors
-
-============================================================ 15. RESPONSIVE CHECK
 ============================================================
 
-Hanya setelah API recovery.
+# 18. VISUAL COMPARISON
 
-Test:
+============================================================
+
+Setelah implementasi:
+
+ambil screenshot MITRADESA:
 
 1440x900
-1024x768
-390x844
 
-Check:
+dengan:
 
-horizontal overflow
-clipping
-grid
-images
-buttons
-typography
-spacing
+1. Navbar closed
+2. Tentang Desa open
+3. Layanan open
+4. Potensi open
+5. Informasi open
+6. Mobile menu open
 
-============================================================ 16. REGRESSION
+Kemudian lakukan comparison terhadap hasil
+reference reconnaissance.
+
+Audit:
+
+- scale
+- spacing
+- hierarchy
+- density
+- dropdown proportion
+- visual weight
+- interaction
+- responsiveness
+
+Tujuan comparison:
+
+bukan pixel cloning.
+
+Tujuan:
+
+memastikan MITRADESA telah memahami dan menerapkan
+PRINSIP visual reference dengan benar.
+
 ============================================================
 
-Run:
+# 19. ANTI-SHALLOW-IMPLEMENTATION RULE
 
-npm run typecheck
-npm run build
-
-Run unit tests.
-
-Run E2E.
-
-Run public browser audit.
-
-============================================================ 17. PRODUCTION DIST INSPECTION
 ============================================================
 
-CRITICAL.
+FAIL IMPLEMENTATION jika AI Agent hanya menghasilkan:
 
-Setelah build:
+<nav>
+  <a>Beranda</a>
+  <a>Tentang</a>
+  <a>Layanan</a>
+</nav>
 
-search:
+dengan dropdown CSS sederhana.
 
-apps/web/dist
+FAIL jika:
 
-untuk:
+- dropdown terlalu kecil
+- typography kecil
+- spacing sempit
+- semua link menjadi list
+- tidak ada hierarchy
+- tidak ada visual distinction
+- tidak ada editorial composition
+- tidak ada responsive adaptation
 
-localhost:3001
-127.0.0.1
-10.10.1.198
-/api/api/
+Target harus terlihat sebagai:
 
-EXPECTED:
+PREMIUM EDITORIAL MEGA NAVIGATION.
 
-0 production localhost references
-
-0 private IP references
-
-0 double /api/ prefixes
-
-============================================================ 18. FINAL EVIDENCE
 ============================================================
 
-Produce evidence:
+# 20. IF BROWSER SKILL IS AVAILABLE
 
-A. Production API URL
-B. API direct test results
-C. CORS result
-D. Production frontend network result
-E. localhost scan result
-F. /api/api scan result
-G. vite.svg result
-H. Public route matrix
-I. Screenshots
-J. Build result
-K. Typecheck
-L. Unit tests
-M. E2E
-
-============================================================ 19. FINAL REPORT
 ============================================================
 
-Generate:
+Gunakan browser skill.
 
-# MITRADESA — PHASE 16.1A
+Prioritas:
 
-# PRODUCTION API ORIGIN RECOVERY REPORT
+1. open reference
+2. inspect navbar
+3. interact with each menu
+4. inspect dropdown
+5. resize viewport
+6. inspect mobile
+7. capture screenshots
+8. document observations
+9. implement
+10. compare
+11. iterate
+
+JANGAN skip step 1–8.
+
+============================================================
+
+# 21. IF REFERENCE CANNOT BE OPENED
+
+============================================================
+
+STOP sebelum membuat klaim bahwa design telah
+dipelajari secara langsung.
+
+Report:
+
+REFERENCE AUDIT BLOCKED
+
+dan jelaskan:
+
+- browser unavailable
+- URL inaccessible
+- visual inspection unavailable
+
+Jangan mengarang hasil observasi.
+
+============================================================
+
+# 22. FINAL REPORT MUST INCLUDE
+
+============================================================
+
+# MITRADESA — PHASE 16.3
+
+# WESLEY-INSPIRED NAVIGATION AUDIT & IMPLEMENTATION
 
 Include:
 
-1. Root Cause
-2. Evidence
-3. Environment Configuration
-4. API Origin
-5. CORS
-6. Frontend API Architecture
-7. Files Modified
-8. Production Build
-9. Dist Inspection
-10. API Verification
-11. Public Route Verification
-12. vite.svg Fix
-13. Hardcoded Data Scan
-14. Regression Tests
-15. Remaining Issues
+## A. Reference Audit
+
+Reference:
+https://www.wesleycollege-usyd.edu.au/
+
+Browser inspection:
+PASS / BLOCKED
+
+Viewports inspected:
+
+1440
+1024
+768
+390
+
+## B. Observed Wesley Patterns
+
+Jelaskan hasil observasi nyata:
+
+- navbar structure
+- dropdown architecture
+- typography
+- spacing
+- columns
+- imagery
+- hover
+- animation
+- mobile
+- responsive behavior
+
+Jangan mengisi bagian ini berdasarkan asumsi.
+
+## C. MITRADESA Translation
+
+Jelaskan bagaimana pattern tersebut diterjemahkan
+ke Mitradesa.
+
+## D. Navigation Architecture
+
+List final top-level categories.
+
+## E. Files Modified
+
+## F. Data Integrity
+
+Business data:
+dynamic / hardcoded
+
+## G. Accessibility
+
+Keyboard:
+PASS / FAIL
+
+ARIA:
+PASS / FAIL
+
+Focus:
+PASS / FAIL
+
+## H. Responsive
+
+1440
+1024
+768
+390
+
+## I. Regression
+
+Existing routes:
+PASS / FAIL
+
+## J. Screenshot Evidence
+
+Reference screenshots:
+AVAILABLE / UNAVAILABLE
+
+Mitradesa screenshots:
+AVAILABLE / UNAVAILABLE
+
+## K. Final Verdict
+
+Use exactly:
+
+WESLEY-INSPIRED NAVIGATION COMPLETE
+
+or
+
+WESLEY-INSPIRED NAVIGATION COMPLETE WITH LIMITATIONS
+
+or
+
+REFERENCE AUDIT BLOCKED
 
 ============================================================
-FINAL VERDICT
+ABSOLUTE RULE
 ============================================================
 
-Use exactly one:
+Jangan mengatakan:
 
-API RECOVERED
+"terinspirasi Wesley"
 
-API RECOVERED WITH LIMITATIONS
+hanya karena dropdown dibuat.
 
-API NOT RECOVERED
+AI AGENT HARUS:
 
-API BLOCKED
+OBSERVE
+UNDERSTAND
+DOCUMENT
+TRANSLATE
+IMPLEMENT
+COMPARE
+VERIFY
 
-============================================================
-STOP CONDITION
-============================================================
+Reference website adalah objek studi visual.
 
-STOP and report BLOCKED if:
+MITRADESA bukan clone Wesley.
 
-- actual production API origin cannot be determined
-- API cannot be reached externally
-- CORS cannot be verified
-- deployment credentials/configuration unavailable
-- production build still contains localhost API
-- database/backend unavailable
+MITRADESA harus memiliki:
 
-DO NOT claim PASS based only on local development.
+WESLEY-INSPIRED EXPERIENCE
 
-============================================================
-MOST IMPORTANT
-============================================================
-
-Masalah saat ini bukan:
-
-"UMKM page jelek."
-
-Masalah sebenarnya adalah:
-
-PRODUCTION FRONTEND
-↓
-HARDCODED/INCORRECT API ORIGIN
-↓
-localhost:3001
-↓
-ERR_CONNECTION_REFUSED
-↓
-ALL DATA-DRIVEN PAGES FAIL
-
-FIX THIS SYSTEMIC ROOT CAUSE FIRST.
-
-DO NOT REDESIGN UNTIL THIS PHASE PASSES.
+- MITRADESA IDENTITY
+- REAL SYSTEM DATA
+- EXISTING ROUTES
+- ACCESSIBLE NAVIGATION

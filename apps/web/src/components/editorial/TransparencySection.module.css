@@ -6,8 +6,9 @@
    ============================================ */
 
 .transparency {
-  padding: var(--section-padding-y) 0;
-  background-color: var(--editorial-offwhite);
+  padding: var(--space-24) 0;
+  background-color: var(--ink-deep);
+  color: var(--editorial-white);
 }
 
 .transparencyInner {
@@ -19,7 +20,7 @@
 .transparencyHeader {
   text-align: center;
   max-width: 700px;
-  margin: 0 auto var(--space-12);
+  margin: 0 auto var(--space-16);
 }
 
 .transparencyEyebrow {
@@ -27,183 +28,203 @@
   font-weight: 600;
   letter-spacing: var(--tracking-widest);
   text-transform: uppercase;
-  color: var(--amber-600);
+  color: var(--amber-400);
   margin-bottom: var(--space-4);
   display: block;
 }
 
 .transparencyTitle {
   font-family: var(--font-display);
-  font-size: var(--type-h2);
+  font-size: clamp(2rem, 4vw, 3rem);
   font-weight: 700;
-  line-height: var(--leading-heading);
-  letter-spacing: var(--tracking-tight);
-  color: var(--ink-deep);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--editorial-white);
   margin-bottom: var(--space-4);
 }
 
 .transparencyDescription {
   font-size: var(--type-body-lg);
-  line-height: var(--leading-relaxed);
-  color: var(--ink-medium);
+  line-height: 1.7;
+  color: var(--stone-300);
 }
 
-/* Financial Highlights */
-.transparencyHighlights {
+/* Editorial Financial Grid */
+.transparencyGrid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: var(--space-8);
+  gap: var(--space-6);
   margin-bottom: var(--space-12);
 }
 
-.highlightCard {
+.transparencyCard {
   padding: var(--space-8);
-  background-color: var(--editorial-white);
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   text-align: center;
-  border: 1px solid var(--stone-200);
 }
 
-.highlightLabel {
-  font-size: var(--type-small);
-  font-weight: 500;
-  letter-spacing: var(--tracking-wide);
+.transparencyCardLabel {
+  font-size: var(--type-caption);
+  font-weight: 600;
+  letter-spacing: var(--tracking-wider);
   text-transform: uppercase;
-  color: var(--stone-500);
-  margin-bottom: var(--space-3);
+  color: var(--stone-400);
+  margin-bottom: var(--space-4);
+  display: block;
 }
 
-.highlightValue {
+.transparencyCardValue {
   font-family: var(--font-display);
-  font-size: var(--type-h1);
+  font-size: clamp(2rem, 4vw, 3rem);
   font-weight: 700;
   line-height: 1;
-  color: var(--ink-deep);
+  color: var(--editorial-white);
   margin-bottom: var(--space-2);
+  display: block;
 }
 
-.highlightValueSuccess {
-  color: #166534;
+.transparencyCardValueDanger {
+  color: #FCA5A5;
 }
 
-.highlightValueDanger {
-  color: #991B1B;
+.transparencyCardValueAccent {
+  color: var(--amber-400);
 }
 
-.highlightValueInfo {
-  color: var(--amber-600);
-}
-
-.highlightNote {
-  font-size: var(--type-caption);
-  color: var(--stone-400);
+.transparencyCardNote {
+  font-size: var(--type-small);
+  color: var(--stone-500);
 }
 
 /* Visual Data */
 .transparencyVisual {
-  background-color: var(--editorial-white);
+  background-color: rgba(255, 255, 255, 0.03);
   padding: var(--space-8);
-  border: 1px solid var(--stone-200);
-}
-
-.transparencyVisualTitle {
-  font-family: var(--font-display);
-  font-size: var(--type-h4);
-  font-weight: 600;
-  color: var(--ink-deep);
-  margin-bottom: var(--space-6);
-  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .transparencyBars {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-6);
 }
 
 .transparencyBar {
-  display: flex;
+  display: grid;
+  grid-template-columns: 140px 1fr 120px;
   align-items: center;
   gap: var(--space-4);
 }
 
 .transparencyBarLabel {
-  flex: 0 0 150px;
   font-size: var(--type-small);
   font-weight: 500;
-  color: var(--ink-medium);
+  color: var(--stone-300);
 }
 
 .transparencyBarTrack {
-  flex: 1;
   height: 8px;
-  background-color: var(--stone-100);
-  border-radius: var(--radius-full);
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
   overflow: hidden;
 }
 
 .transparencyBarFill {
   height: 100%;
-  border-radius: var(--radius-full);
-  transition: width var(--transition-slower) var(--ease-out-expo);
+  border-radius: 4px;
+  transition: width 1s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.transparencyBarFillSuccess {
+  background-color: #4ADE80;
+}
+
+.transparencyBarFillDanger {
+  background-color: #F87171;
+}
+
+.transparencyBarFillAccent {
+  background-color: var(--amber-400);
 }
 
 .transparencyBarValue {
-  flex: 0 0 100px;
-  text-align: right;
   font-size: var(--type-small);
   font-weight: 600;
-  color: var(--ink-deep);
+  color: var(--editorial-white);
+  text-align: right;
 }
 
-/* Link */
-.transparencyLink {
-  margin-top: var(--space-10);
+/* Footer link */
+.transparencyFooter {
+  margin-top: var(--space-12);
+  padding-top: var(--space-8);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
   text-align: center;
 }
 
-.transparencyLink a {
+.transparencyLink {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-3);
   font-size: var(--type-small);
   font-weight: 600;
   letter-spacing: var(--tracking-wide);
   text-transform: uppercase;
-  color: var(--ink-medium);
+  color: var(--stone-300);
   text-decoration: none;
-  transition: color var(--transition-fast);
+  transition: color 0.2s ease;
+  padding-bottom: var(--space-1);
+  border-bottom: 2px solid var(--stone-500);
 }
 
-.transparencyLink a:hover {
-  color: var(--amber-600);
+.transparencyLink:hover {
+  color: var(--amber-400);
+  border-bottom-color: var(--amber-400);
   text-decoration: none;
+}
+
+.transparencyLink svg {
+  transition: transform 0.2s ease;
+}
+
+.transparencyLink:hover svg {
+  transform: translateX(4px);
 }
 
 /* Responsive */
 @media (max-width: 1024px) {
-  .transparencyHighlights {
+  .transparencyGrid {
     grid-template-columns: 1fr;
     gap: var(--space-4);
+  }
+
+  .transparencyBar {
+    grid-template-columns: 100px 1fr 100px;
   }
 }
 
 @media (max-width: 640px) {
+  .transparency {
+    padding: var(--space-16) 0;
+  }
+
   .transparencyBar {
-    flex-direction: column;
-    align-items: flex-start;
+    grid-template-columns: 1fr;
     gap: var(--space-2);
   }
 
   .transparencyBarLabel {
-    flex: none;
+    order: 1;
   }
 
   .transparencyBarTrack {
+    order: 3;
     width: 100%;
   }
 
   .transparencyBarValue {
-    flex: none;
+    order: 2;
     text-align: left;
   }
 }

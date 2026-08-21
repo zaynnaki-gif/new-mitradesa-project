@@ -17,3 +17,6 @@ export { TimelineSection, type TimelineData, type TimelineItem } from './Timelin
 export { GallerySection, type GalleryData, type GalleryItem } from './GallerySection';
 export { CommunitySection, type CommunityData, type Person } from './CommunitySection';
 export { TransparencySection, type TransparencyData } from './TransparencySection';
+export { EditorialHero } from './EditorialHero';
+export { EditorialSection } from './EditorialSection';
+export { EditorialCard } from './EditorialCard';

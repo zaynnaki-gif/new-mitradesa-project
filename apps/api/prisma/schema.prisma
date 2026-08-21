@@ -76,6 +76,7 @@ model Desa {
   SuratMasuk     SuratMasuk[]
   PotensiDesa    PotensiDesa[]
   gubugs         Gubug[]
+  banners        Banner[]
 
   @@unique([kecamatanId, kode])
   @@index([kecamatanId])
@@ -1289,4 +1290,23 @@ model PotensiDesa {
   @@index([slug])
   @@index([kategori])
   @@map("potensi_desa")
+}
+
+model Banner {
+  id          BigInt   @id @default(autoincrement())
+  judul       String   @db.VarChar(255)
+  deskripsi   String?  @db.VarChar(500)
+  gambarUrl   String   @map("gambar_url") @db.VarChar(500)
+  linkUrl     String?  @map("link_url") @db.VarChar(255)
+  urutan      Int      @default(0)
+  isAktif     Boolean  @default(true) @map("is_aktif")
+  desaId      BigInt?  @map("desa_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  desa        Desa?    @relation(fields: [desaId], references: [id], onUpdate: NoAction)
+
+  @@index([desaId])
+  @@index([urutan])
+  @@map("banner")
 }

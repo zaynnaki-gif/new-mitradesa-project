@@ -1,6 +1,7 @@
 import { prisma } from './prisma.js';
 import { AuditService } from './audit.service.js';
 import { ApiError } from '../utils/response.js';
+import { getInstanceContext } from '../config/instance.js';
 
 export class LembagaService {
   private auditService: AuditService;
@@ -27,7 +28,7 @@ export class LembagaService {
     if (query.search) {
       where.OR = [
         { nama: { contains: query.search, mode: 'insensitive' } },
-        { jenis: { contains: query.search, mode: 'insensitive' },
+        { jenis: { contains: query.search, mode: 'insensitive' } },
       ];
     }
 
@@ -68,12 +69,14 @@ export class LembagaService {
     actorIp?: string,
     actorAgent?: string
   ) {
+    const { desaId } = getInstanceContext();
     const result = await prisma.lembaga.create({
       data: {
         jenis: data.jenis,
         nama: data.nama,
         deskripsi: data.deskripsi || null,
         status: data.status || 'AKTIF',
+        desaId: desaId ? BigInt(desaId) : BigInt(1234567890), // fallback if needed, though desaId is usually injected
       },
     });
 

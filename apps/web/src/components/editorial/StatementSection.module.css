@@ -2,7 +2,7 @@
 
 /* ============================================
    EDITORIAL STATEMENT
-   Large statement with asymmetric layout
+   Large typography with asymmetric editorial layout
    ============================================ */
 
 .statement {
@@ -16,14 +16,23 @@
   padding: 0 var(--space-6);
 }
 
-.statementContent {
+/* Editorial asymmetric layout */
+.statementEditorial {
+  background-color: var(--ink-deep);
+  color: var(--editorial-cream);
+  padding: var(--space-32) 0;
+}
+
+.statementGrid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 45% 55%;
   gap: var(--grid-gap-lg);
   align-items: start;
 }
 
 .statementLeft {
+  position: sticky;
+  top: calc(var(--header-height) + var(--space-8));
   padding-right: var(--space-8);
 }
 
@@ -32,18 +41,18 @@
   font-weight: 600;
   letter-spacing: var(--tracking-widest);
   text-transform: uppercase;
-  color: var(--amber-600);
+  color: var(--amber-400);
   margin-bottom: var(--space-6);
   display: block;
 }
 
-.statementTitle {
+.statementTitleLarge {
   font-family: var(--font-display);
-  font-size: var(--type-h1);
+  font-size: clamp(3rem, 6vw, 5rem);
   font-weight: 700;
   line-height: var(--leading-heading);
   letter-spacing: var(--tracking-tight);
-  color: var(--ink-deep);
+  color: var(--editorial-cream);
 }
 
 .statementRight {
@@ -53,7 +62,7 @@
 .statementBody {
   font-size: var(--type-body-lg);
   line-height: var(--leading-relaxed);
-  color: var(--ink-medium);
+  color: var(--stone-200);
 }
 
 .statementBody p {
@@ -64,29 +73,90 @@
   margin-bottom: 0;
 }
 
+.statementDivider {
+  width: 60px;
+  height: 3px;
+  background-color: var(--amber-400);
+  margin-top: var(--space-8);
+}
+
 /* Alternative: Centered layout */
 .statementCentered {
   text-align: center;
+  background-color: var(--editorial-offwhite);
+  padding: var(--space-24) 0;
 }
 
-.statementCentered .statementContent {
-  display: block;
+.statementCentered .statementInner {
+  max-width: 800px;
 }
 
-.statementCentered .statementTitle {
+.statementContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.statementTitle {
+  font-family: var(--font-display);
+  font-size: var(--type-h1);
+  font-weight: 700;
+  line-height: var(--leading-heading);
+  letter-spacing: var(--tracking-tight);
+  color: var(--ink-deep);
+  margin-bottom: var(--space-6);
+}
+
+/* Dark variant for quote */
+.statementDark {
+  background-color: var(--ink-deep);
+  padding: var(--space-40) 0;
+  text-align: center;
+}
+
+.statementQuote {
+  position: relative;
   max-width: 900px;
   margin: 0 auto;
 }
 
-.statementCentered .statementBody {
-  max-width: 700px;
-  margin: var(--space-8) auto 0;
+.statementQuoteMark {
+  font-family: var(--font-display);
+  font-size: clamp(6rem, 15vw, 12rem);
+  line-height: 0.5;
+  color: var(--amber-400);
+  opacity: 0.3;
+  display: block;
+  margin-bottom: var(--space-4);
 }
 
-/* Alternative: Large quote style */
+.statementQuoteText {
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 4vw, 3rem);
+  font-weight: 400;
+  font-style: italic;
+  line-height: var(--leading-relaxed);
+  color: var(--editorial-white);
+  margin-bottom: var(--space-8);
+}
+
+.statementQuoteAuthor {
+  font-size: var(--type-body);
+  font-weight: 500;
+  color: var(--stone-400);
+  letter-spacing: var(--tracking-wide);
+  font-style: normal;
+}
+
+.statementQuoteDash {
+  margin-right: var(--space-2);
+  color: var(--amber-400);
+}
+
+/* Legacy quote style (centered) */
 .statementQuote {
   position: relative;
-  padding-left: var(--space-10);
+  padding: var(--space-12);
 }
 
 .statementQuote::before {
@@ -119,17 +189,18 @@
 
 /* Responsive */
 @media (max-width: 1024px) {
-  .statementContent {
+  .statementGrid {
     grid-template-columns: 1fr;
     gap: var(--space-8);
   }
 
   .statementLeft {
+    position: static;
     padding-right: 0;
   }
 
-  .statementTitle {
-    font-size: var(--type-h2);
+  .statementTitleLarge {
+    font-size: clamp(2.5rem, 8vw, 4rem);
   }
 }
 
@@ -138,11 +209,15 @@
     padding: var(--section-padding-y) 0;
   }
 
-  .statementTitle {
-    font-size: clamp(1.75rem, 6vw, 2.5rem);
+  .statementEditorial {
+    padding: var(--space-16) 0;
   }
 
-  .statementQuote::before {
+  .statementTitleLarge {
+    font-size: clamp(2rem, 8vw, 3rem);
+  }
+
+  .statementQuoteMark {
     font-size: 4rem;
   }
 

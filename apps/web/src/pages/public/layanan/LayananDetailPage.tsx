@@ -7,6 +7,7 @@ import { useSEO, getPageTitle } from '@/hooks/useSeo';
 import { DynamicForm } from '@/components/forms/DynamicForm';
 import type { FieldDefinition } from '@/components/forms/DynamicForm';
 import { API_URL } from '@/lib/constants';
+import { EditorialHero, EditorialSection } from '@/components/editorial';
 import styles from './LayananPage.module.css';
 
 interface ServiceDetail {
@@ -162,11 +163,7 @@ export default function LayananDetailPage() {
   if (loading) {
     return (
       <PublicLayout>
-        <section className={styles.pageHeader}>
-          <div className={styles.headerContent}>
-            <Typography variant="h1" className={styles.pageTitle}>Memuat...</Typography>
-          </div>
-        </section>
+        <EditorialHero title="Memuat..." />
       </PublicLayout>
     );
   }
@@ -174,13 +171,15 @@ export default function LayananDetailPage() {
   if (error || !service) {
     return (
       <PublicLayout>
-        <section className={styles.pageHeader}>
-          <div className={styles.headerContent}>
-            <Typography variant="h1" className={styles.pageTitle}>Layanan Tidak Ditemukan</Typography>
-            <Typography variant="body1" className={styles.pageSubtitle}>{error}</Typography>
+        <EditorialHero 
+          title="Layanan Tidak Ditemukan"
+          subtitle={error}
+        />
+        <EditorialSection alternate>
+          <div className={styles.container}>
             <Link to="/layanan" className={styles.backLink}>← Kembali ke Daftar Layanan</Link>
           </div>
-        </section>
+        </EditorialSection>
       </PublicLayout>
     );
   }
@@ -189,15 +188,11 @@ export default function LayananDetailPage() {
   if (step === 'success') {
     return (
       <PublicLayout>
-        <section className={styles.pageHeader}>
-          <div className={styles.headerContent}>
-            <Typography variant="h1" className={styles.pageTitle}>✓ Permintaan Berhasil Diajukan</Typography>
-            <Typography variant="body1" className={styles.pageSubtitle}>
-              Permintaan layanan {service.nama} Anda telah diajukan.
-            </Typography>
-          </div>
-        </section>
-        <section className={styles.content}>
+        <EditorialHero 
+          title="✓ Permintaan Berhasil Diajukan"
+          subtitle={`Permintaan layanan ${service.nama} Anda telah diajukan.`}
+        />
+        <EditorialSection alternate>
           <div className={styles.container}>
             <div className={styles.successCard}>
               <div className={styles.successIcon}>
@@ -224,7 +219,7 @@ export default function LayananDetailPage() {
               </div>
             </div>
           </div>
-        </section>
+        </EditorialSection>
       </PublicLayout>
     );
   }
@@ -233,13 +228,11 @@ export default function LayananDetailPage() {
   if (step === 'review') {
     return (
       <PublicLayout>
-        <section className={styles.pageHeader}>
-          <div className={styles.headerContent}>
-            <Typography variant="h1" className={styles.pageTitle}>Review Permintaan</Typography>
-            <Typography variant="body1" className={styles.pageSubtitle}>Pastikan data yang Anda isi sudah benar</Typography>
-          </div>
-        </section>
-        <section className={styles.content}>
+        <EditorialHero 
+          title="Review Permintaan"
+          subtitle="Pastikan data yang Anda isi sudah benar"
+        />
+        <EditorialSection alternate>
           <div className={styles.container}>
             <div className={styles.reviewCard}>
               <div className={styles.serviceInfo}>
@@ -276,7 +269,7 @@ export default function LayananDetailPage() {
               )}
             </div>
           </div>
-        </section>
+        </EditorialSection>
       </PublicLayout>
     );
   }
@@ -285,16 +278,16 @@ export default function LayananDetailPage() {
   if (step === 'nik-validation') {
     return (
       <PublicLayout>
-        <section className={styles.pageHeader}>
-          <div className={styles.headerContent}>
-            <Link to="/layanan" className={styles.backLink}>← Kembali ke Daftar Layanan</Link>
-            <Typography variant="h1" className={styles.pageTitle}>{service.nama}</Typography>
-            <Typography variant="body1" className={styles.pageSubtitle}>{service.deskripsi || getKategoriLabel(service.kategori)}</Typography>
-          </div>
-        </section>
+        <EditorialHero 
+          title={service.nama}
+          subtitle={service.deskripsi || getKategoriLabel(service.kategori)}
+        />
 
-        <section className={styles.content}>
+        <EditorialSection alternate>
           <div className={styles.container}>
+            <div style={{ marginBottom: '2rem' }}>
+              <Link to="/layanan" className={styles.backLink}>← Kembali ke Daftar Layanan</Link>
+            </div>
             <div className={styles.formCard}>
               <Typography variant="h3" style={{ marginBottom: '1rem' }}>Verifikasi Identitas</Typography>
               <Typography variant="body1" color="secondary" style={{ marginBottom: '2rem' }}>
@@ -333,7 +326,7 @@ export default function LayananDetailPage() {
               </form>
             </div>
           </div>
-        </section>
+        </EditorialSection>
       </PublicLayout>
     );
   }
@@ -341,17 +334,17 @@ export default function LayananDetailPage() {
   // Form step
   return (
     <PublicLayout>
-      <section className={styles.pageHeader}>
-        <div className={styles.headerContent}>
-          <Link to="/layanan" className={styles.backLink}>← Kembali ke Daftar Layanan</Link>
-          <Typography variant="h1" className={styles.pageTitle}>{service.nama}</Typography>
-          <Typography variant="body1" className={styles.pageSubtitle}>{service.deskripsi || getKategoriLabel(service.kategori)}</Typography>
-          <span className={styles.kategoriBadge}>{getKategoriLabel(service.kategori)}</span>
-        </div>
-      </section>
+      <EditorialHero 
+        title={service.nama}
+        subtitle={service.deskripsi || getKategoriLabel(service.kategori)}
+      />
 
-      <section className={styles.content}>
+      <EditorialSection alternate>
         <div className={styles.container}>
+          <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Link to="/layanan" className={styles.backLink}>← Kembali ke Daftar Layanan</Link>
+            <span className={styles.kategoriBadge}>{getKategoriLabel(service.kategori)}</span>
+          </div>
           <div className={styles.formCard}>
             {pendudukInfo && (
               <div style={{ marginBottom: '2rem', padding: '1rem', backgroundColor: 'var(--color-bg-muted)', borderRadius: '0.5rem', border: '1px solid var(--color-border)' }}>
@@ -403,7 +396,7 @@ export default function LayananDetailPage() {
             </ul>
           </div>
         </div>
-      </section>
+      </EditorialSection>
     </PublicLayout>
   );
 }

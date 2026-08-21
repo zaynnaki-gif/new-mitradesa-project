@@ -4,6 +4,7 @@ import { PublicLayout } from '@/layouts';
 import { Typography } from '@/components/ui';
 import { useSEO, getPageTitle } from '@/hooks/useSeo';
 import { API_URL } from '@/lib/constants';
+import { EditorialHero, EditorialSection } from '@/components/editorial';
 import styles from './TrackingPage.module.css';
 
 interface RequestData {
@@ -110,13 +111,9 @@ export default function TrackingPage() {
   if (loading) {
     return (
       <PublicLayout>
-        <section className={styles.header}>
-          <div className={styles.headerContent}>
-            <Typography variant="h1" className={styles.title}>
-              Memuat...
-            </Typography>
-          </div>
-        </section>
+        <EditorialHero 
+          title="Memuat..." 
+        />
       </PublicLayout>
     );
   }
@@ -124,21 +121,13 @@ export default function TrackingPage() {
   if (!nomor || error || !request) {
     return (
       <PublicLayout>
-        <section className={styles.header}>
-          <div className={styles.headerContent}>
-            <Typography variant="h1" className={styles.title}>
-              Lacak Permintaan
-            </Typography>
-            {error && (
-              <Typography variant="body1" color="secondary" className={styles.subtitle}>
-                {error}
-              </Typography>
-            )}
-          </div>
-        </section>
+        <EditorialHero 
+          title="Lacak Permintaan" 
+          subtitle={error || undefined}
+        />
 
         {/* Quick Search */}
-        <section className={styles.content}>
+        <EditorialSection alternate>
           <div className={styles.container}>
             <div className={styles.searchCard}>
               <Typography variant="h3" className={styles.searchTitle}>
@@ -175,7 +164,7 @@ export default function TrackingPage() {
               </div>
             )}
           </div>
-        </section>
+        </EditorialSection>
       </PublicLayout>
     );
   }
@@ -185,18 +174,12 @@ export default function TrackingPage() {
 
   return (
     <PublicLayout>
-      <section className={styles.header}>
-        <div className={styles.headerContent}>
-          <Typography variant="h1" className={styles.title}>
-            Lacak Permintaan
-          </Typography>
-          <Typography variant="body1" color="secondary" className={styles.subtitle}>
-            Pantau status permintaan layanan Anda
-          </Typography>
-        </div>
-      </section>
+      <EditorialHero 
+        title="Lacak Permintaan" 
+        subtitle="Pantau status permintaan layanan Anda"
+      />
 
-      <section className={styles.content}>
+      <EditorialSection alternate>
         <div className={styles.container}>
           {/* Status Card */}
           <div className={styles.statusCard}>
@@ -339,7 +322,7 @@ export default function TrackingPage() {
             </Typography>
           </div>
         </div>
-      </section>
+      </EditorialSection>
     </PublicLayout>
   );
 }

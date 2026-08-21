@@ -5,6 +5,7 @@ import { Typography } from '@/components/ui';
 import { useIdentitasDesa } from '@/hooks/useIdentitasDesa';
 import { useSEO, getPageTitle } from '@/hooks/useSeo';
 import { API_URL } from '@/lib/constants';
+import { EditorialHero, EditorialSection } from '@/components/editorial';
 import styles from './LayananPage.module.css';
 
 interface ServiceItem {
@@ -126,19 +127,13 @@ export default function LayananPage() {
   return (
     <PublicLayout>
       {/* Page Header */}
-      <section className={styles.pageHeader}>
-        <div className={styles.headerContent}>
-          <Typography variant="h1" className={styles.pageTitle}>
-            Layanan Desa
-          </Typography>
-          <Typography variant="body1" className={styles.pageSubtitle}>
-            Informasi layanan administrasi {villageName}
-          </Typography>
-        </div>
-      </section>
+      <EditorialHero 
+        title="Layanan Desa" 
+        subtitle={`Informasi layanan administrasi ${villageName}`} 
+      />
 
       {/* Content */}
-      <section className={styles.content}>
+      <EditorialSection alternate>
         <div className={styles.container}>
           {/* Filters */}
           {services.length > 0 && (
@@ -318,7 +313,7 @@ export default function LayananPage() {
             </div>
           </div>
         </div>
-      </section>
+      </EditorialSection>
     </PublicLayout>
   );
 }

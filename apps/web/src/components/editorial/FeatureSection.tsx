@@ -38,25 +38,28 @@ export function FeatureSection({
 
   if (variant === 'full') {
     return (
-      <section className={`${styles.feature} ${styles.featureFull}`}>
+      <section className={`${styles.featureFull} animate-fade-in`}>
         {image?.url && (
           <img
             src={image.url}
             alt={image.alt || ''}
-            className={styles.featureImage}
+            className={styles.featureImageFull}
             loading="lazy"
           />
         )}
-        <div className={styles.featureFullContent}>
-          <div className={styles.featureFullInner}>
-            {eyebrow && <span className={styles.featureEyebrow}>{eyebrow}</span>}
-            <h2 className={styles.featureTitle}>{title}</h2>
-            {body && <p className={styles.featureBody}>{body}</p>}
-            {link && (
-              <Link to={link.href} className={styles.featureLink}>
-                {link.label}
-              </Link>
-            )}
+        <div className={styles.overlay}></div>
+        <div className="container">
+          <div className={styles.featureFullContent}>
+            <div className={`${styles.featureFullInner} glass-dark animate-fade-up delay-200`}>
+              {eyebrow && <span className={styles.eyebrowAccent}>{eyebrow}</span>}
+              <h2 className={`${styles.titleLight} font-serif`}>{title}</h2>
+              {body && <p className={styles.bodyLight}>{body}</p>}
+              {link && (
+                <Link to={link.href} className={styles.btnPrimaryLight}>
+                  {link.label} &rarr;
+                </Link>
+              )}
+            </div>
           </div>
         </div>
       </section>
@@ -64,49 +67,57 @@ export function FeatureSection({
   }
 
   return (
-    <section className={styles.feature}>
-      <div className={styles.featureInner}>
+    <section className={styles.featureSection}>
+      <div className="container">
+        <div className={`${styles.sectionHeader} animate-fade-up`}>
+          {eyebrow && <span className={styles.eyebrow}>{eyebrow}</span>}
+          <h2 className={`${styles.title} font-serif`}>{title}</h2>
+          {body && <p className={styles.subtitle}>{body}</p>}
+        </div>
+
         <div className={styles.featureGrid}>
           {/* Main Feature */}
-          <div className={styles.featureMain}>
+          <div className={`${styles.featureMain} animate-fade-up delay-100`}>
             {image?.url && (
-              <>
+              <div className={styles.mainImageWrapper}>
                 <img
                   src={image.url}
                   alt={image.alt || ''}
-                  className={styles.featureMainImage}
+                  className={styles.mainImage}
                   loading="lazy"
                 />
-                <div className={styles.featureMainCaption}>
-                  {eyebrow && (
-                    <span className={styles.featureEyebrow}>{eyebrow}</span>
-                  )}
-                  <h2 className={styles.featureTitle}>{title}</h2>
-                  {body && <p className={styles.featureBody}>{body}</p>}
+                <div className={styles.mainOverlay}></div>
+                <div className={styles.mainContent}>
+                  <span className={styles.tagOverlay}>Unggulan</span>
+                  <h3 className={`${styles.mainTitle} font-serif`}>{title}</h3>
                 </div>
-              </>
+              </div>
             )}
           </div>
 
           {/* Secondary Items */}
           {items && items.length > 0 && (
             <div className={styles.featureSecondary}>
-              {items.map((item) => (
-                <article key={item.id} className={styles.featureSecondaryItem}>
+              {items.map((item, index) => (
+                <article 
+                  key={item.id} 
+                  className={`${styles.secondaryCard} animate-fade-up`}
+                  style={{ animationDelay: `${(index + 2) * 100}ms` }}
+                >
                   {item.gambarUrl && (
-                    <img
-                      src={item.gambarUrl}
-                      alt={item.nama}
-                      className={styles.featureSecondaryImage}
-                      loading="lazy"
-                    />
+                    <div className={styles.secondaryImageWrapper}>
+                      <img
+                        src={item.gambarUrl}
+                        alt={item.nama}
+                        className={styles.secondaryImage}
+                        loading="lazy"
+                      />
+                    </div>
                   )}
-                  <div className={styles.featureSecondaryContent}>
-                    <h3 className={styles.featureSecondaryTitle}>{item.nama}</h3>
+                  <div className={styles.secondaryContent}>
+                    <h4 className={styles.secondaryTitle}>{item.nama}</h4>
                     {item.deskripsi && (
-                      <p className={styles.featureSecondaryExcerpt}>
-                        {item.deskripsi}
-                      </p>
+                      <p className={styles.secondaryDesc}>{item.deskripsi}</p>
                     )}
                   </div>
                 </article>
@@ -116,8 +127,10 @@ export function FeatureSection({
         </div>
 
         {link && (
-          <div className={styles.featureLink}>
-            <Link to={link.href}>{link.label}</Link>
+          <div className={`${styles.footerLink} animate-fade-up delay-500`}>
+            <Link to={link.href} className={styles.btnOutline}>
+              {link.label} &rarr;
+            </Link>
           </div>
         )}
       </div>
