@@ -127,6 +127,29 @@ model Rt {
   @@map("rt")
 }
 
+/// Lembaga - Organisasi kemasyarakatan: BPD, PKK, KADER, RT, RW, dll
+model Lembaga {
+  id          BigInt    @id @default(autoincrement())
+  desaId     BigInt    @map("desa_id")
+  jenis       String    @db.VarChar(50)  // BPD, PKK, KADER, RT, RW, dll
+  nama        String    @db.VarChar(255)
+  deskripsi   String?   @db.Text
+  pimpinanId  BigInt?   @map("penduduk_id")  // Foreign key to Penduduk (nullable - leader optional)
+  gubugId    BigInt?   @map("gubug_id")
+  rwId       BigInt?    @map("rw_id")
+  rtId       BigInt?    @map("rt_id")
+  status      String    @default("AKTIF") @map("status") @db.VarChar(20)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  @@index([desaId])
+  @@index([jenis])
+  @@index([gubugId])
+  @@index([rwId])
+  @@index([rtId])
+  @@map("lembaga")
+}
+
 model IdentitasDesa {
   id               BigInt   @id @default(autoincrement())
   desaId           BigInt   @unique @map("desa_id")
@@ -745,6 +768,9 @@ enum AuditAction {
   RT_CREATED
   RT_UPDATED
   RT_DELETED
+  LEMBAGA_CREATED
+  LEMBAGA_UPDATED
+  LEMBAGA_DELETED
   PENDUDUK_CREATED
   PENDUDUK_UPDATED
   PENDUDUK_DELETED
