@@ -1,0 +1,267 @@
+/* WilayahPage Styles */
+
+.container {
+  padding: 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.5rem;
+  gap: 1rem;
+}
+
+.title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0 0 0.25rem 0;
+}
+
+.subtitle {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.headerActions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.desaSelector {
+  background: var(--color-bg-surface);
+  padding: 1rem;
+  border-radius: 0.5rem;
+  margin-bottom: 1rem;
+  max-width: 400px;
+}
+
+.treeContainer {
+  background: var(--color-bg-surface);
+  border-radius: 0.5rem;
+  padding: 1rem;
+}
+
+.emptyState {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--color-text-secondary);
+}
+
+.emptyState p {
+  margin-bottom: 1rem;
+}
+
+/* Gubug Block */
+.gubugBlock {
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  margin-bottom: 1rem;
+  overflow: hidden;
+}
+
+.gubugBlock:last-child {
+  margin-bottom: 0;
+}
+
+.gubugHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: var(--color-primary);
+  color: white;
+}
+
+.gubugIcon {
+  font-size: 1.5rem;
+}
+
+.gubugLabel {
+  flex: 1;
+  font-size: 1rem;
+}
+
+.gubugLabel strong {
+  font-weight: 700;
+}
+
+.gubugBadge {
+  background: rgba(255,255,255,0.2);
+  font-size: 0.625rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+}
+
+.gubugActions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.gubugActions button {
+  background: rgba(255,255,255,0.1);
+  border-color: rgba(255,255,255,0.3);
+  color: white;
+}
+
+.gubugActions button:hover {
+  background: rgba(255,255,255,0.2);
+}
+
+/* RW List */
+.rwList {
+  padding: 0.5rem;
+  background: #f9fafb;
+}
+
+.rwBlock {
+  border-left: 3px solid var(--color-primary);
+  margin-bottom: 0.5rem;
+  padding-left: 0.75rem;
+}
+
+.rwBlock:last-child {
+  margin-bottom: 0;
+}
+
+.rwHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 0.5rem;
+  border-radius: 0.25rem;
+}
+
+.rwHeader:hover {
+  background: white;
+}
+
+.rwIcon {
+  font-size: 1.25rem;
+}
+
+.rwLabel {
+  flex: 1;
+  font-size: 0.9rem;
+}
+
+.rwLabel strong {
+  font-weight: 600;
+}
+
+.rwBadge {
+  background: #3b82f6;
+  color: white;
+  font-size: 0.625rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+}
+
+.rwActions {
+  display: flex;
+  gap: 0.25rem;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.rwHeader:hover .rwActions {
+  opacity: 1;
+}
+
+/* RT List */
+.rtList {
+  padding: 0.25rem 0 0.5rem 2rem;
+}
+
+.rtRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.rtRow:hover {
+  background: white;
+}
+
+.rtIcon {
+  font-size: 1rem;
+}
+
+.rtLabel {
+  flex: 1;
+}
+
+.rtLabel strong {
+  font-weight: 600;
+}
+
+.rtBadge {
+  background: #10b981;
+  color: white;
+  font-size: 0.5rem;
+  padding: 0.125rem 0.4rem;
+  border-radius: 9999px;
+}
+
+.rtActions {
+  display: flex;
+  gap: 0.25rem;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.rtRow:hover .rtActions {
+  opacity: 1;
+}
+
+/* Form Styles */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 300px;
+}
+
+.formActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+
+  .headerActions {
+    justify-content: flex-end;
+  }
+
+  .desaSelector {
+    max-width: none;
+  }
+
+  .gubugActions,
+  .rwActions,
+  .rtActions {
+    opacity: 1;
+    flex-wrap: wrap;
+  }
+
+  .rwLabel,
+  .rtLabel {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
