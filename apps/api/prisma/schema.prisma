@@ -75,12 +75,56 @@ model Desa {
   agenda         Agenda[]
   SuratMasuk     SuratMasuk[]
   PotensiDesa    PotensiDesa[]
+  gubugs         Gubug[]
 
   @@unique([kecamatanId, kode])
   @@index([kecamatanId])
   @@index([kode])
   @@index([nama])
   @@map("desa")
+}
+
+model Gubug {
+  id        BigInt    @id @default(autoincrement())
+  desaId    BigInt    @map("desa_id")
+  kode      String    @db.VarChar(20)
+  nama      String    @db.VarChar(100)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
+  rws       Rw[]
+  desa      Desa      @relation(fields: [desaId], references: [id], onUpdate: NoAction, map: "gubug_desa_id_foreign")
+
+  @@unique([desaId, kode])
+  @@index([desaId])
+  @@map("gubug")
+}
+
+model Rw {
+  id        BigInt    @id @default(autoincrement())
+  gubugId   BigInt    @map("gubug_id")
+  kode      String    @db.VarChar(20)
+  nama      String    @db.VarChar(100)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
+  rts       Rt[]
+  gubug     Gubug    @relation(fields: [gubugId], references: [id], onUpdate: NoAction, map: "rw_gubug_id_foreign")
+
+  @@unique([gubugId, kode])
+  @@index([gubugId])
+  @@map("rw")
+}
+
+model Rt {
+  id        BigInt    @id @default(autoincrement())
+  rwId      BigInt    @map("rw_id")
+  kode      String    @db.VarChar(20)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
+  rw        Rw       @relation(fields: [rwId], references: [id], onUpdate: NoAction, map: "rt_rw_id_foreign")
+
+  @@unique([rwId, kode])
+  @@index([rwId])
+  @@map("rt")
 }
 
 model IdentitasDesa {
@@ -692,6 +736,15 @@ enum AuditAction {
   WILAYAH_CREATED
   WILAYAH_UPDATED
   WILAYAH_DELETED
+  GUBUG_CREATED
+  GUBUG_UPDATED
+  GUBUG_DELETED
+  RW_CREATED
+  RW_UPDATED
+  RW_DELETED
+  RT_CREATED
+  RT_UPDATED
+  RT_DELETED
   PENDUDUK_CREATED
   PENDUDUK_UPDATED
   PENDUDUK_DELETED
