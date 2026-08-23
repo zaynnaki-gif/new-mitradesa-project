@@ -27,9 +27,7 @@ jobs:
       - name: Create API .env file
         run: |
           mkdir -p apps/api
-          cat > apps/api/.env << 'EOF'
-          ${{ secrets.HOSTINGER_API_ENV }}
-          EOF
+          printf '%s' '${{ secrets.HOSTINGER_API_ENV }}' > apps/api/.env
 
       - name: Install dependencies
         run: npm ci
@@ -41,88 +39,49 @@ jobs:
       - name: Build API
         run: npm run build:api
 
-      - name: Install rsync & sshpass
-        run: sudo apt-get install -y rsync sshpass
+      - name: Install lftp
+        run: sudo apt-get install -y lftp
 
-      - name: Deploy API dist via rsync over SSH
+      - name: Deploy API via FTP
         env:
-          SSH_HOST: ${{ secrets.HOSTINGER_HOST }}
-          SSH_USER: ${{ secrets.HOSTINGER_USER }}
-          SSH_PASS: ${{ secrets.HOSTINGER_PASSWORD }}
-          SSH_PORT: ${{ secrets.HOSTINGER_PORT }}
-          DEST_PATH: ${{ secrets.HOSTINGER_API_PATH }}
+          FTP_HOST: ${{ secrets.HOSTINGER_FTP_HOST }}
+          FTP_USER: ${{ secrets.HOSTINGER_FTP_USER }}
+          FTP_PASS: ${{ secrets.HOSTINGER_FTP_PASS }}
+          FTP_PATH: ${{ secrets.HOSTINGER_API_PATH }}
         run: |
-          export SSHPASS=$SSH_PASS
-          sshpass -e rsync -avz --timeout=300 \
-            -e "ssh -p $SSH_PORT -o StrictHostKeyChecking=no -o ConnectTimeout=30" \
-            apps/api/dist/ \
-            $SSH_USER@$SSH_HOST:$DEST_PATH/dist/
+          lftp -c "
+            set ftp:ssl-allow yes;
+            set ftp:ssl-force false;
+            set ssl:verify-certificate no;
+            set net:timeout 60;
+            set net:max-retries 5;
+            set net:reconnect-interval-base 5;
+            open -u '$FTP_USER','$FTP_PASS' ftp://$FTP_HOST;
+            mirror --reverse --delete --verbose=1 \
+              --exclude node_modules \
+              --exclude .git \
+              apps/api/dist/ $FTP_PATH/dist/;
+            put apps/api/.env -o $FTP_PATH/.env;
+            put apps/api/package.json -o $FTP_PATH/package.json;
+            bye
+          "
+          echo "FTP upload selesai"
 
-          sshpass -e rsync -avz --timeout=60 \
-            -e "ssh -p $SSH_PORT -o StrictHostKeyChecking=no -o ConnectTimeout=30" \
-            apps/api/.env apps/api/package.json \
-            $SSH_USER@$SSH_HOST:$DEST_PATH/
+      - name: Restart Node.js App via Hostinger API
+        env:
+          HOSTINGER_API_TOKEN: ${{ secrets.HOSTINGER_API_TOKEN }}
+        run: |
+          # Trigger restart via Hostinger API if token is set
+          if [ -n "$HOSTINGER_API_TOKEN" ]; then
+            curl -s -X POST \
+              "https://api.hostinger.com/v1/hosting/api.serunimumbul.com/nodejs/restart" \
+              -H "Authorization: Bearer $HOSTINGER_API_TOKEN" \
+              -H "Content-Type: application/json" \
+              || echo "API restart endpoint not available - restart manually from hPanel"
+          else
+            echo "HOSTINGER_API_TOKEN not set - restart Node.js App manually from hPanel > Node.js"
+          fi
 
-      - name: Restart API via SSH (login shell)
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.HOSTINGER_HOST }}
-          username: ${{ secrets.HOSTINGER_USER }}
-          password: ${{ secrets.HOSTINGER_PASSWORD }}
-          port: ${{ secrets.HOSTINGER_PORT }}
-          request_pty: true
-          command_timeout: 5m
-          # Use bash login shell so .bash_profile & nvm are loaded
-          script: |
-            # ---- Diagnose environment ----
-            echo "HOME=$HOME SHELL=$SHELL"
-            echo "PATH=$PATH"
-            ls ~/.nvm/versions/node/ 2>/dev/null && echo "NVM OK" || echo "No NVM"
-            echo "which node: $(which node 2>/dev/null || echo NOT_FOUND)"
-            echo "which npm:  $(which npm  2>/dev/null || echo NOT_FOUND)"
-            find /home -maxdepth 5 -name "node" -type f 2>/dev/null | head -3 || true
-            find /opt  -maxdepth 5 -name "node" -type f 2>/dev/null | head -3 || true
-            find /usr  -maxdepth 4 -name "node" -type f 2>/dev/null | head -3 || true
-
-            # ---- Load Node ----
-            for nvm_sh in \
-              "$HOME/.nvm/nvm.sh" \
-              "/usr/local/nvm/nvm.sh" \
-              "/opt/nvm/nvm.sh"
-            do
-              [ -s "$nvm_sh" ] && \. "$nvm_sh" && echo "Loaded nvm from $nvm_sh" && break || true
-            done
-
-            # hard-coded fallbacks common on Hostinger
-            for node_bin in \
-              "/usr/local/bin" \
-              "/usr/bin" \
-              "/opt/alt/node22/usr/bin" \
-              "/opt/alt/node20/usr/bin" \
-              "/opt/alt/node18/usr/bin" \
-              "$HOME/nodevenv/api/20/bin" \
-              "$HOME/.local/share/pnpm"
-            do
-              [ -x "$node_bin/node" ] && export PATH="$node_bin:$PATH" && echo "Found node at $node_bin" && break || true
-            done
-
-            node -v || { echo "FATAL: node not found"; exit 1; }
-            npm -v
-
-            # ---- Deploy ----
-            cd ${{ secrets.HOSTINGER_API_PATH }}
-            npm install --omit=dev --quiet
-
-            # pm2 - install locally if needed
-            [ -f "./node_modules/.bin/pm2" ] || npm install pm2 --save-dev --quiet
-            PM2="./node_modules/.bin/pm2"
-            echo "pm2: $($PM2 --version)"
-
-            $PM2 stop mitradesa-api 2>/dev/null || true
-            $PM2 delete mitradesa-api 2>/dev/null || true
-            $PM2 start dist/index.js --name mitradesa-api --no-daemon
-            $PM2 save --force
-            $PM2 list
 
   deploy-web:
     name: Deploy Web
@@ -141,9 +100,7 @@ jobs:
 
       - name: Create Web .env file
         run: |
-          cat > apps/web/.env.production << 'EOF'
-          ${{ secrets.HOSTINGER_WEB_ENV }}
-          EOF
+          printf '%s' '${{ secrets.HOSTINGER_WEB_ENV }}' > apps/web/.env.production
 
       - name: Install dependencies
         run: npm ci
@@ -153,20 +110,26 @@ jobs:
         env:
           VITE_API_URL: ${{ secrets.PROD_API_URL }}
 
-      - name: Install rsync & sshpass
-        run: sudo apt-get install -y rsync sshpass
+      - name: Install lftp
+        run: sudo apt-get install -y lftp
 
-      - name: Deploy Web via rsync over SSH
+      - name: Deploy Web via FTP
         env:
-          SSH_HOST: ${{ secrets.HOSTINGER_HOST }}
-          SSH_USER: ${{ secrets.HOSTINGER_USER }}
-          SSH_PASS: ${{ secrets.HOSTINGER_PASSWORD }}
-          SSH_PORT: ${{ secrets.HOSTINGER_PORT }}
-          DEST_PATH: ${{ secrets.HOSTINGER_WEB_PATH }}
+          FTP_HOST: ${{ secrets.HOSTINGER_FTP_HOST }}
+          FTP_USER: ${{ secrets.HOSTINGER_FTP_USER }}
+          FTP_PASS: ${{ secrets.HOSTINGER_FTP_PASS }}
+          FTP_PATH: ${{ secrets.HOSTINGER_WEB_PATH }}
         run: |
-          export SSHPASS=$SSH_PASS
-          sshpass -e rsync -avz --delete --timeout=300 \
-            -e "ssh -p $SSH_PORT -o StrictHostKeyChecking=no -o ConnectTimeout=60" \
-            apps/web/dist/ \
-            $SSH_USER@$SSH_HOST:$DEST_PATH/
-          echo "Web deploy selesai!"
+          lftp -c "
+            set ftp:ssl-allow yes;
+            set ftp:ssl-force false;
+            set ssl:verify-certificate no;
+            set net:timeout 60;
+            set net:max-retries 5;
+            set net:reconnect-interval-base 5;
+            open -u '$FTP_USER','$FTP_PASS' ftp://$FTP_HOST;
+            mirror --reverse --delete --verbose=1 \
+              apps/web/dist/ $FTP_PATH/;
+            bye
+          "
+          echo "Web FTP upload selesai"
