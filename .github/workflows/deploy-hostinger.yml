@@ -64,7 +64,7 @@ jobs:
             apps/api/.env apps/api/package.json \
             $SSH_USER@$SSH_HOST:$DEST_PATH/
 
-      - name: Restart API via SSH
+      - name: Discover Node path & Restart API
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.HOSTINGER_HOST }}
@@ -74,31 +74,59 @@ jobs:
           request_pty: true
           command_timeout: 5m
           script: |
-            export NVM_DIR="$HOME/.nvm"
-            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-            NODE_BIN="$HOME/.nvm/versions/node/$(ls $HOME/.nvm/versions/node 2>/dev/null | sort -V | tail -1)/bin"
-            export PATH="$NODE_BIN:$PATH"
-            echo "Node: $(node -v) | npm: $(npm -v)"
+            # Source all possible profile files
+            [ -f ~/.bashrc ] && source ~/.bashrc 2>/dev/null || true
+            [ -f ~/.bash_profile ] && source ~/.bash_profile 2>/dev/null || true
+            [ -f ~/.profile ] && source ~/.profile 2>/dev/null || true
+
+            # NVM
+            export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" || true
+
+            # Find node - try every possible path on Hostinger
+            NODE_PATH=""
+            for candidate in \
+              "$NVM_DIR/versions/node/$(ls $NVM_DIR/versions/node 2>/dev/null | sort -V | tail -1)/bin" \
+              "$HOME/.local/bin" \
+              "/usr/local/bin" \
+              "/usr/bin" \
+              "/opt/alt/node20/usr/bin" \
+              "/opt/alt/node18/usr/bin" \
+              "/usr/local/nodejs/bin"
+            do
+              if [ -x "$candidate/node" ]; then
+                NODE_PATH="$candidate"
+                break
+              fi
+            done
+
+            if [ -z "$NODE_PATH" ]; then
+              echo "ERROR: node not found in any path!"
+              which node 2>&1 || true
+              find / -name "node" -type f 2>/dev/null | head -5
+              exit 1
+            fi
+
+            export PATH="$NODE_PATH:$PATH"
+            echo "Using Node from: $NODE_PATH"
+            echo "node: $(node -v) | npm: $(npm -v)"
 
             cd ${{ secrets.HOSTINGER_API_PATH }}
             npm install --omit=dev --quiet
 
-            # Install pm2 locally if global not available
-            if ! command -v pm2 &>/dev/null; then
+            # pm2 - local install fallback
+            if ! command -v pm2 &>/dev/null && [ ! -f "./node_modules/.bin/pm2" ]; then
               npm install pm2 --save-dev --quiet
-              PM2="./node_modules/.bin/pm2"
-            else
-              PM2="pm2"
             fi
+            PM2="$(command -v pm2 2>/dev/null || echo ./node_modules/.bin/pm2)"
+            echo "pm2 path: $PM2"
 
             npx prisma migrate deploy 2>/dev/null || echo "Migration skipped"
 
-            # Stop existing & start fresh
             $PM2 stop mitradesa-api 2>/dev/null || true
             $PM2 delete mitradesa-api 2>/dev/null || true
-            $PM2 start dist/index.js --name mitradesa-api --env production
+            NODE_PATH="$NODE_PATH" $PM2 start dist/index.js --name mitradesa-api
             $PM2 save --force
-            echo "API started! PM2 list:"
             $PM2 list
 
 
