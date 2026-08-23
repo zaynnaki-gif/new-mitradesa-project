@@ -41,68 +41,51 @@ jobs:
       - name: Build API
         run: npm run build:api
 
-      - name: Create API deployment package
+      - name: Install rsync & sshpass
+        run: sudo apt-get install -y rsync sshpass
+
+      - name: Deploy API dist via rsync over SSH
+        env:
+          SSH_HOST: ${{ secrets.HOSTINGER_HOST }}
+          SSH_USER: ${{ secrets.HOSTINGER_USER }}
+          SSH_PASS: ${{ secrets.HOSTINGER_PASSWORD }}
+          SSH_PORT: ${{ secrets.HOSTINGER_PORT }}
+          DEST_PATH: ${{ secrets.HOSTINGER_API_PATH }}
         run: |
-          mkdir -p deploy-api
-          cp -r apps/api/dist deploy-api/
-          cp apps/api/.env deploy-api/.env
-          cp package.json package-lock.json deploy-api/
-          cp apps/api/package.json deploy-api/
-          tar -czf api-deploy.tar.gz -C deploy-api .
+          # rsync upload dengan retry dan timeout lebih panjang
+          export SSHPASS=$SSH_PASS
+          sshpass -e rsync -avz --timeout=300 \
+            -e "ssh -p $SSH_PORT -o StrictHostKeyChecking=no -o ConnectTimeout=30" \
+            apps/api/dist/ \
+            $SSH_USER@$SSH_HOST:$DEST_PATH/dist/
+          
+          sshpass -e rsync -avz --timeout=60 \
+            -e "ssh -p $SSH_PORT -o StrictHostKeyChecking=no -o ConnectTimeout=30" \
+            apps/api/.env apps/api/package.json \
+            $SSH_USER@$SSH_HOST:$DEST_PATH/
 
-      - name: Deploy API to Hostinger
-        uses: appleboy/scp-action@master
-        with:
-          host: ${{ secrets.HOSTINGER_HOST }}
-          username: ${{ secrets.HOSTINGER_USER }}
-          password: ${{ secrets.HOSTINGER_PASSWORD }}
-          port: ${{ secrets.HOSTINGER_PORT }}
-          command_timeout: 10m
-          source: "api-deploy.tar.gz"
-          target: "${{ secrets.HOSTINGER_API_PATH }}"
-          strip_components: 0
-          overwrite: true
-
-      - name: Run remote commands
+      - name: Restart API via SSH
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.HOSTINGER_HOST }}
           username: ${{ secrets.HOSTINGER_USER }}
           password: ${{ secrets.HOSTINGER_PASSWORD }}
           port: ${{ secrets.HOSTINGER_PORT }}
-          command_timeout: 10m
+          request_pty: true
+          command_timeout: 5m
           script: |
-            # Load Node.js — Hostinger uses nvm
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-            [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
-
-            # Fallback: try common Hostinger Node paths
             export PATH="$HOME/.nvm/versions/node/$(ls $HOME/.nvm/versions/node 2>/dev/null | sort -V | tail -1)/bin:$PATH"
-            export PATH="/opt/alt/python311/bin:/usr/local/bin:$PATH"
-
-            echo "Node: $(node --version 2>/dev/null || echo 'not found')"
-            echo "npm: $(npm --version 2>/dev/null || echo 'not found')"
-
+            echo "Node: $(node -v)"
             cd ${{ secrets.HOSTINGER_API_PATH }}
-            tar -xzf api-deploy.tar.gz
-            rm -f api-deploy.tar.gz
-
             npm install --omit=dev
-            npm install -g pm2 || true
-
-            # Re-export PATH setelah npm install -g
-            export PATH="$HOME/.nvm/versions/node/$(ls $HOME/.nvm/versions/node 2>/dev/null | sort -V | tail -1)/bin:$PATH"
-            export PATH="$(npm root -g)/../.bin:$PATH"
-
-            npx prisma generate
+            npm install -g pm2 2>/dev/null || true
+            export PATH="$(npm root -g)/.bin:$PATH"
             npx prisma migrate deploy || echo "Migration skipped"
-
-            pm2 restart mitradesa-api 2>/dev/null || \
-              pm2 start dist/index.js --name "mitradesa-api" --env production
-
+            pm2 restart mitradesa-api 2>/dev/null || pm2 start dist/index.js --name mitradesa-api
             pm2 save
-            echo "Deploy API selesai!"
+            echo "Done!"
 
 
   deploy-web:
