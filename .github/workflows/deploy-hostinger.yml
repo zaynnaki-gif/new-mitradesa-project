@@ -72,14 +72,38 @@ jobs:
           port: ${{ secrets.HOSTINGER_PORT }}
           command_timeout: 10m
           script: |
+            # Load Node.js — Hostinger uses nvm
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+
+            # Fallback: try common Hostinger Node paths
+            export PATH="$HOME/.nvm/versions/node/$(ls $HOME/.nvm/versions/node 2>/dev/null | sort -V | tail -1)/bin:$PATH"
+            export PATH="/opt/alt/python311/bin:/usr/local/bin:$PATH"
+
+            echo "Node: $(node --version 2>/dev/null || echo 'not found')"
+            echo "npm: $(npm --version 2>/dev/null || echo 'not found')"
+
             cd ${{ secrets.HOSTINGER_API_PATH }}
             tar -xzf api-deploy.tar.gz
-            rm api-deploy.tar.gz
+            rm -f api-deploy.tar.gz
+
             npm install --omit=dev
-            npm install -g pm2
+            npm install -g pm2 || true
+
+            # Re-export PATH setelah npm install -g
+            export PATH="$HOME/.nvm/versions/node/$(ls $HOME/.nvm/versions/node 2>/dev/null | sort -V | tail -1)/bin:$PATH"
+            export PATH="$(npm root -g)/../.bin:$PATH"
+
             npx prisma generate
             npx prisma migrate deploy || echo "Migration skipped"
-            pm2 restart mitradesa-api || (pm2 delete mitradesa-api 2>/dev/null; pm2 start npm --name "mitradesa-api" -- start)
+
+            pm2 restart mitradesa-api 2>/dev/null || \
+              pm2 start dist/index.js --name "mitradesa-api" --env production
+
+            pm2 save
+            echo "Deploy API selesai!"
+
 
   deploy-web:
     name: Deploy Web
