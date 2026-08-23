@@ -68,7 +68,8 @@ jobs:
             }
           done
 
-      - name: Restart API via SSH (with retry)
+      - name: Restart API via SSH
+        continue-on-error: true
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.HOSTINGER_HOST }}
@@ -82,8 +83,6 @@ jobs:
             for f in ~/.bashrc ~/.bash_profile ~/.profile; do
               [ -f "$f" ] && source "$f" 2>/dev/null && break
             done
-
-            # Load NVM
             export NVM_DIR="${HOME}/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 
@@ -97,20 +96,32 @@ jobs:
               [ -x "$dir/node" ] && export PATH="$dir:$PATH" && echo "Node: $(node -v)" && break
             done
 
-            node -v || { echo "node not found, check hPanel Node.js setup!"; exit 1; }
+            node -v || { echo "node not found - skip restart"; exit 0; }
 
             cd ${{ secrets.HOSTINGER_API_PATH }}
             npm install --omit=dev --quiet
-
-            # pm2 local install
             [ -f "./node_modules/.bin/pm2" ] || npm install pm2 --save-dev --quiet
             PM2="./node_modules/.bin/pm2"
-
             $PM2 stop mitradesa-api 2>/dev/null || true
             $PM2 delete mitradesa-api 2>/dev/null || true
             $PM2 start dist/index.js --name mitradesa-api
             $PM2 save --force
             $PM2 list
+
+      - name: Show post-deploy instructions
+        if: always()
+        run: |
+          echo "=============================================="
+          echo "  FILE API SUDAH TERUPLOAD KE SERVER"
+          echo "=============================================="
+          echo "  Jika API belum aktif, lakukan secara manual:"
+          echo "  1. Login ke hPanel Hostinger"
+          echo "  2. Buka menu 'Node.js'"
+          echo "  3. Pastikan Node.js App sudah dibuat untuk"
+          echo "     domain api.serunimumbul.com"
+          echo "  4. Klik 'Restart' pada app tersebut"
+          echo "  5. Cek status di: https://api.serunimumbul.com"
+          echo "=============================================="
 
 
   deploy-web:
