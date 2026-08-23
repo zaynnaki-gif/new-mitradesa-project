@@ -39,48 +39,78 @@ jobs:
       - name: Build API
         run: npm run build:api
 
-      - name: Install lftp
-        run: sudo apt-get install -y lftp
+      - name: Install rsync & sshpass
+        run: sudo apt-get install -y rsync sshpass
 
-      - name: Deploy API via FTP
+      - name: Deploy API via rsync (with retry)
         env:
-          FTP_HOST: ${{ secrets.HOSTINGER_FTP_HOST }}
-          FTP_USER: ${{ secrets.HOSTINGER_FTP_USER }}
-          FTP_PASS: ${{ secrets.HOSTINGER_FTP_PASS }}
-          FTP_PATH: ${{ secrets.HOSTINGER_API_PATH }}
+          SSHPASS: ${{ secrets.HOSTINGER_PASSWORD }}
+          SSH_HOST: ${{ secrets.HOSTINGER_HOST }}
+          SSH_USER: ${{ secrets.HOSTINGER_USER }}
+          SSH_PORT: ${{ secrets.HOSTINGER_PORT }}
+          DEST_PATH: ${{ secrets.HOSTINGER_API_PATH }}
         run: |
-          lftp -c "
-            set ftp:ssl-allow yes;
-            set ftp:ssl-force false;
-            set ssl:verify-certificate no;
-            set net:timeout 60;
-            set net:max-retries 5;
-            set net:reconnect-interval-base 5;
-            open -u '$FTP_USER','$FTP_PASS' ftp://$FTP_HOST;
-            mirror --reverse --delete --verbose=1 \
-              --exclude node_modules \
-              --exclude .git \
-              apps/api/dist/ $FTP_PATH/dist/;
-            put apps/api/.env -o $FTP_PATH/.env;
-            put apps/api/package.json -o $FTP_PATH/package.json;
-            bye
-          "
-          echo "FTP upload selesai"
+          SSH_OPTS="-p $SSH_PORT -o StrictHostKeyChecking=no -o ConnectTimeout=60 -o ServerAliveInterval=15"
+          RSYNC_CMD="sshpass -e rsync -avz --timeout=300 -e 'ssh $SSH_OPTS'"
 
-      - name: Restart Node.js App via Hostinger API
-        env:
-          HOSTINGER_API_TOKEN: ${{ secrets.HOSTINGER_API_TOKEN }}
-        run: |
-          # Trigger restart via Hostinger API if token is set
-          if [ -n "$HOSTINGER_API_TOKEN" ]; then
-            curl -s -X POST \
-              "https://api.hostinger.com/v1/hosting/api.serunimumbul.com/nodejs/restart" \
-              -H "Authorization: Bearer $HOSTINGER_API_TOKEN" \
-              -H "Content-Type: application/json" \
-              || echo "API restart endpoint not available - restart manually from hPanel"
-          else
-            echo "HOSTINGER_API_TOKEN not set - restart Node.js App manually from hPanel > Node.js"
-          fi
+          for attempt in 1 2 3; do
+            echo "=== Attempt $attempt/3 ==="
+            sshpass -e rsync -avz --timeout=300 \
+              -e "ssh $SSH_OPTS" \
+              apps/api/dist/ $SSH_USER@$SSH_HOST:$DEST_PATH/dist/ && \
+            sshpass -e rsync -avz --timeout=60 \
+              -e "ssh $SSH_OPTS" \
+              apps/api/.env apps/api/package.json \
+              $SSH_USER@$SSH_HOST:$DEST_PATH/ && \
+            echo "Upload berhasil!" && break || {
+              echo "Attempt $attempt gagal. Tunggu 15s..."
+              sleep 15
+            }
+          done
+
+      - name: Restart API via SSH (with retry)
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOSTINGER_HOST }}
+          username: ${{ secrets.HOSTINGER_USER }}
+          password: ${{ secrets.HOSTINGER_PASSWORD }}
+          port: ${{ secrets.HOSTINGER_PORT }}
+          request_pty: true
+          command_timeout: 5m
+          script: |
+            # Source profile untuk load NVM / Node path
+            for f in ~/.bashrc ~/.bash_profile ~/.profile; do
+              [ -f "$f" ] && source "$f" 2>/dev/null && break
+            done
+
+            # Load NVM
+            export NVM_DIR="${HOME}/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
+            # Cari node di semua kemungkinan path
+            for dir in \
+              "$(ls -d $NVM_DIR/versions/node/*/bin 2>/dev/null | sort -V | tail -1)" \
+              /usr/local/bin /usr/bin \
+              /opt/alt/node22/usr/bin /opt/alt/node20/usr/bin /opt/alt/node18/usr/bin \
+              "$HOME/.local/bin"
+            do
+              [ -x "$dir/node" ] && export PATH="$dir:$PATH" && echo "Node: $(node -v)" && break
+            done
+
+            node -v || { echo "node not found, check hPanel Node.js setup!"; exit 1; }
+
+            cd ${{ secrets.HOSTINGER_API_PATH }}
+            npm install --omit=dev --quiet
+
+            # pm2 local install
+            [ -f "./node_modules/.bin/pm2" ] || npm install pm2 --save-dev --quiet
+            PM2="./node_modules/.bin/pm2"
+
+            $PM2 stop mitradesa-api 2>/dev/null || true
+            $PM2 delete mitradesa-api 2>/dev/null || true
+            $PM2 start dist/index.js --name mitradesa-api
+            $PM2 save --force
+            $PM2 list
 
 
   deploy-web:
@@ -110,26 +140,26 @@ jobs:
         env:
           VITE_API_URL: ${{ secrets.PROD_API_URL }}
 
-      - name: Install lftp
-        run: sudo apt-get install -y lftp
+      - name: Install rsync & sshpass
+        run: sudo apt-get install -y rsync sshpass
 
-      - name: Deploy Web via FTP
+      - name: Deploy Web via rsync (with retry)
         env:
-          FTP_HOST: ${{ secrets.HOSTINGER_FTP_HOST }}
-          FTP_USER: ${{ secrets.HOSTINGER_FTP_USER }}
-          FTP_PASS: ${{ secrets.HOSTINGER_FTP_PASS }}
-          FTP_PATH: ${{ secrets.HOSTINGER_WEB_PATH }}
+          SSHPASS: ${{ secrets.HOSTINGER_PASSWORD }}
+          SSH_HOST: ${{ secrets.HOSTINGER_HOST }}
+          SSH_USER: ${{ secrets.HOSTINGER_USER }}
+          SSH_PORT: ${{ secrets.HOSTINGER_PORT }}
+          DEST_PATH: ${{ secrets.HOSTINGER_WEB_PATH }}
         run: |
-          lftp -c "
-            set ftp:ssl-allow yes;
-            set ftp:ssl-force false;
-            set ssl:verify-certificate no;
-            set net:timeout 60;
-            set net:max-retries 5;
-            set net:reconnect-interval-base 5;
-            open -u '$FTP_USER','$FTP_PASS' ftp://$FTP_HOST;
-            mirror --reverse --delete --verbose=1 \
-              apps/web/dist/ $FTP_PATH/;
-            bye
-          "
-          echo "Web FTP upload selesai"
+          SSH_OPTS="-p $SSH_PORT -o StrictHostKeyChecking=no -o ConnectTimeout=60 -o ServerAliveInterval=15"
+
+          for attempt in 1 2 3; do
+            echo "=== Attempt $attempt/3 ==="
+            sshpass -e rsync -avz --delete --timeout=300 \
+              -e "ssh $SSH_OPTS" \
+              apps/web/dist/ $SSH_USER@$SSH_HOST:$DEST_PATH/ && \
+            echo "Web upload berhasil!" && break || {
+              echo "Attempt $attempt gagal. Tunggu 15s..."
+              sleep 15
+            }
+          done
