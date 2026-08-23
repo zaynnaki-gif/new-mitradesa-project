@@ -76,16 +76,31 @@ jobs:
           script: |
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-            export PATH="$HOME/.nvm/versions/node/$(ls $HOME/.nvm/versions/node 2>/dev/null | sort -V | tail -1)/bin:$PATH"
-            echo "Node: $(node -v)"
+            NODE_BIN="$HOME/.nvm/versions/node/$(ls $HOME/.nvm/versions/node 2>/dev/null | sort -V | tail -1)/bin"
+            export PATH="$NODE_BIN:$PATH"
+            echo "Node: $(node -v) | npm: $(npm -v)"
+
             cd ${{ secrets.HOSTINGER_API_PATH }}
-            npm install --omit=dev
-            npm install -g pm2 2>/dev/null || true
-            export PATH="$(npm root -g)/.bin:$PATH"
-            npx prisma migrate deploy || echo "Migration skipped"
-            pm2 restart mitradesa-api 2>/dev/null || pm2 start dist/index.js --name mitradesa-api
-            pm2 save
-            echo "Done!"
+            npm install --omit=dev --quiet
+
+            # Install pm2 locally if global not available
+            if ! command -v pm2 &>/dev/null; then
+              npm install pm2 --save-dev --quiet
+              PM2="./node_modules/.bin/pm2"
+            else
+              PM2="pm2"
+            fi
+
+            npx prisma migrate deploy 2>/dev/null || echo "Migration skipped"
+
+            # Stop existing & start fresh
+            $PM2 stop mitradesa-api 2>/dev/null || true
+            $PM2 delete mitradesa-api 2>/dev/null || true
+            $PM2 start dist/index.js --name mitradesa-api --env production
+            $PM2 save --force
+            echo "API started! PM2 list:"
+            $PM2 list
+
 
 
   deploy-web:
