@@ -83,6 +83,82 @@ export default function KependudukanPage() {
               </div>
             </div>
           )}
+
+          {!isLoading && !error && statistik?.distribusi && (
+            <div className={styles.chartsContainer}>
+              <div className={styles.chartCard}>
+                <h3 className={styles.chartTitle}>Distribusi Pendidikan</h3>
+                <div className={styles.barChart}>
+                  {statistik.distribusi.pendidikan.map((item, index) => (
+                    <div key={index} className={styles.barRow}>
+                      <div className={styles.barLabel}>{item.name}</div>
+                      <div className={styles.barWrapper}>
+                        <div 
+                          className={styles.barFill} 
+                          style={{ width: `${(item.count / statistik.penduduk.total) * 100}%` }}
+                        />
+                      </div>
+                      <div className={styles.barValue}>{item.count}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className={styles.chartCard}>
+                <h3 className={styles.chartTitle}>Distribusi Pekerjaan</h3>
+                <div className={styles.barChart}>
+                  {statistik.distribusi.pekerjaan.slice(0, 10).map((item, index) => (
+                    <div key={index} className={styles.barRow}>
+                      <div className={styles.barLabel}>{item.name}</div>
+                      <div className={styles.barWrapper}>
+                        <div 
+                          className={styles.barFill} 
+                          style={{ width: `${(item.count / statistik.penduduk.total) * 100}%`, backgroundColor: '#3b82f6' }}
+                        />
+                      </div>
+                      <div className={styles.barValue}>{item.count}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className={styles.chartCard}>
+                <h3 className={styles.chartTitle}>Distribusi Agama</h3>
+                <div className={styles.barChart}>
+                  {statistik.distribusi.agama.map((item, index) => (
+                    <div key={index} className={styles.barRow}>
+                      <div className={styles.barLabel}>{item.name}</div>
+                      <div className={styles.barWrapper}>
+                        <div 
+                          className={styles.barFill} 
+                          style={{ width: `${(item.count / statistik.penduduk.total) * 100}%`, backgroundColor: '#10b981' }}
+                        />
+                      </div>
+                      <div className={styles.barValue}>{item.count}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className={styles.chartCard}>
+                <h3 className={styles.chartTitle}>Golongan Darah</h3>
+                <div className={styles.barChart}>
+                  {statistik.distribusi.golDarah.map((item, index) => (
+                    <div key={index} className={styles.barRow}>
+                      <div className={styles.barLabel}>{item.name}</div>
+                      <div className={styles.barWrapper}>
+                        <div 
+                          className={styles.barFill} 
+                          style={{ width: `${(item.count / statistik.penduduk.total) * 100}%`, backgroundColor: '#ef4444' }}
+                        />
+                      </div>
+                      <div className={styles.barValue}>{item.count}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </section>
     </PublicLayout>

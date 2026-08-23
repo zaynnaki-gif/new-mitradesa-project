@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Container, Typography, Button, Modal } from '../../../components/ui';
-import { LoadingState, ErrorState } from '../../../components/states';
-import { useAuthStore } from '../../../stores/auth.store';
-import { KategoriForm } from '../../../components/forms/KategoriForm';
-import styles from '../../../styles/AdminShared.module.css';
+import { AdminLayout } from '@/layouts';
+import { Typography, Button, Modal } from '@/components/ui';
+import { LoadingState, ErrorState } from '@/components/states';
+import { useAuthStore } from '@/stores/auth.store';
+import { KategoriForm } from '@/components/forms/KategoriForm';
+import { API_URL } from '@/lib/constants';
+import styles from './KategoriPage.module.css';
 
 interface Kategori {
   id: string;
@@ -49,7 +51,7 @@ export function KategoriPage() {
       const headers: HeadersInit = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      const res = await fetch(`/api/kategori?${params}`, { headers });
+      const res = await fetch(`${API_URL}/api/kategori?${params}`, { headers });
       const result = await res.json();
 
       if (result.success) {
@@ -97,7 +99,7 @@ export function KategoriPage() {
       const headers: HeadersInit = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      const res = await fetch(`/api/kategori/${id}`, { method: 'DELETE', headers });
+      const res = await fetch(`${API_URL}/api/kategori/${id}`, { method: 'DELETE', headers });
       const result = await res.json();
       if (result.success) {
         fetchData(meta.page);
@@ -110,23 +112,21 @@ export function KategoriPage() {
     }
   };
 
-
-
   if (error && data.length === 0) {
     return (
-      <Container>
-        <div style={{ padding: '2rem' }}>
+      <AdminLayout>
+        <div className={styles.container}>
           <ErrorState message={error} onRetry={() => fetchData()} />
         </div>
-      </Container>
+      </AdminLayout>
     );
   }
 
   return (
-    <Container>
-      <div style={{ padding: '1.5rem' }}>
+    <AdminLayout>
+      <div className={styles.container}>
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+        <div className={styles.header}>
           <div>
             <Typography variant="h4">Kategori Berita</Typography>
             <Typography variant="body2" color="secondary">
@@ -182,48 +182,34 @@ export function KategoriPage() {
                 data.map((item) => (
                   <tr key={item.id} className={styles.tr}>
                     <td className={styles.td}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <div className={styles.itemName}>
                         {item.warna && (
-                          <div style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: item.warna }} />
+                          <span className={styles.colorDot} style={{ backgroundColor: item.warna }} />
                         )}
-                        <span style={{ fontWeight: 500 }}>{item.nama}</span>
+                        <span>{item.nama}</span>
                       </div>
                     </td>
-                    <td className={styles.td} style={{ fontFamily: 'monospace', fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
-                      {item.slug}
+                    <td className={styles.td}>
+                      <span className={styles.slugText}>{item.slug}</span>
                     </td>
                     <td className={`${styles.td} ${styles.tdCenter}`}>
-                      <span style={{
-                        padding: '0.25rem 0.5rem',
-                        borderRadius: '9999px',
-                        fontSize: '0.75rem',
-                        fontWeight: 500,
-                        backgroundColor: item.jumlahBerita > 0 ? '#dbeafe' : 'var(--color-bg-muted)',
-                        color: item.jumlahBerita > 0 ? '#1e40af' : 'var(--color-text-secondary)',
-                      }}>
+                      <span className={`${styles.badge} ${item.jumlahBerita > 0 ? styles.badgeCount : ''}`}>
                         {item.jumlahBerita}
                       </span>
                     </td>
                     <td className={`${styles.td} ${styles.tdCenter}`}>
-                      <span style={{
-                        padding: '0.25rem 0.5rem',
-                        borderRadius: '9999px',
-                        fontSize: '0.75rem',
-                        fontWeight: 500,
-                        backgroundColor: item.isAktif ? '#d1fae5' : 'var(--color-bg-muted)',
-                        color: item.isAktif ? '#065f46' : 'var(--color-text-secondary)',
-                      }}>
+                      <span className={`${styles.badge} ${item.isAktif ? styles.badgeAktif : styles.badgeNonaktif}`}>
                         {item.isAktif ? 'Aktif' : 'Nonaktif'}
                       </span>
                     </td>
                     <td className={`${styles.td} ${styles.tdRight}`}>
-                      <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                      <div className={styles.actionsRow}>
                         <Button variant="outline" size="sm" onClick={() => handleOpenEdit(item)}>Edit</Button>
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => handleDelete(item.id)}
-                          style={{ borderColor: 'var(--color-error)', color: 'var(--color-error)' }}
+                          className={styles.btnHapus}
                         >
                           Hapus
                         </Button>
@@ -272,7 +258,7 @@ export function KategoriPage() {
           />
         </Modal>
       </div>
-    </Container>
+    </AdminLayout>
   );
 }
 

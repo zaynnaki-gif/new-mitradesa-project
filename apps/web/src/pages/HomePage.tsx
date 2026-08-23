@@ -23,6 +23,7 @@ import { useAgendaList } from '@/hooks/useAgenda';
 import { useApbdes } from '@/hooks/useTransparansi';
 import { useStatistikDesa } from '@/hooks/useStatistikDesa';
 import { APP_TAGLINE } from '@/lib/constants';
+import kependudukanStyles from './public/KependudukanPage.module.css';
 
 export default function HomePage() {
   const { data: identitas } = useIdentitasDesa();
@@ -87,6 +88,14 @@ export default function HomePage() {
       {
         value: statistik?.wilayah?.rt || 0,
         label: 'RT',
+      },
+      {
+        value: statistik?.surat?.masuk || 0,
+        label: 'Surat Masuk',
+      },
+      {
+        value: statistik?.surat?.keluar || 0,
+        label: 'Surat Keluar',
       },
     ],
   };
@@ -226,6 +235,77 @@ export default function HomePage() {
 
       {/* Section 04: Statistics - Large typography editorial */}
       <StatsSection data={statsData} variant="minimal" />
+
+      {/* Detailed Statistics Charts */}
+      {statistik?.distribusi && (
+        <section className="bg-white py-12 md:py-20 border-b border-gray-100">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-12">
+              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-widest mb-2">Demografi</h2>
+              <h3 className="text-3xl font-serif text-gray-900">Distribusi Kependudukan</h3>
+              <p className="mt-4 text-gray-600 max-w-2xl mx-auto">Potret kekayaan demografi desa kami berdasarkan pendidikan, pekerjaan, agama, dan golongan darah dari total {statistik.penduduk.total.toLocaleString()} jiwa.</p>
+            </div>
+            <div className={kependudukanStyles.chartsContainer} style={{ marginTop: '2rem' }}>
+              <div className={kependudukanStyles.chartCard}>
+                <h3 className={kependudukanStyles.chartTitle}>Pendidikan</h3>
+                <div className={kependudukanStyles.barChart}>
+                  {statistik.distribusi.pendidikan.slice(0, 6).map((item, index) => (
+                    <div key={index} className={kependudukanStyles.barRow}>
+                      <div className={kependudukanStyles.barLabel}>{item.name}</div>
+                      <div className={kependudukanStyles.barWrapper}>
+                        <div 
+                          className={kependudukanStyles.barFill} 
+                          style={{ width: `${(item.count / statistik.penduduk.total) * 100}%` }}
+                        />
+                      </div>
+                      <div className={kependudukanStyles.barValue}>{item.count}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className={kependudukanStyles.chartCard}>
+                <h3 className={kependudukanStyles.chartTitle}>Pekerjaan (Top 6)</h3>
+                <div className={kependudukanStyles.barChart}>
+                  {statistik.distribusi.pekerjaan.slice(0, 6).map((item, index) => (
+                    <div key={index} className={kependudukanStyles.barRow}>
+                      <div className={kependudukanStyles.barLabel}>{item.name}</div>
+                      <div className={kependudukanStyles.barWrapper}>
+                        <div 
+                          className={kependudukanStyles.barFill} 
+                          style={{ width: `${(item.count / statistik.penduduk.total) * 100}%`, backgroundColor: '#3b82f6' }}
+                        />
+                      </div>
+                      <div className={kependudukanStyles.barValue}>{item.count}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className={kependudukanStyles.chartCard}>
+                <h3 className={kependudukanStyles.chartTitle}>Agama</h3>
+                <div className={kependudukanStyles.barChart}>
+                  {statistik.distribusi.agama.map((item, index) => (
+                    <div key={index} className={kependudukanStyles.barRow}>
+                      <div className={kependudukanStyles.barLabel}>{item.name}</div>
+                      <div className={kependudukanStyles.barWrapper}>
+                        <div 
+                          className={kependudukanStyles.barFill} 
+                          style={{ width: `${(item.count / statistik.penduduk.total) * 100}%`, backgroundColor: '#10b981' }}
+                        />
+                      </div>
+                      <div className={kependudukanStyles.barValue}>{item.count}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="text-center mt-10">
+              <a href="/kependudukan" className="inline-block border border-gray-300 text-gray-700 px-6 py-2 rounded hover:bg-gray-50 transition-colors">Lihat Statistik Lengkap</a>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Section 05: Services - Editorial list showcase */}
       <ServicesSection data={servicesData} variant="list" />

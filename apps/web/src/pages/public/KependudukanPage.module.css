@@ -1,0 +1,96 @@
+/* KependudukanPage.module.css */
+
+.pageHeader {
+  background-color: var(--ink-deep);
+  color: var(--editorial-white);
+  padding: var(--space-16) var(--space-4) var(--space-20);
+  text-align: center;
+}
+
+.headerContent {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.pageTitle {
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 5vw, 4rem);
+  font-weight: 700;
+  margin-bottom: var(--space-4);
+  color: var(--editorial-white);
+  letter-spacing: var(--tracking-tight);
+}
+
+.pageSubtitle {
+  color: var(--stone-300);
+  max-width: 600px;
+  margin: 0 auto;
+  font-size: var(--type-body-lg);
+}
+
+.content {
+  padding: var(--space-8) var(--space-4) var(--space-24);
+  background-color: var(--editorial-cream);
+  margin-top: calc(-1 * var(--space-12));
+}
+
+.container {
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: var(--space-8);
+  margin-top: var(--space-8);
+}
+
+.statCard {
+  padding: var(--space-8);
+  border: none;
+  border-radius: 0;
+  background-color: var(--editorial-white);
+  text-align: center;
+  box-shadow: var(--shadow-md);
+  transition: transform var(--transition-base), box-shadow var(--transition-base);
+}
+
+.statCard:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-xl);
+}
+
+.statValue {
+  font-family: var(--font-display);
+  font-size: var(--type-h2);
+  font-weight: 700;
+  color: var(--ink-deep);
+  margin-bottom: var(--space-2);
+}
+
+.statValue.green {
+  color: var(--amber-500); /* Adjusted to match Wesley */
+}
+
+.statValue.blue {
+  color: var(--stone-500); /* Adjusted to match Wesley */
+}
+
+.statLabel {
+  font-size: var(--type-caption);
+  color: var(--stone-500);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wider);
+  font-weight: 600;
+}
+
+.chartsContainer { margin-top: 3rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; }
+.chartCard { background: white; padding: 1.5rem; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+.chartTitle { font-size: 1.125rem; font-weight: 600; color: #1f2937; margin-bottom: 1.25rem; border-bottom: 1px solid #f3f4f6; padding-bottom: 0.75rem; }
+.barChart { display: flex; flex-direction: column; gap: 0.875rem; }
+.barRow { display: flex; align-items: center; gap: 1rem; }
+.barLabel { flex: 0 0 120px; font-size: 0.875rem; color: #4b5563; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.barWrapper { flex: 1; height: 0.75rem; background-color: #f3f4f6; border-radius: 9999px; overflow: hidden; }
+.barFill { height: 100%; background-color: #8b5cf6; border-radius: 9999px; transition: width 1s ease-in-out; }
+.barValue { flex: 0 0 40px; font-size: 0.875rem; font-weight: 500; color: #111827; text-align: right; }

@@ -573,6 +573,44 @@ export const queryInstanDokumenSchema = paginationQuerySchema.extend({
 });
 
 // ============================================================
+// Generate Document Schemas
+// ============================================================
+
+export const generateDocumentSchema = z.object({
+  templateVersionId: z.union([z.number(), z.string()]).transform(s => BigInt(s)),
+  context: z.record(z.unknown()),
+  judul: z.string().min(1),
+  permintaanId: z.union([z.number(), z.string()]).transform(s => BigInt(s)).optional().nullable(),
+});
+
+export const generatePreviewSchema = z.object({
+  templateVersionId: z.union([z.number(), z.string()]).transform(s => BigInt(s)),
+  context: z.record(z.unknown()),
+});
+
+export const createInstanDokumenExtendedSchema = z.object({
+  dokumenId: z.union([z.number(), z.string()]).transform(s => BigInt(s)),
+  templateVersionId: z.union([z.number(), z.string()]).transform(s => BigInt(s)),
+  permintaanId: z.union([z.number(), z.string()]).transform(s => BigInt(s)).optional().nullable(),
+  judul: z.string().min(1, 'Judul wajib diisi').max(255),
+  requestData: z.record(z.unknown()).optional().nullable(),
+});
+
+export const signDocumentSchema = z.object({
+  penandatanganId: z.union([z.number(), z.string()]).transform(s => BigInt(s)),
+  tandaTanganUrl: z.string().optional().nullable(),
+});
+
+export const duplicateTemplateSchema = z.object({
+  nama: z.string().min(1, 'nama wajib diisi'),
+  slug: z.string().min(1, 'slug wajib diisi'),
+});
+
+export const previewTemplateVersionSchema = z.object({
+  customData: z.record(z.unknown()).optional().nullable(),
+});
+
+// ============================================================
 // NomorSuratConfig (Numbering Configuration) Schemas
 // ============================================================
 

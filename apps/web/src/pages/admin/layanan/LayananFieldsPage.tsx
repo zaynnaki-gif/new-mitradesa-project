@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { AdminLayout } from '@/layouts';
+import { useAuthStore } from '@/stores/auth.store';
+import { DynamicForm } from '@/components/forms/DynamicForm';
 import type { FieldDefinition, FieldOption, FieldType } from '@/components/forms/DynamicForm';
 import shared from '../../../styles/AdminShared.module.css';
 import s from './LayananListPage.module.css';
@@ -30,6 +33,7 @@ const FIELD_TYPES: { value: FieldType; label: string }[] = [
 ];
 
 export default function LayananFieldsPage() {
+  const { token } = useAuthStore();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [layanan, setLayanan] = useState<ILayanan | null>(null);
@@ -61,12 +65,11 @@ export default function LayananFieldsPage() {
     setError('');
 
     try {
-      const token = localStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
 
       const [layananRes, fieldsRes] = await Promise.all([
-        fetch(`/api/services/${id}`, { headers }),
-        fetch(`/api/services/${id}/fields`, { headers }),
+        fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/services/${id}`, { headers }),
+        fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/services/${id}/fields`, { headers }),
       ]);
 
       if (!layananRes.ok) throw new Error('Layanan tidak ditemukan');
@@ -122,15 +125,15 @@ export default function LayananFieldsPage() {
       };
 
       const url = editingId
-        ? `/api/services/${id}/fields/${editingId}`
-        : `/api/services/${id}/fields`;
+        ? `${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/services/${id}/fields/${editingId}`
+        : `${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/services/${id}/fields`;
       const method = editingId ? 'PATCH' : 'POST';
 
       const res = await fetch(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(dataToSubmit),
       });
@@ -186,9 +189,9 @@ export default function LayananFieldsPage() {
   const handleDelete = async (fieldId: string) => {
     if (!confirm('Yakin ingin menghapus field ini?')) return;
     try {
-      const res = await fetch(`/api/services/${id}/fields/${fieldId}`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/services/${id}/fields/${fieldId}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error('Gagal menghapus');
       fetchData();
@@ -201,11 +204,11 @@ export default function LayananFieldsPage() {
     setFields(newOrder);
     try {
       const orderData = newOrder.map((f, index) => ({ id: f.id, orderIndex: index }));
-      await fetch(`/api/services/${id}/fields/reorder`, {
+      await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/services/${id}/fields/reorder`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ fields: orderData }),
       });
@@ -223,12 +226,15 @@ export default function LayananFieldsPage() {
     handleReorder(newFields);
   };
 
-  if (loading) return <div style={{ padding: '1.5rem' }}>Memuat...</div>;
-  if (error) return <div style={{ padding: '1.5rem', color: 'var(--color-error)' }}>{error}</div>;
-  if (!layanan) return <div style={{ padding: '1.5rem' }}>Layanan tidak ditemukan</div>;
+  if (loading) return <AdminLayout><div style={{ padding: '1.5rem' }}>Memuat...</div></AdminLayout>;
+  if (error) return <AdminLayout><div style={{ padding: '1.5rem', color: 'var(--color-error)' }}>{error}</div></AdminLayout>;
+  if (!layanan) return <AdminLayout><div style={{ padding: '1.5rem' }}>Layanan tidak ditemukan</div></AdminLayout>;
 
   return (
-    <div style={{ padding: '1.5rem' }}>
+    <AdminLayout>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 400px', gap: '2rem', padding: '1.5rem', alignItems: 'start' }}>
+      {/* Builder Side */}
+      <div>
       {/* Header */}
       <div style={{ marginBottom: '1.5rem' }}>
         <button
@@ -474,6 +480,35 @@ export default function LayananFieldsPage() {
           </div>
         </div>
       )}
+      </div>
+
+      {/* Live Preview Side */}
+      <div style={{ 
+        position: 'sticky', 
+        top: '1.5rem', 
+        background: 'var(--color-surface, #fff)', 
+        padding: '1.5rem', 
+        borderRadius: 'var(--radius-lg, 8px)', 
+        border: '1px solid var(--color-border)', 
+        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' 
+      }}>
+        <h2 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '1rem', color: 'var(--color-text-primary)' }}>
+          Live Preview
+        </h2>
+        <div style={{ maxHeight: 'calc(100vh - 8rem)', overflowY: 'auto', paddingRight: '0.5rem' }}>
+          {fields.length > 0 ? (
+            <DynamicForm 
+              fields={fields} 
+              onSubmit={(vals) => alert('Simulasi Submit Form:\n' + JSON.stringify(vals, null, 2))} 
+            />
+          ) : (
+            <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem', textAlign: 'center', marginTop: '2rem' }}>
+              Tambahkan field untuk melihat pratinjau form.
+            </p>
+          )}
+        </div>
+      </div>
     </div>
+    </AdminLayout>
   );
 }

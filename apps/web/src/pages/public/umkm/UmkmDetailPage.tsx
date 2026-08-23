@@ -77,22 +77,21 @@ export default function UmkmDetailPage() {
         </div>
       </div>
 
+      <div className={styles.mainImageContainer}>
+        {umkm.gambarUrl ? (
+          <img src={umkm.gambarUrl} alt={umkm.nama} className={styles.mainImage} />
+        ) : (
+          <div className={styles.imagePlaceholder}>
+            <span className="material-icons">storefront</span>
+          </div>
+        )}
+        <span className={styles.categoryBadge}>{umkm.kategori.replace(/_/g, ' ')}</span>
+      </div>
+
       <section className={styles.content}>
         <div className={styles.container}>
           <div className={styles.mainGrid}>
             <div className={styles.mainContent}>
-              <div className={styles.imageGallery}>
-                <div className={styles.mainImageContainer}>
-                  {umkm.gambarUrl ? (
-                    <img src={umkm.gambarUrl} alt={umkm.nama} className={styles.mainImage} />
-                  ) : (
-                    <div className={styles.imagePlaceholder}>
-                      <span className="material-icons">storefront</span>
-                    </div>
-                  )}
-                  <span className={styles.categoryBadge}>{umkm.kategori.replace(/_/g, ' ')}</span>
-                </div>
-              </div>
 
               <div className={styles.detailCard}>
                 <Typography variant="h1" className={styles.title}>
@@ -122,7 +121,11 @@ export default function UmkmDetailPage() {
                   </Typography>
                   <div className={styles.descriptionContent}>
                     {umkm.deskripsi ? (
-                      <p>{umkm.deskripsi}</p>
+                      <div className={styles.articleBody}>
+                        {umkm.deskripsi.split('\n').map((paragraph, index) => (
+                          <p key={index}>{paragraph}</p>
+                        ))}
+                      </div>
                     ) : (
                       <p className={styles.noData}>Belum ada deskripsi untuk usaha ini.</p>
                     )}

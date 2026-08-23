@@ -1,12 +1,13 @@
 .heroSection {
   position: relative;
-  min-height: 90vh;
+  min-height: 60vh;
   display: flex;
   align-items: center;
   color: white;
   overflow: hidden;
   margin-top: calc(-1 * var(--header-height));
   padding-top: var(--header-height);
+  background-color: var(--color-navy-base);
 }
 
 .background {
@@ -101,6 +102,6 @@
 
 @media (min-width: 768px) {
   .heroSection {
-    min-height: 100vh;
+    min-height: 90vh;
   }
 }

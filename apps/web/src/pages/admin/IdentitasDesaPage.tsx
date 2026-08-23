@@ -1,9 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Container, Typography, Button } from '../../components/ui';
-import { LoadingState, ErrorState } from '../../components/states';
-import { useIdentitasDesa } from '@/hooks/useIdentitasDesa';
+import { AdminLayout } from '@/layouts';
+import { Button, Input, Typography } from '@/components/ui';
+import { LoadingState, ErrorState } from '@/components/states';
+import { useAuthStore } from '@/stores/auth.store';
+import { API_URL } from '@/lib/constants';
+import { WilayahSelector } from '@/components/WilayahSelector';
+import { Provinsi, Kabupaten, Kecamatan, Desa } from '@/types';
+import styles from './IdentitasDesaPage.module.css';
 
 interface IdentitasFormData {
+  desaId: number;
   namaDesa: string;
   singkatanDesa: string;
   kodeDesa: string;
@@ -16,10 +22,51 @@ interface IdentitasFormData {
   sekretarisDesa: string;
 }
 
+interface IdentitasDesa {
+  id: number;
+  desaId?: number;
+  namaDesa: string;
+  singkatanDesa?: string;
+  kodeDesa?: string;
+  alamat?: string;
+  telepon?: string;
+  whatsapp?: string;
+  email?: string;
+  website?: string;
+  logoDesaUrl?: string;
+  kepalaDesa?: string;
+  sekretarisDesa?: string;
+  desa?: {
+    id: number;
+    kode: string;
+    nama: string;
+    kecamatan?: {
+      id: number;
+      nama: string;
+      kode: string;
+      kabupaten?: {
+        id: number;
+        nama: string;
+        kode: string;
+        provinsi?: {
+          id: number;
+          nama: string;
+          kode: string;
+        };
+      };
+    };
+  };
+}
+
 export default function IdentitasDesaPage() {
-  const { data: identitas, isLoading, error, refetch, isError } = useIdentitasDesa();
+  const { token } = useAuthStore();
+
+  const [identitas, setIdentitas] = useState<IdentitasDesa | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [form, setForm] = useState<IdentitasFormData>({
+    desaId: 0,
     namaDesa: '',
     singkatanDesa: '',
     kodeDesa: '',
@@ -38,10 +85,48 @@ export default function IdentitasDesaPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [errors, setErrors] = useState<Partial<Record<keyof IdentitasFormData, string>>>({});
 
+  // Wilayah cascade selection state
+  const [wilayahError, setWilayahError] = useState<string | undefined>();
+  const [wilayahInitialValues, setWilayahInitialValues] = useState<{
+    provinsiId?: number;
+    kabupatenId?: number;
+    kecamatanId?: number;
+    desaId?: number;
+  }>({});
+
+  const fetchIdentitas = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API_URL}/identitas-desa`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setIdentitas(data.data);
+      } else {
+        throw new Error(data.error?.message || 'Gagal memuat data');
+      }
+    } catch (e: any) {
+      setError(e.message || 'Terjadi kesalahan');
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => { fetchIdentitas(); }, [fetchIdentitas]);
+
   // Populate form when data loads
   useEffect(() => {
     if (identitas) {
-      const newForm = {
+      // Extract wilayah hierarchy from identitas data
+      const desa = identitas.desa;
+      const kecamatan = desa?.kecamatan;
+      const kabupaten = kecamatan?.kabupaten;
+      const provinsi = kabupaten?.provinsi;
+
+      const newForm: IdentitasFormData = {
+        desaId: identitas.desaId || identitas.desa?.id || 0,
         namaDesa: identitas.namaDesa || '',
         singkatanDesa: identitas.singkatanDesa || '',
         kodeDesa: identitas.kodeDesa || '',
@@ -55,13 +140,21 @@ export default function IdentitasDesaPage() {
       };
       setForm(newForm);
       setOriginalForm(newForm);
+
+      // Set initial values for wilayah cascade
+      if (provinsi && kabupaten && kecamatan && desa) {
+        setWilayahInitialValues({
+          provinsiId: provinsi.id,
+          kabupatenId: kabupaten.id,
+          kecamatanId: kecamatan.id,
+          desaId: desa.id,
+        });
+      }
     }
   }, [identitas]);
 
-  // Track unsaved changes
   const hasUnsavedChanges = originalForm && JSON.stringify(form) !== JSON.stringify(originalForm);
 
-  // Clear success message after delay
   useEffect(() => {
     if (saveSuccess) {
       const timer = setTimeout(() => setSaveSuccess(false), 3000);
@@ -70,7 +163,6 @@ export default function IdentitasDesaPage() {
     return undefined;
   }, [saveSuccess]);
 
-  // Warn on unsaved changes
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (hasUnsavedChanges) {
@@ -82,9 +174,12 @@ export default function IdentitasDesaPage() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [hasUnsavedChanges]);
 
-  // Validation
   const validateForm = useCallback((): boolean => {
     const newErrors: Partial<Record<keyof IdentitasFormData, string>> = {};
+
+    if (!form.desaId) {
+      newErrors.desaId = 'Wilayah desa wajib dipilih';
+    }
 
     if (!form.namaDesa.trim()) {
       newErrors.namaDesa = 'Nama desa wajib diisi';
@@ -124,247 +219,271 @@ export default function IdentitasDesaPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!validateForm()) {
-      return;
-    }
-
-    if (!window.confirm('Apakah Anda yakin ingin menyimpan perubahan identitas desa?')) {
-      return;
-    }
+    if (!validateForm()) return;
+    if (!confirm('Apakah Anda yakin ingin menyimpan perubahan identitas desa?')) return;
 
     setSaving(true);
     setSaveError(null);
     setSaveSuccess(false);
 
     try {
-      const response = await fetch('/api/identitas', {
+      const res = await fetch(`${API_URL}/identitas-desa`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify(form),
       });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message || 'Gagal menyimpan');
+      const data = await res.json();
+      if (data.success) {
+        setOriginalForm(form);
+        setSaveSuccess(true);
+        fetchIdentitas();
+      } else {
+        throw new Error(data.error?.message || 'Gagal menyimpan');
       }
-
-      setOriginalForm(form);
-      setSaveSuccess(true);
-      refetch();
-    } catch (err) {
-      setSaveError(err instanceof Error ? err.message : 'Terjadi kesalahan saat menyimpan');
+    } catch (err: any) {
+      setSaveError(err.message);
     } finally {
       setSaving(false);
     }
   };
 
-  const handleChange = (field: keyof IdentitasFormData, value: string) => {
+  const handleChange = (field: keyof IdentitasFormData, value: string | number) => {
     setForm(prev => ({ ...prev, [field]: value }));
-    // Clear error when field is edited
-    if (errors[field]) {
+    if (errors[field as keyof typeof errors]) {
       setErrors(prev => ({ ...prev, [field]: undefined }));
     }
   };
 
-  const handleReset = () => {
-    if (originalForm) {
-      if (window.confirm('Apakah Anda yakin ingin membatalkan perubahan?')) {
-        setForm(originalForm);
-        setErrors({});
-      }
+  // Handle wilayah selection change
+  const handleWilayahChange = (desaId: number, fullData?: {
+    provinsi: Provinsi;
+    kabupaten: Kabupaten;
+    kecamatan: Kecamatan;
+    desa: Desa;
+  }) => {
+    setForm(prev => ({ ...prev, desaId }));
+    setWilayahError(undefined);
+    if (errors.desaId) {
+      setErrors(prev => ({ ...prev, desaId: undefined }));
+    }
+
+    // Auto-fill namaDesa from API if empty and coming from API
+    if (fullData?.desa && !form.namaDesa) {
+      setForm(prev => ({ ...prev, namaDesa: fullData.desa.nama }));
     }
   };
 
-  const renderField = (field: keyof IdentitasFormData, label: string, type = 'text', placeholder = '') => (
-    <div style={{ marginBottom: '1rem' }}>
-      <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500 }}>
-        {label}
-      </label>
-      <input
-        type={type}
-        value={form[field]}
-        onChange={(e) => handleChange(field, e.target.value)}
-        placeholder={placeholder}
-        style={{
-          width: '100%',
-          padding: '0.5rem',
-          border: errors[field] ? '1px solid var(--color-error)' : '1px solid var(--color-border)',
-          borderRadius: '0.25rem',
-          fontSize: '0.875rem',
-        }}
-      />
-      {errors[field] && (
-        <span style={{ color: 'var(--color-error)', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block' }}>
-          {errors[field]}
-        </span>
-      )}
-    </div>
-  );
+  const handleReset = () => {
+    if (originalForm && confirm('Apakah Anda yakin ingin membatalkan perubahan?')) {
+      setForm(originalForm);
+      setErrors({});
+    }
+  };
 
-  if (isLoading) {
+  if (loading) {
     return (
-      <Container maxWidth="md">
-        <div style={{ padding: '2rem' }}>
-          <LoadingState message="Memuat identitas desa..." fullPage />
-        </div>
-      </Container>
+      <AdminLayout>
+        <LoadingState message="Memuat identitas desa..." fullPage />
+      </AdminLayout>
     );
   }
 
-  if (isError || error) {
+  if (error) {
     return (
-      <Container maxWidth="md">
-        <div style={{ padding: '2rem' }}>
-          <ErrorState
-            title="Gagal Memuat Data"
-            message="Tidak dapat memuat identitas desa. Silakan coba lagi."
-            onRetry={() => refetch()}
-            fullPage
-          />
-        </div>
-      </Container>
+      <AdminLayout>
+        <ErrorState title="Gagal Memuat Data" message={error} onRetry={fetchIdentitas} />
+      </AdminLayout>
     );
   }
 
   if (!identitas) {
     return (
-      <Container maxWidth="md">
-        <div style={{ padding: '2rem' }}>
+      <AdminLayout>
+        <div className={styles.container}>
           <Typography variant="body1" color="secondary">
             Identitas desa belum dikonfigurasi.
           </Typography>
         </div>
-      </Container>
+      </AdminLayout>
     );
   }
 
   return (
-    <Container maxWidth="md">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <Typography variant="h2">Identitas Desa</Typography>
-        {hasUnsavedChanges && (
-          <span style={{ color: 'var(--color-warning)', fontSize: '0.875rem' }}>
-            * Ada perubahan yang belum disimpan
-          </span>
-        )}
-      </div>
-
-      {/* Success Message */}
-      {saveSuccess && (
-        <div style={{
-          padding: '1rem',
-          marginBottom: '1rem',
-          backgroundColor: 'var(--color-success-bg, #d4edda)',
-          color: 'var(--color-success, #155724)',
-          borderRadius: '0.5rem',
-          border: '1px solid var(--color-success, #155724)'
-        }}>
-          ✓ Identitas desa berhasil disimpan!
-        </div>
-      )}
-
-      {/* Error Message */}
-      {saveError && (
-        <div style={{
-          padding: '1rem',
-          marginBottom: '1rem',
-          backgroundColor: 'var(--color-error-bg, #f8d7da)',
-          color: 'var(--color-error, #721c24)',
-          borderRadius: '0.5rem',
-          border: '1px solid var(--color-error, #721c24)'
-        }}>
-          ✗ {saveError}
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '1.5rem' }}>
-        {/* Logo Preview */}
-        {identitas.logoDesaUrl && (
-          <div style={{
-            padding: '1rem',
-            backgroundColor: 'var(--color-bg-muted, #f5f5f5)',
-            borderRadius: '0.5rem',
-            textAlign: 'center'
-          }}>
-            <Typography variant="body2" color="secondary" style={{ marginBottom: '0.5rem' }}>
-              Logo Desa
-            </Typography>
-            <img
-              src={identitas.logoDesaUrl}
-              alt="Logo Desa"
-              style={{ maxHeight: '80px', maxWidth: '100%' }}
-            />
-          </div>
-        )}
-
-        {/* Informasi Dasar */}
-        <div style={{ border: '1px solid var(--color-border)', padding: '1.5rem', borderRadius: '0.5rem' }}>
-          <Typography variant="h4" style={{ marginBottom: '1rem' }}>Informasi Dasar</Typography>
-          {renderField('namaDesa', 'Nama Desa *', 'text', 'Nama desa')}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            {renderField('singkatanDesa', 'Singkatan Desa', 'text', 'Contoh: SRM')}
-            {renderField('kodeDesa', 'Kode Desa', 'text', '10 digit kode desa')}
-          </div>
-        </div>
-
-        {/* Alamat */}
-        <div style={{ border: '1px solid var(--color-border)', padding: '1.5rem', borderRadius: '0.5rem' }}>
-          <Typography variant="h4" style={{ marginBottom: '1rem' }}>Alamat</Typography>
+    <AdminLayout>
+      <div className={styles.container}>
+        {/* Header */}
+        <div className={styles.header}>
           <div>
-            <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500 }}>
-              Alamat Lengkap
-            </label>
-            <textarea
-              value={form.alamat}
-              onChange={(e) => handleChange('alamat', e.target.value)}
-              placeholder="Jl. Raya Desa No. 1, RT 001/RW 001"
-              rows={3}
-              style={{
-                width: '100%',
-                padding: '0.5rem',
-                border: '1px solid var(--color-border)',
-                borderRadius: '0.25rem',
-                fontSize: '0.875rem',
-                resize: 'vertical',
-              }}
-            />
+            <h1 className={styles.title}>Identitas Desa</h1>
+            <p className={styles.subtitle}>Pengaturan informasi dasar desa</p>
           </div>
-        </div>
-
-        {/* Kontak */}
-        <div style={{ border: '1px solid var(--color-border)', padding: '1.5rem', borderRadius: '0.5rem' }}>
-          <Typography variant="h4" style={{ marginBottom: '1rem' }}>Informasi Kontak</Typography>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            {renderField('telepon', 'Telepon', 'tel', '021-123456')}
-            {renderField('whatsapp', 'WhatsApp', 'tel', '6281234567890')}
-          </div>
-          {renderField('email', 'Email', 'email', 'desa@email.id')}
-          {renderField('website', 'Website', 'url', 'https://desa.desa.id')}
-        </div>
-
-        {/* Pemerintahan */}
-        <div style={{ border: '1px solid var(--color-border)', padding: '1.5rem', borderRadius: '0.5rem' }}>
-          <Typography variant="h4" style={{ marginBottom: '1rem' }}>Pejabat Desa</Typography>
-          {renderField('kepalaDesa', 'Nama Kepala Desa', 'text', 'Nama lengkap kepala desa')}
-          {renderField('sekretarisDesa', 'Nama Sekretaris Desa', 'text', 'Nama lengkap sekretaris desa')}
-          <Typography variant="body2" color="secondary" style={{ marginTop: '0.5rem' }}>
-            Note: Untuk memperbarui data pejabat desa secara detail, gunakan menu Perangkat Desa.
-          </Typography>
-        </div>
-
-        {/* Actions */}
-        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
           {hasUnsavedChanges && (
-            <Button type="button" variant="outline" onClick={handleReset} disabled={saving}>
-              Batal
-            </Button>
+            <span className={styles.unsavedBadge}>
+              * Ada perubahan yang belum disimpan
+            </span>
           )}
-          <Button type="submit" disabled={saving || !hasUnsavedChanges}>
-            {saving ? 'Menyimpan...' : 'Simpan Perubahan'}
-          </Button>
         </div>
-      </form>
-    </Container>
+
+        {/* Success */}
+        {saveSuccess && (
+          <div className={styles.successAlert}>
+            ✓ Identitas desa berhasil disimpan!
+          </div>
+        )}
+
+        {/* Error */}
+        {saveError && (
+          <div className={styles.errorAlert}>
+            ✗ {saveError}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit}>
+
+          {/* Logo Preview */}
+          {identitas.logoDesaUrl && (
+            <div className={styles.logoPreview}>
+              <Typography variant="body2" color="secondary" style={{ marginBottom: '0.5rem' }}>
+                Logo Desa
+              </Typography>
+              <img src={identitas.logoDesaUrl} alt="Logo Desa" />
+            </div>
+          )}
+
+          {/* Section: Informasi Dasar */}
+          <div className={styles.section}>
+            <h2 className={styles.sectionTitle}>Informasi Dasar</h2>
+
+            {/* Wilayah Selector - Cascading Dropdown */}
+            <div className={styles.formGroup}>
+              <WilayahSelector
+                selectedDesaId={form.desaId || undefined}
+                onChange={handleWilayahChange}
+                error={errors.desaId || wilayahError}
+                required
+                initialValues={wilayahInitialValues}
+              />
+            </div>
+
+            <div className={styles.sectionGrid}>
+              <Input
+                label="Nama Desa *"
+                value={form.namaDesa}
+                onChange={e => handleChange('namaDesa', e.target.value)}
+                error={errors.namaDesa}
+                required
+                placeholder="Nama lengkap desa"
+              />
+              <Input
+                label="Singkatan Desa"
+                value={form.singkatanDesa}
+                onChange={e => handleChange('singkatanDesa', e.target.value)}
+                
+                placeholder="Contoh: SRG"
+              />
+              <Input
+                label="Kode Desa"
+                value={form.kodeDesa}
+                onChange={e => handleChange('kodeDesa', e.target.value)}
+                
+                placeholder="10 digit kode desa"
+              />
+            </div>
+          </div>
+
+          {/* Section: Alamat */}
+          <div className={styles.section}>
+            <h2 className={styles.sectionTitle}>Alamat</h2>
+            <div className={styles.formGroup}>
+              <Input
+                label="Alamat Lengkap"
+                value={form.alamat}
+                onChange={e => handleChange('alamat', e.target.value)}
+                placeholder="Jl. Raya Desa No. 1, RT 001/RW 001"
+              />
+            </div>
+          </div>
+
+          {/* Section: Kontak */}
+          <div className={styles.section}>
+            <h2 className={styles.sectionTitle}>Informasi Kontak</h2>
+            <div className={styles.sectionGrid3}>
+              <Input
+                label="Telepon"
+                type="tel"
+                value={form.telepon}
+                onChange={e => handleChange('telepon', e.target.value)}
+                
+                placeholder="021-123456"
+              />
+              <Input
+                label="WhatsApp"
+                type="tel"
+                value={form.whatsapp}
+                onChange={e => handleChange('whatsapp', e.target.value)}
+                
+                placeholder="6281234567890"
+              />
+              <Input
+                label="Email"
+                type="email"
+                value={form.email}
+                onChange={e => handleChange('email', e.target.value)}
+                
+                placeholder="desa@email.id"
+              />
+            </div>
+            <div className={styles.formGroup} style={{ marginTop: '1rem' }}>
+              <Input
+                label="Website"
+                type="url"
+                value={form.website}
+                onChange={e => handleChange('website', e.target.value)}
+                
+                placeholder="https://desa.desa.id"
+              />
+            </div>
+          </div>
+
+          {/* Section: Pejabat Desa */}
+          <div className={styles.section}>
+            <h2 className={styles.sectionTitle}>Pejabat Desa</h2>
+            <div className={styles.sectionGrid}>
+              <Input
+                label="Nama Kepala Desa"
+                value={form.kepalaDesa}
+                onChange={e => handleChange('kepalaDesa', e.target.value)}
+                placeholder="Nama lengkap kepala desa"
+              />
+              <Input
+                label="Nama Sekretaris Desa"
+                value={form.sekretarisDesa}
+                onChange={e => handleChange('sekretarisDesa', e.target.value)}
+                placeholder="Nama lengkap sekretaris desa"
+              />
+            </div>
+            <Typography variant="body2" color="secondary" style={{ marginTop: '0.5rem' }}>
+              Note: Untuk memperbarui data pejabat desa secara detail, gunakan menu{' '}
+              <strong>Perangkat Desa</strong>.
+            </Typography>
+          </div>
+
+          {/* Actions */}
+          <div className={styles.formActions}>
+            {hasUnsavedChanges && (
+              <Button type="button" variant="outline" onClick={handleReset} disabled={saving}>
+                Batal
+              </Button>
+            )}
+            <Button type="submit" disabled={saving || !hasUnsavedChanges}>
+              {saving ? 'Menyimpan...' : 'Simpan Perubahan'}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </AdminLayout>
   );
 }

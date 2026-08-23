@@ -25,6 +25,7 @@ interface NumberingContext {
   bulan: number;
   kode?: string;
   kades?: string;
+  jabatan?: string;
   desa?: string;
 }
 
@@ -64,6 +65,11 @@ export function parseFormatTemplate(
     result = result.replace(/\{kades\}/g, context.kades);
   }
 
+  // Replace {jabatan}
+  if (context.jabatan) {
+    result = result.replace(/\{jabatan\}/g, context.jabatan);
+  }
+
   // Replace {desa}
   if (context.desa) {
     result = result.replace(/\{desa\}/g, context.desa);
@@ -90,13 +96,13 @@ async function getVillageInfo(
 }
 
 /**
- * Get village head (kades) name
+ * Get village head (kades) info
  */
-async function getKadesInfo(
+async function getJabatanInfo(
   prisma: PrismaClient,
   desaId: bigint
-): Promise<string> {
-  const perangkat = await prisma.perangkatDesa.findFirst({
+): Promise<{ inisial: string; nama: string }> {
+  await prisma.perangkatDesa.findFirst({
     where: {
       desaId,
       jabatan: {
@@ -107,14 +113,8 @@ async function getKadesInfo(
     },
   });
 
-  if (perangkat) {
-    const penduduk = await prisma.penduduk.findUnique({
-      where: { id: perangkat.pendudukId },
-    });
-    return penduduk?.namaLengkap || 'Kepala Desa';
-  }
-
-  return 'Kepala Desa';
+  // Default initials for Kepala Desa is KDS
+  return { inisial: 'KDS', nama: 'Kepala Desa' };
 }
 
 /**
@@ -169,23 +169,24 @@ export async function generateDocumentNumber(
   });
 
   // Get village info for replacements
-  const [villageInfo, kadesInfo] = await Promise.all([
+  const [villageInfo, jabatanInfo] = await Promise.all([
     getVillageInfo(db, desaId),
-    getKadesInfo(db, desaId),
+    getJabatanInfo(db, desaId),
   ]);
 
-  // Default format: {seq}/KADES/{bulanRomawi}/{tahun}
+  // Use config format if config is set (assuming config logic is handled by caller in the future)
+  // For now, default to the requested structure: KODE/SEQ/JABATAN.DESA/BULAN/TAHUN
   const template = kode
-    ? `{kode}/{seq}/KADES.SM/{bulanRomawi}/{tahun}`
-    : `{seq}/KADES.SM/{bulanRomawi}/{tahun}`;
+    ? `{kode}/{seq:3}/{jabatan}.{desa}/{bulanRomawi}/{tahun}`
+    : `000/{seq:3}/{jabatan}.{desa}/{bulanRomawi}/{tahun}`;
 
   return parseFormatTemplate(template, {
     sequence: newSequence,
     tahun,
     bulan,
     kode,
-    kades: kadesInfo.split(' ').map(w => w[0]).join('').toUpperCase(),
-    desa: villageInfo.singkatan || villageInfo.nama.substring(0, 3).toUpperCase(),
+    jabatan: jabatanInfo.inisial,
+    desa: villageInfo.singkatan || villageInfo.nama.substring(0, 4).toUpperCase(),
   });
 }
 
@@ -256,7 +257,7 @@ export function validateFormatTemplate(template: string): { valid: boolean; erro
   const validTokens = [
     '{seq}', '{seq:',
     '{tahun}', '{bulan}', '{bulanRomawi}',
-    '{kode}', '{kades}', '{desa}',
+    '{kode}', '{kades}', '{jabatan}', '{desa}',
   ];
 
   // Extract all tokens from template

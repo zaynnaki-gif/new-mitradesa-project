@@ -8,6 +8,7 @@ import { DynamicForm } from '@/components/forms/DynamicForm';
 import type { FieldDefinition } from '@/components/forms/DynamicForm';
 import { API_URL } from '@/lib/constants';
 import { EditorialHero, EditorialSection } from '@/components/editorial';
+import { useAuthStore } from '@/stores/auth.store';
 import styles from './LayananPage.module.css';
 
 interface ServiceDetail {
@@ -39,9 +40,12 @@ export default function LayananDetailPage() {
   const [pendudukInfo, setPendudukInfo] = useState<{ nik: string; nama: string; desa: string } | null>(null);
 
   const [formValues, setFormValues] = useState<Record<string, unknown>>({});
+  const [autofilledFields, setAutofilledFields] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [nomorPermintaan, setNomorPermintaan] = useState('');
   const [submitError, setSubmitError] = useState('');
+
+  const { token } = useAuthStore();
 
   useSEO({
     title: getPageTitle(service ? `Ajukan ${service.nama}` : 'Layanan'),
@@ -53,6 +57,55 @@ export default function LayananDetailPage() {
       fetchService(slug);
     }
   }, [slug]);
+
+  // Attempt to auto-login as citizen
+  useEffect(() => {
+    if (token && service && step === 'nik-validation') {
+      autoFillCitizenData();
+    }
+  }, [token, service, step]);
+
+  const autoFillCitizenData = async () => {
+    try {
+      const res = await fetch(`${API_URL}/auth/citizen/me`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const data = json.data?.data;
+        if (data) {
+          setPendudukInfo({
+            nik: data.nik,
+            nama: data.namaLengkap,
+            desa: villageName,
+          });
+          
+          // Auto-fill fields mapping
+          const newValues = { ...formValues };
+          const newAutofilled: string[] = [];
+          service?.fields.forEach(f => {
+            let matched = false;
+            if (f.type === 'NIK') { newValues[f.key] = data.nik; matched = true; }
+            if (f.label.toLowerCase().includes('nama')) { newValues[f.key] = data.namaLengkap; matched = true; }
+            if (f.label.toLowerCase().includes('tempat lahir')) { newValues[f.key] = data.tempatLahir; matched = true; }
+            if (f.label.toLowerCase().includes('tanggal lahir')) { newValues[f.key] = data.tanggalLahir; matched = true; }
+            if (f.label.toLowerCase().includes('jenis kelamin')) { newValues[f.key] = data.jenisKelamin; matched = true; }
+            if (f.label.toLowerCase().includes('agama')) { newValues[f.key] = data.agama; matched = true; }
+            if (f.label.toLowerCase().includes('pekerjaan')) { newValues[f.key] = data.pekerjaan; matched = true; }
+            if (f.label.toLowerCase().includes('alamat')) { newValues[f.key] = data.alamat; matched = true; }
+            
+            if (matched) newAutofilled.push(f.key);
+          });
+          
+          setFormValues(newValues);
+          setAutofilledFields(newAutofilled);
+          setStep('form');
+        }
+      }
+    } catch (e) {
+      console.error('Failed to autofill citizen data', e);
+    }
+  };
 
   const fetchService = async (slug: string) => {
     setLoading(true);
@@ -372,6 +425,7 @@ export default function LayananDetailPage() {
                 <DynamicForm
                   fields={service.fields}
                   initialValues={formValues}
+                  readOnlyFields={autofilledFields}
                   onChange={values => setFormValues(values)}
                 />
                 <div className={styles.formActions}>

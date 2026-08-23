@@ -67,9 +67,15 @@
 /* Grid */
 .communityGrid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: 1fr;
   gap: var(--space-8);
   margin-bottom: var(--space-16);
+}
+
+@media (min-width: 640px) {
+  .communityGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 @media (min-width: 768px) {

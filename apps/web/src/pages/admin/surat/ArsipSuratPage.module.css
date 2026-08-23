@@ -89,3 +89,109 @@
   gap: 0.75rem;
   margin-top: 1rem;
 }
+
+/* New styles for enhanced ArsipSurat */
+.container {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.tableWrapper {
+  background: white;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border);
+  overflow-x: auto;
+}
+
+.tableWrapper table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tableWrapper th,
+.tableWrapper td {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.875rem;
+}
+
+.tableWrapper th {
+  background: var(--color-bg-secondary);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.tableWrapper tbody tr:hover {
+  background: var(--color-bg-hover);
+}
+
+.fontMedium {
+  font-weight: 500;
+}
+
+.actionButtons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.disposisiInfo {
+  padding: 0.75rem;
+  background: var(--color-bg-secondary);
+  border-radius: 0.375rem;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+}
+
+.disposisiInfo p {
+  margin: 0.25rem 0;
+}
+
+.disposisiList {
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  background: var(--color-bg-secondary);
+}
+
+.disposisiItem {
+  font-size: 0.875rem;
+}
+
+.disposisiItem p {
+  margin: 0.2rem 0;
+}
+
+.detailContent {
+  padding: 1rem;
+}
+
+.detailRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 0.875rem;
+}
+
+.detailRow:last-of-type {
+  border-bottom: none;
+}
+
+.detailLabel {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.detailValue {
+  color: var(--color-text);
+}
+
+.downloadLink {
+  color: var(--color-primary);
+  text-decoration: underline;
+}

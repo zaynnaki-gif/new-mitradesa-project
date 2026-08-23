@@ -160,6 +160,9 @@
   animation: fadeInDown 0.3s cubic-bezier(0.25, 1, 0.5, 1) forwards;
   transform-origin: top;
   z-index: 99;
+  height: calc(100vh - 80px);
+  display: flex;
+  flex-direction: column;
 }
 
 @keyframes fadeInDown {
@@ -179,7 +182,9 @@
   padding: 60px 40px;
   display: flex;
   gap: 60px;
-  min-height: 60vh;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .megamenuDescBox {
@@ -376,6 +381,12 @@
   display: flex;
   align-items: center;
   gap: 16px;
+}
+
+@media (max-width: 1024px) {
+  .iconButton, .loginButton, .avatar {
+    display: none;
+  }
 }
 
 .iconButton {

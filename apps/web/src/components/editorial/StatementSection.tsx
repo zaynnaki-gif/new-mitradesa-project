@@ -1,3 +1,4 @@
+import { useScrollReveal } from '../../hooks/useScrollReveal';
 import styles from './StatementSection.module.css';
 
 export interface StatementData {
@@ -20,6 +21,8 @@ export function StatementSection({
   const { eyebrow, title, body, author } = data;
   const isQuote = variant === 'quote' || data.variant === 'quote';
   const isCentered = variant === 'centered' || data.variant === 'centered';
+  
+  const { ref, isVisible } = useScrollReveal();
 
   const bodyContent = Array.isArray(body)
     ? body.map((paragraph, index) => (
@@ -29,7 +32,7 @@ export function StatementSection({
 
   if (isQuote) {
     return (
-      <section className={`${styles.statement} ${styles.statementDark}`}>
+      <section ref={ref} className={`${styles.statement} ${styles.statementDark} animate-on-scroll ${isVisible ? 'is-visible' : ''}`}>
         <div className={styles.statementInner}>
           <blockquote className={styles.statementQuote}>
             <span className={styles.statementQuoteMark}>"</span>
@@ -48,7 +51,7 @@ export function StatementSection({
 
   if (isCentered) {
     return (
-      <section className={`${styles.statement} ${styles.statementCentered}`}>
+      <section ref={ref} className={`${styles.statement} ${styles.statementCentered} animate-on-scroll ${isVisible ? 'is-visible' : ''}`}>
         <div className={styles.statementInner}>
           <div className={styles.statementContent}>
             {eyebrow && <span className={styles.statementEyebrow}>{eyebrow}</span>}
@@ -64,7 +67,7 @@ export function StatementSection({
 
   // Default: Editorial asymmetric layout
   return (
-    <section className={`${styles.statement} ${styles.statementEditorial}`}>
+    <section ref={ref} className={`${styles.statement} ${styles.statementEditorial} animate-on-scroll ${isVisible ? 'is-visible' : ''}`}>
       <div className={styles.statementInner}>
         <div className={styles.statementGrid}>
           {/* Left: Large title with eyebrow */}

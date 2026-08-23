@@ -1,8 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Button, Input, Select, Modal } from '../../components/ui';
-import { LoadingState, ErrorState } from '../../components/states';
-import { useAuthStore } from '../../stores/auth.store';
-import { API_URL } from '../../lib/constants';
+import { AdminLayout } from '@/layouts';
+import { Button, Input, Modal } from '@/components/ui';
+import { LoadingState, ErrorState } from '@/components/states';
+import { useAuthStore } from '@/stores/auth.store';
+import { useWilayahStore } from '@/stores/wilayah.store';
+import { API_URL } from '@/lib/constants';
+import { WilayahSelector } from '@/components/WilayahSelector';
 import styles from './WilayahPage.module.css';
 
 // Types
@@ -36,10 +39,10 @@ type FormType = 'gubug' | 'rw' | 'rt' | null;
 
 export function WilayahPage() {
   const { token } = useAuthStore();
+  const { activeWilayah, activeDesaId: storedDesaId } = useWilayahStore();
 
-  // State
-  const [desaList, setDesaList] = useState<{ id: string; nama: string }[]>([]);
-  const [selectedDesaId, setSelectedDesaId] = useState<string>('');
+  // State - use stored desa ID if available
+  const [selectedDesaId, setSelectedDesaId] = useState<string>(storedDesaId || '');
   const [gubugs, setGubugs] = useState<Gubug[]>([]);
   const [rws, setRws] = useState<Rw[]>([]);
   const [rts, setRts] = useState<Rt[]>([]);
@@ -58,18 +61,17 @@ export function WilayahPage() {
   const [rwForm, setRwForm] = useState({ kode: '', nama: '' });
   const [rtForm, setRtForm] = useState({ kode: '' });
 
-  // Fetch desa list
-  const fetchDesa = useCallback(async () => {
-    try {
-      const res = await fetch(`${API_URL}/wilayah/desa`);
-      const data = await res.json();
-      if (data.success) {
-        setDesaList(data.data.map((d: any) => ({ id: d.id.toString(), nama: d.nama })));
-      }
-    } catch (err) {
-      console.error('Failed to fetch desa:', err);
+  // Handle wilayah selection - sync with store's active wilayah
+  const handleWilayahChange = useCallback((desaId: number) => {
+    setSelectedDesaId(desaId.toString());
+  }, []);
+
+  // Sync selectedDesaId with stored value when store changes
+  useEffect(() => {
+    if (storedDesaId && !selectedDesaId) {
+      setSelectedDesaId(storedDesaId);
     }
-  }, [API_URL]);
+  }, [storedDesaId, selectedDesaId]);
 
   // Fetch all wilayah data
   const fetchWilayah = useCallback(async () => {
@@ -113,10 +115,6 @@ export function WilayahPage() {
       setLoading(false);
     }
   }, [selectedDesaId, API_URL]);
-
-  useEffect(() => {
-    fetchDesa();
-  }, [fetchDesa]);
 
   useEffect(() => {
     fetchWilayah();
@@ -163,9 +161,12 @@ export function WilayahPage() {
       let method = 'POST';
       let body: any = {};
 
+      // Use activeWilayah.desaId if available, otherwise use selectedDesaId
+      const currentDesaId = activeWilayah?.desaId || selectedDesaId;
+
       if (formType === 'gubug') {
         url = `${API_URL}/wilayah/gubug`;
-        body = { ...gubugForm, desaId: selectedDesaId };
+        body = { ...gubugForm, desaId: parseInt(currentDesaId) };
       } else if (formType === 'rw') {
         if (editingItem) {
           url = `${API_URL}/wilayah/rw/${editingItem.id}`;
@@ -173,7 +174,7 @@ export function WilayahPage() {
           body = rwForm;
         } else {
           url = `${API_URL}/wilayah/rw`;
-          body = { ...rwForm, gubugId: parentContext?.id };
+          body = { ...rwForm, gubugId: parseInt(parentContext?.id || '0') };
         }
       } else if (formType === 'rt') {
         if (editingItem) {
@@ -182,7 +183,7 @@ export function WilayahPage() {
           body = rtForm;
         } else {
           url = `${API_URL}/wilayah/rt`;
-          body = { ...rtForm, rwId: parentContext?.id };
+          body = { ...rtForm, rwId: parseInt(parentContext?.id || '0') };
         }
       }
 
@@ -231,7 +232,7 @@ export function WilayahPage() {
         alert(data.error?.message || 'Gagal menghapus');
       }
     } catch {
-      alert('Terjadi kesalahan');
+      alert('Gagal menghapus');
     }
   };
 
@@ -241,38 +242,55 @@ export function WilayahPage() {
   // Get RT for a RW
   const getRtForRw = (rwId: string) => rts.filter(rt => rt.rwId === rwId);
 
+  // Get initial values from stored wilayah for WilayahSelector
+  const initialValues = activeWilayah ? {
+    provinsiId: parseInt(activeWilayah.provinsiId),
+    kabupatenId: parseInt(activeWilayah.kabupatenId),
+    kecamatanId: parseInt(activeWilayah.kecamatanId),
+    desaId: parseInt(activeWilayah.desaId),
+  } : undefined;
+
   return (
-    <div className={styles.container}>
-      {/* Header */}
+    <AdminLayout>
+      <div className={styles.container}>
+        {/* Header */}
       <div className={styles.header}>
         <div>
           <h1 className={styles.title}>Master Wilayah</h1>
           <p className={styles.subtitle}>
             Gubug (Dusun), RW, dan RT
+            {activeWilayah && (
+              <span className={styles.activeDesa}>
+                {' '}• {activeWilayah.desaNama}
+              </span>
+            )}
           </p>
         </div>
         <div className={styles.headerActions}>
-          <Button variant="outline" onClick={() => openAddModal('gubug')} disabled={!selectedDesaId}>
+          <Button variant="outline" onClick={() => openAddModal('gubug')} disabled={!selectedDesaId && !activeWilayah}>
             + Tambah Gubug
           </Button>
         </div>
       </div>
 
-      {/* Desa Selector */}
+      {/* Wilayah Selector - always visible to show selection is saved */}
       <div className={styles.desaSelector}>
-        <Select
-          label="Pilih Desa"
-          value={selectedDesaId}
-          onChange={(e) => setSelectedDesaId(e.target.value)}
-          options={[
-            { value: '', label: '-- Pilih Desa --' },
-            ...desaList.map(d => ({ value: d.id, label: d.nama })),
-          ]}
+        <WilayahSelector
+          selectedDesaId={selectedDesaId ? parseInt(selectedDesaId) : undefined}
+          onChange={handleWilayahChange}
+          label="Wilayah Aktif"
+          initialValues={initialValues}
+          persistToStore={true}
         />
+        {activeWilayah && (
+          <p className={styles.wilayahHint}>
+            ✓ Pemilihan wilayah tersimpan dan akan diingat di sesi berikutnya
+          </p>
+        )}
       </div>
 
       {/* Content */}
-      {!selectedDesaId ? (
+      {!selectedDesaId && !activeWilayah ? (
         <div className={styles.emptyState}>
           <p>Pilih desa terlebih dahulu untuk melihat data wilayah</p>
         </div>
@@ -454,6 +472,7 @@ export function WilayahPage() {
           </div>
         </form>
       </Modal>
-    </div>
+      </div>
+    </AdminLayout>
   );
 }

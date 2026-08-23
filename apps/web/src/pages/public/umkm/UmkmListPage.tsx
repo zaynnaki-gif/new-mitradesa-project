@@ -6,7 +6,47 @@ import { LoadingState, EmptyState, ErrorState } from '@/components/states';
 import { useUmkmList } from '@/hooks/useUmkm';
 import { useSEO, getPageTitle } from '@/hooks/useSeo';
 import { EditorialHero, EditorialSection } from '@/components/editorial';
+import { useScrollReveal } from '@/hooks/useScrollReveal';
 import styles from './UmkmListPage.module.css';
+
+// Separate UmkmCard component to manage its own intersection observer
+function UmkmCard({ umkm, index }: { umkm: any; index: number }) {
+  const { ref, isVisible } = useScrollReveal({ threshold: 0.1 });
+  
+  return (
+    <div 
+      ref={ref} 
+      className={`${styles.umkmCard} animate-on-scroll ${isVisible ? 'is-visible' : ''}`}
+      style={{ transitionDelay: `${index * 100}ms` }}
+    >
+      {umkm.gambarUrl && (
+        <div className={`${styles.cardImageWrapper} hover-zoom-container`}>
+          <img src={umkm.gambarUrl} alt={umkm.nama} className={styles.cardImage} />
+        </div>
+      )}
+
+      <div className={styles.cardContent}>
+        <span className={styles.cardCategory}>{umkm.kategori.replace(/_/g, ' ')}</span>
+        <h3 className={styles.cardTitle}>{umkm.nama}</h3>
+        <p className={styles.cardOwner}>Oleh: {umkm.pemilik}</p>
+
+        <p className={styles.cardExcerpt}>
+          {umkm.deskripsi
+            ? umkm.deskripsi.length > 100
+              ? `${umkm.deskripsi.substring(0, 100)}...`
+              : umkm.deskripsi
+            : 'Tidak ada deskripsi'}
+        </p>
+
+        <div className={styles.cardFooter}>
+          <Link to={`/umkm/${umkm.slug}`} className="btn btn-outline" style={{ width: '100%' }}>
+            Lihat Detail
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function UmkmListPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('');
@@ -96,34 +136,8 @@ export default function UmkmListPage() {
 
           {!loading && !error && umkms.length > 0 && (
             <div className={styles.umkmGrid}>
-              {umkms.map((umkm) => (
-                <div key={umkm.id} className={styles.umkmCard}>
-                  {umkm.gambarUrl && (
-                    <div className={styles.cardImageWrapper}>
-                      <img src={umkm.gambarUrl} alt={umkm.nama} className={styles.cardImage} />
-                    </div>
-                  )}
-
-                  <div className={styles.cardContent}>
-                    <span className={styles.cardCategory}>{umkm.kategori.replace(/_/g, ' ')}</span>
-                    <h3 className={styles.cardTitle}>{umkm.nama}</h3>
-                    <p className={styles.cardOwner}>Oleh: {umkm.pemilik}</p>
-
-                    <p className={styles.cardExcerpt}>
-                      {umkm.deskripsi
-                        ? umkm.deskripsi.length > 100
-                          ? `${umkm.deskripsi.substring(0, 100)}...`
-                          : umkm.deskripsi
-                        : 'Tidak ada deskripsi'}
-                    </p>
-
-                    <div className={styles.cardFooter}>
-                      <Link to={`/umkm/${umkm.slug}`} className="btn btn-outline" style={{ width: '100%' }}>
-                        Lihat Detail
-                      </Link>
-                    </div>
-                  </div>
-                </div>
+              {umkms.map((umkm, index) => (
+                <UmkmCard key={umkm.id} umkm={umkm} index={index} />
               ))}
             </div>
           )}

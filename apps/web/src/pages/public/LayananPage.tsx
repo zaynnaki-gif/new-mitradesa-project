@@ -6,7 +6,74 @@ import { useLayananList } from '@/hooks/useLayanan';
 import { useSEO, getPageTitle } from '@/hooks/useSeo';
 import { LoadingState, ErrorState } from '@/components/states';
 import { EditorialHero, EditorialSection } from '@/components/editorial';
+import { useScrollReveal } from '@/hooks/useScrollReveal';
 import styles from './LayananPage.module.css';
+
+const getKategoriIcon = (kategori?: string) => {
+  switch (kategori) {
+    case 'SURAT':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+          <line x1="16" y1="13" x2="8" y2="13" />
+          <line x1="16" y1="17" x2="8" y2="17" />
+        </svg>
+      );
+    case 'PENGANTAR':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+        </svg>
+      );
+    case 'IZIN':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+          <polyline points="9 12 11 14 15 10" />
+        </svg>
+      );
+    default:
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="8" x2="12" y2="16" />
+          <line x1="8" y1="12" x2="16" y2="12" />
+        </svg>
+      );
+  }
+};
+
+function ServiceCard({ service, index }: { service: any; index: number }) {
+  const { ref, isVisible } = useScrollReveal({ threshold: 0.1 });
+  
+  return (
+    <Link
+      ref={ref}
+      to={`/layanan/${service.slug}`}
+      className={`${styles.card} animate-on-scroll hover-zoom-container ${isVisible ? 'is-visible' : ''}`}
+      style={{ textDecoration: 'none', color: 'inherit', transitionDelay: `${index * 100}ms` }}
+    >
+      <div className={styles.cardIcon}>
+        {getKategoriIcon(service.kategori)}
+      </div>
+      <Typography variant="h3" className={styles.cardTitle}>
+        {service.nama}
+      </Typography>
+      <Typography variant="body2" color="secondary" className={styles.cardDesc}>
+        {service.deskripsi || 'Layanan administrasi desa'}
+      </Typography>
+      <div className={styles.cardStatus}>
+        <span className={styles.statusBadge} style={{ 
+          backgroundColor: 'var(--color-bg-muted)', 
+          color: 'var(--color-navy-base)' 
+        }}>
+          Lihat Detail
+        </span>
+      </div>
+    </Link>
+  );
+}
 
 export default function LayananPage() {
   const { data: identitas } = useIdentitasDesa();
@@ -17,41 +84,6 @@ export default function LayananPage() {
     title: getPageTitle(`Layanan ${villageName}`),
     description: `Layanan administrasi ${villageName}. Informasi persyaratan, alur, dan pengajuan layanan desa.`,
   });
-
-  const getKategoriIcon = (kategori?: string) => {
-    switch (kategori) {
-      case 'SURAT':
-        return (
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-            <polyline points="14 2 14 8 20 8" />
-            <line x1="16" y1="13" x2="8" y2="13" />
-            <line x1="16" y1="17" x2="8" y2="17" />
-          </svg>
-        );
-      case 'PENGANTAR':
-        return (
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-          </svg>
-        );
-      case 'IZIN':
-        return (
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            <polyline points="9 12 11 14 15 10" />
-          </svg>
-        );
-      default:
-        return (
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="16" />
-            <line x1="8" y1="12" x2="16" y2="12" />
-          </svg>
-        );
-    }
-  };
 
   return (
     <PublicLayout>
@@ -74,31 +106,8 @@ export default function LayananPage() {
             <>
               {/* Service Info Grid */}
               <div className={styles.grid}>
-                {services.map((service) => (
-                  <Link
-                    key={service.id}
-                    to={`/layanan/${service.slug}`}
-                    className={styles.card}
-                    style={{ textDecoration: 'none', color: 'inherit' }}
-                  >
-                    <div className={styles.cardIcon}>
-                      {getKategoriIcon(service.kategori)}
-                    </div>
-                    <Typography variant="h3" className={styles.cardTitle}>
-                      {service.nama}
-                    </Typography>
-                    <Typography variant="body2" color="secondary" className={styles.cardDesc}>
-                      {service.deskripsi || 'Layanan administrasi desa'}
-                    </Typography>
-                    <div className={styles.cardStatus}>
-                      <span className={styles.statusBadge} style={{ 
-                        backgroundColor: 'var(--color-bg-muted)', 
-                        color: 'var(--color-navy-base)' 
-                      }}>
-                        Lihat Detail
-                      </span>
-                    </div>
-                  </Link>
+                {services.map((service, index) => (
+                  <ServiceCard key={service.id} service={service} index={index} />
                 ))}
               </div>
             </>

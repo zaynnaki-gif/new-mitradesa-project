@@ -4,9 +4,125 @@ import { PublicLayout } from '@/layouts';
 import { LoadingState, ErrorState, EmptyState } from '@/components/states';
 import { useBeritaList, useKategori } from '@/hooks/useBerita';
 import { useIdentitasDesa } from '@/hooks/useIdentitasDesa';
+import { useScrollReveal } from '@/hooks/useScrollReveal';
 import { useSEO, getPageTitle } from '@/hooks/useSeo';
 import { EditorialHero, EditorialSection } from '@/components/editorial';
 import styles from './BeritaListPage.module.css';
+
+function FeaturedArticleCard({ 
+  article, 
+  formatDate 
+}: { 
+  article: any; 
+  formatDate: (d: string | null) => string;
+}) {
+  const { ref, isVisible } = useScrollReveal();
+  
+  return (
+    <article ref={ref as any} className={`${styles.featuredArticle} animate-on-scroll ${isVisible ? 'is-visible' : ''}`}>
+      <Link to={`/berita/${article.slug}`} className={styles.cardLink}>
+        <div className={styles.featuredImageWrapper}>
+          {article.gambarUrl ? (
+            <img
+              src={article.gambarUrl}
+              alt={article.judul}
+              className={styles.featuredImage}
+              loading="lazy"
+            />
+          ) : (
+            <div className={styles.cardImagePlaceholder}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V9a2 2 0 012-2h2a2 2 0 012 2v9a2 2 0 01-2 2h-2z" />
+              </svg>
+            </div>
+          )}
+          <span className={styles.featuredBadge}>Utama</span>
+        </div>
+        <div className={styles.featuredContent}>
+          {article.kategori && (
+            <span className={styles.featuredCategory}>
+              {article.kategori.nama}
+            </span>
+          )}
+          <h2 className={styles.featuredTitle}>{article.judul}</h2>
+          {article.excerpt && (
+            <p className={styles.featuredExcerpt}>{article.excerpt}</p>
+          )}
+          <div className={styles.featuredMeta}>
+            <span className={styles.featuredMetaItem}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="12 6 12 12 16 14" />
+              </svg>
+              {formatDate(article.publishedAt || article.createdAt)}
+            </span>
+          </div>
+        </div>
+      </Link>
+    </article>
+  );
+}
+
+function NewsCard({ 
+  item, 
+  index, 
+  formatDate 
+}: { 
+  item: any; 
+  index: number;
+  formatDate: (d: string | null) => string;
+}) {
+  const { ref, isVisible } = useScrollReveal({ threshold: 0.1 });
+
+  return (
+    <article
+      ref={ref as any}
+      className={`${styles.newsCard} animate-on-scroll ${isVisible ? 'is-visible' : ''}`}
+      style={{ transitionDelay: `${(index % 4) * 100}ms` }}
+    >
+      <Link to={`/berita/${item.slug}`} className={styles.newsCardLink}>
+        <div className={`${styles.newsImageWrapper} hover-zoom-container`}>
+          {item.gambarUrl ? (
+            <img
+              src={item.gambarUrl}
+              alt={item.judul}
+              className={styles.newsImage}
+              loading="lazy"
+            />
+          ) : (
+            <div className={styles.cardImagePlaceholder}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V9a2 2 0 012-2h2a2 2 0 012 2v9a2 2 0 01-2 2h-2z" />
+              </svg>
+            </div>
+          )}
+          {item.kategori && (
+            <span className={styles.newsCategory}>
+              {item.kategori.nama}
+            </span>
+          )}
+        </div>
+        <div className={styles.newsContent}>
+          <h4 className={styles.newsTitle}>{item.judul}</h4>
+          {item.excerpt && (
+            <p className={styles.newsExcerpt}>
+              {item.excerpt.length > 120
+                ? `${item.excerpt.substring(0, 120)}...`
+                : item.excerpt}
+            </p>
+          )}
+          <div className={styles.newsMeta}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            {formatDate(item.publishedAt || item.createdAt)}
+          </div>
+        </div>
+      </Link>
+    </article>
+  );
+}
 
 export default function BeritaListPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -160,47 +276,7 @@ export default function BeritaListPage() {
 
           {/* Featured Article */}
           {!loading && !error && featuredArticle && (
-            <article className={styles.featuredArticle}>
-              <Link to={`/berita/${featuredArticle.slug}`} className={styles.cardLink}>
-                <div className={styles.featuredImageWrapper}>
-                  {featuredArticle.gambarUrl ? (
-                    <img
-                      src={featuredArticle.gambarUrl}
-                      alt={featuredArticle.judul}
-                      className={styles.featuredImage}
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className={styles.cardImagePlaceholder}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                        <path d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V9a2 2 0 012-2h2a2 2 0 012 2v9a2 2 0 01-2 2h-2z" />
-                      </svg>
-                    </div>
-                  )}
-                  <span className={styles.featuredBadge}>Utama</span>
-                </div>
-                <div className={styles.featuredContent}>
-                  {featuredArticle.kategori && (
-                    <span className={styles.featuredCategory}>
-                      {featuredArticle.kategori.nama}
-                    </span>
-                  )}
-                  <h2 className={styles.featuredTitle}>{featuredArticle.judul}</h2>
-                  {featuredArticle.excerpt && (
-                    <p className={styles.featuredExcerpt}>{featuredArticle.excerpt}</p>
-                  )}
-                  <div className={styles.featuredMeta}>
-                    <span className={styles.featuredMetaItem}>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <circle cx="12" cy="12" r="10" />
-                        <polyline points="12 6 12 12 16 14" />
-                      </svg>
-                      {formatDate(featuredArticle.publishedAt || featuredArticle.createdAt)}
-                    </span>
-                  </div>
-                </div>
-              </Link>
-            </article>
+            <FeaturedArticleCard article={featuredArticle} formatDate={formatDate} />
           )}
 
           {/* Latest News Grid */}
@@ -209,52 +285,7 @@ export default function BeritaListPage() {
               <h3 className={styles.sectionTitle}>Berita Terbaru</h3>
               <div className={styles.newsGrid}>
                 {regularArticles.map((item, index) => (
-                  <article
-                    key={item.id}
-                    className={`${styles.newsCard} ${styles.animateIn}`}
-                    style={{ animationDelay: `${index * 100}ms` }}
-                  >
-                    <Link to={`/berita/${item.slug}`} className={styles.newsCardLink}>
-                      <div className={styles.newsImageWrapper}>
-                        {item.gambarUrl ? (
-                          <img
-                            src={item.gambarUrl}
-                            alt={item.judul}
-                            className={styles.newsImage}
-                            loading="lazy"
-                          />
-                        ) : (
-                          <div className={styles.cardImagePlaceholder}>
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                              <path d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V9a2 2 0 012-2h2a2 2 0 012 2v9a2 2 0 01-2 2h-2z" />
-                            </svg>
-                          </div>
-                        )}
-                        {item.kategori && (
-                          <span className={styles.newsCategory}>
-                            {item.kategori.nama}
-                          </span>
-                        )}
-                      </div>
-                      <div className={styles.newsContent}>
-                        <h4 className={styles.newsTitle}>{item.judul}</h4>
-                        {item.excerpt && (
-                          <p className={styles.newsExcerpt}>
-                            {item.excerpt.length > 120
-                              ? `${item.excerpt.substring(0, 120)}...`
-                              : item.excerpt}
-                          </p>
-                        )}
-                        <div className={styles.newsMeta}>
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <circle cx="12" cy="12" r="10" />
-                            <polyline points="12 6 12 12 16 14" />
-                          </svg>
-                          {formatDate(item.publishedAt || item.createdAt)}
-                        </div>
-                      </div>
-                    </Link>
-                  </article>
+                  <NewsCard key={item.id} item={item} index={index} formatDate={formatDate} />
                 ))}
               </div>
             </div>

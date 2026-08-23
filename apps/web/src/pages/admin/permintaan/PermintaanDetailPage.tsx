@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { AdminLayout } from '@/layouts';
+import { useAuthStore } from '@/stores/auth.store';
 import { API_URL } from '@/lib/constants';
 import styles from './PermintaanDetailPage.module.css';
 
@@ -56,6 +57,7 @@ interface RequestDetail {
 }
 
 export default function PermintaanDetailPage() {
+  const { token } = useAuthStore();
   const { id } = useParams<{ id: string }>();
   const [request, setRequest] = useState<RequestDetail | null>(null);
   const [templates, setTemplates] = useState<TemplateVersion[]>([]);
@@ -78,7 +80,7 @@ export default function PermintaanDetailPage() {
     if (!id) return;
     try {
       const res = await fetch(`${API_URL}/service-requests/${id}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error('Gagal memuat detail');
       const data = await res.json();
@@ -98,14 +100,14 @@ export default function PermintaanDetailPage() {
     if (!request?.layananId) return;
     try {
       const res = await fetch(`${API_URL}/services/${request.layananId}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         const data = await res.json();
         const allTemplates: TemplateVersion[] = [];
         for (const doc of data.data.dokumen || []) {
           const docRes = await fetch(`${API_URL}/documents/${doc.id}`, {
-            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+            headers: { Authorization: `Bearer ${token}` },
           });
           if (docRes.ok) {
             const docData = await docRes.json();
@@ -142,7 +144,7 @@ export default function PermintaanDetailPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ catatan }),
       });
@@ -164,7 +166,7 @@ export default function PermintaanDetailPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           templateVersionId: selectedTemplate,
@@ -236,7 +238,7 @@ export default function PermintaanDetailPage() {
       { action: 'reject', label: 'Tolak', buttonClass: styles.buttonRed },
     ],
     PROCESSING: [
-      { action: 'complete', label: 'Selesaikan', buttonClass: styles.buttonGreen },
+      { action: 'approve', label: 'Setujui', buttonClass: styles.buttonGreen },
       { action: 'reject', label: 'Tolak', buttonClass: styles.buttonRed },
     ],
     APPROVED: [

@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AdminLayout } from '@/layouts';
 import { useAuthStore } from '@/stores/auth.store';
+import { API_URL } from '@/lib/constants';
 import { Button, Input, Select, Modal, Badge } from '@/components/ui';
+import styles from './TemplateListPage.module.css';
 
 interface TemplateVersion {
   id: string;
@@ -48,7 +51,6 @@ export default function TemplateListPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState('');
 
-  // Modal state
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [dokumenOptions, setDokumenOptions] = useState<DokumenOption[]>([]);
   const [createLoading, setCreateLoading] = useState(false);
@@ -71,10 +73,8 @@ export default function TemplateListPage() {
       });
       if (search) params.append('search', search);
 
-      const res = await fetch(`/api/template-designer/templates?${params}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      const res = await fetch(`${API_URL}/template-designer/templates?${params}`, {
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!res.ok) {
@@ -94,10 +94,8 @@ export default function TemplateListPage() {
 
   const loadDokumenOptions = async () => {
     try {
-      const res = await fetch('/api/documents?limit=100', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      const res = await fetch(`${API_URL}/documents?limit=100`, {
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (res.ok) {
@@ -116,14 +114,10 @@ export default function TemplateListPage() {
     }
   };
 
-  useEffect(() => {
-    loadTemplates();
-  }, [page, search]);
+  useEffect(() => { loadTemplates(); }, [page, search]);
 
   useEffect(() => {
-    if (showCreateModal) {
-      loadDokumenOptions();
-    }
+    if (showCreateModal) loadDokumenOptions();
   }, [showCreateModal]);
 
   const handleCreate = async () => {
@@ -131,32 +125,21 @@ export default function TemplateListPage() {
       setError('Nama, slug, dan jenis dokumen wajib diisi');
       return;
     }
-
     setCreateLoading(true);
     setError('');
-
     try {
-      const res = await fetch('/api/template-designer/templates', {
+      const res = await fetch(`${API_URL}/template-designer/templates`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify({
-          ...newTemplate,
-          dokumenId: parseInt(newTemplate.dokumenId),
-        }),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ ...newTemplate, dokumenId: parseInt(newTemplate.dokumenId) }),
       });
-
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error?.message || 'Gagal membuat template');
       }
-
       const data = await res.json();
       setShowCreateModal(false);
       setNewTemplate({ dokumenId: '', nama: '', slug: '', deskripsi: '' });
-      // Navigate to designer
       if (data.data?.latestVersion?.id) {
         navigate(`/admin/surat/designer/${data.data.latestVersion.id}`);
       }
@@ -170,20 +153,13 @@ export default function TemplateListPage() {
   const handleDuplicate = async (template: Template) => {
     const newNama = `${template.nama} (Copy)`;
     const newSlug = `${template.slug}-copy-${Date.now()}`;
-
     try {
-      const res = await fetch(`/api/template-designer/templates/${template.id}/duplicate`, {
+      const res = await fetch(`${API_URL}/template-designer/templates/${template.id}/duplicate`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ nama: newNama, slug: newSlug }),
       });
-
-      if (res.ok) {
-        loadTemplates();
-      }
+      if (res.ok) loadTemplates();
     } catch {
       console.error('Failed to duplicate template');
     }
@@ -191,305 +167,211 @@ export default function TemplateListPage() {
 
   const handleArchive = async (versionId: string) => {
     if (!confirm('Arsipkan versi ini?')) return;
-
     try {
-      const res = await fetch(`/api/template-designer/versions/${versionId}/archive`, {
+      const res = await fetch(`${API_URL}/template-designer/versions/${versionId}/archive`, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
-
-      if (res.ok) {
-        loadTemplates();
-      }
+      if (res.ok) loadTemplates();
     } catch {
       console.error('Failed to archive version');
     }
   };
 
-  const generateSlug = (name: string) => {
-    return name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '');
-  };
+  const generateSlug = (name: string) =>
+    name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
   const getStatusBadge = (status: string) => {
     const colors: Record<string, 'primary' | 'secondary' | 'success' | 'muted'> = {
-      DRAFT: 'secondary',
-      PUBLISHED: 'success',
-      ARCHIVED: 'muted',
+      DRAFT: 'secondary', PUBLISHED: 'success', ARCHIVED: 'muted',
     };
     const labels: Record<string, string> = {
-      DRAFT: 'Draf',
-      PUBLISHED: 'Dipublikasi',
-      ARCHIVED: 'Diarsipkan',
+      DRAFT: 'Draf', PUBLISHED: 'Dipublikasi', ARCHIVED: 'Diarsipkan',
     };
     return <Badge color={colors[status] || 'muted'}>{labels[status] || status}</Badge>;
   };
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('id-ID', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    });
-  };
+  const formatDate = (dateStr: string) =>
+    new Date(dateStr).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
 
   if (authLoading) {
     return (
-      <div style={{ padding: '1.5rem', display: 'flex', justifyContent: 'center' }}>
-        Memuat data pengguna...
-      </div>
+      <AdminLayout>
+        <div className={styles.loadingCenter}>Memuat data pengguna...</div>
+      </AdminLayout>
     );
   }
 
   if (!isAdmin) {
     return (
-      <div style={{ padding: '1.5rem' }}>
-        <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-text-secondary)' }}>
-          Anda tidak memiliki akses ke halaman ini.
-        </div>
-      </div>
+      <AdminLayout>
+        <div className={styles.accessDenied}>Anda tidak memiliki akses ke halaman ini.</div>
+      </AdminLayout>
     );
   }
 
   return (
-    <div style={{ padding: '1.5rem' }}>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.25rem', color: 'var(--color-text-primary)' }}>Template Surat</h1>
-          <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
-            Kelola template surat untuk generate dokumen desa
-          </p>
+    <AdminLayout>
+      <div className={styles.container}>
+        {/* Header */}
+        <div className={styles.header}>
+          <div>
+            <h1 className={styles.title}>Template Surat</h1>
+            <p className={styles.subtitle}>Kelola template surat untuk generate dokumen desa</p>
+          </div>
+          <Button onClick={() => setShowCreateModal(true)}>+ Buat Template Baru</Button>
         </div>
-        <Button onClick={() => setShowCreateModal(true)}>+ Buat Template Baru</Button>
-      </div>
 
-      {/* Filters */}
-      <div style={{ marginBottom: '1rem' }}>
-        <Input
-          placeholder="Cari template..."
-          value={search}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-          style={{ maxWidth: '320px' }}
-        />
-      </div>
-
-      {/* Error */}
-      {error && (
-        <div style={{ backgroundColor: 'var(--color-error-light, #fef2f2)', border: '1px solid var(--color-error, #fecaca)', color: 'var(--color-error, #b91c1c)', padding: '0.75rem', borderRadius: '0.25rem', marginBottom: '1rem' }}>
-          {error}
+        {/* Filters */}
+        <div className={styles.filters}>
+          <Input
+            placeholder="Cari template..."
+            value={search}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => { setSearch(e.target.value); setPage(1); }}
+            className={styles.searchInput}
+          />
         </div>
-      )}
 
-      {/* Table */}
-      <div style={{ backgroundColor: 'var(--color-bg-base)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)', overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ backgroundColor: 'var(--color-bg-muted)' }}>
-              <th style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>Nama Template</th>
-              <th style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>Jenis Dokumen</th>
-              <th style={{ padding: '0.75rem', textAlign: 'center', fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>Versi</th>
-              <th style={{ padding: '0.75rem', textAlign: 'center', fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>Status</th>
-              <th style={{ padding: '0.75rem', textAlign: 'left', fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>Terakhir Diubah</th>
-              <th style={{ padding: '0.75rem', textAlign: 'right', fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>Aksi</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
+        {/* Error */}
+        {error && <div className={styles.errorAlert}>{error}</div>}
+
+        {/* Table */}
+        <div className={styles.tableContainer}>
+          <table className={styles.table}>
+            <thead>
               <tr>
-                <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
-                  Memuat...
-                </td>
+                <th className={styles.th}>Nama Template</th>
+                <th className={styles.th}>Jenis Dokumen</th>
+                <th className={`${styles.th} ${styles.thCenter}`}>Versi</th>
+                <th className={`${styles.th} ${styles.thCenter}`}>Status</th>
+                <th className={styles.th}>Terakhir Diubah</th>
+                <th className={`${styles.th} ${styles.thRight}`}>Aksi</th>
               </tr>
-            ) : templates.length === 0 ? (
-              <tr>
-                <td colSpan={6} style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
-                  Belum ada template surat. Klik "Buat Template Baru" untuk membuat.
-                </td>
-              </tr>
-            ) : (
-              templates.map((template) => (
-                <tr key={template.id} style={{ borderTop: '1px solid var(--color-border)' }}>
-                  <td style={{ padding: '0.75rem' }}>
-                    <div style={{ fontWeight: 500, color: 'var(--color-text-primary)' }}>{template.nama}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>{template.deskripsi || '-'}</div>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className={styles.emptyState}>Memuat...</td>
+                </tr>
+              ) : templates.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className={styles.emptyState}>
+                    Belum ada template surat. Klik "Buat Template Baru" untuk membuat.
                   </td>
-                  <td style={{ padding: '0.75rem' }}>
-                    <div style={{ color: 'var(--color-text-primary)' }}>{template.dokumen.nama}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>{template.dokumen.layanan?.nama || '-'}</div>
+                </tr>
+              ) : templates.map((template) => (
+                <tr key={template.id} className={styles.tr}>
+                  <td className={styles.td}>
+                    <div className={styles.tdPrimary}>{template.nama}</div>
+                    <div className={styles.tdMuted}>{template.deskripsi || '-'}</div>
                   </td>
-                  <td style={{ padding: '0.75rem', textAlign: 'center', color: 'var(--color-text-primary)' }}>
+                  <td className={styles.td}>
+                    <div className={styles.tdPrimary}>{template.dokumen.nama}</div>
+                    <div className={styles.tdMuted}>{template.dokumen.layanan?.nama || '-'}</div>
+                  </td>
+                  <td className={`${styles.td} ${styles.tdCenter}`}>
                     v{template.latestVersion?.version || 1}
-                    <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.75rem', marginLeft: '0.25rem' }}>
-                      ({template.versionCount} versi)
-                    </span>
+                    <span className={styles.tdMuted}> ({template.versionCount} versi)</span>
                   </td>
-                  <td style={{ padding: '0.75rem', textAlign: 'center' }}>
+                  <td className={`${styles.td} ${styles.tdCenter}`}>
                     {getStatusBadge(template.latestVersion?.status || 'DRAFT')}
                   </td>
-                  <td style={{ padding: '0.75rem', fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
-                    {formatDate(template.updatedAt)}
+                  <td className={styles.td}>
+                    <span className={styles.tdMuted}>{formatDate(template.updatedAt)}</span>
                   </td>
-                  <td style={{ padding: '0.75rem', textAlign: 'right' }}>
-                    <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                  <td className={`${styles.td} ${styles.tdRight}`}>
+                    <div className={styles.actionsRow}>
                       {template.latestVersion && (
-                        <Button
-                          variant="outline"
-                          onClick={() => navigate(`/admin/surat/designer/${template.latestVersion?.id}`)}
-                          style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
-                        >
+                        <Button variant="outline" size="sm" onClick={() => navigate(`/admin/surat/designer/${template.latestVersion?.id}`)}>
                           Edit
                         </Button>
                       )}
-                      <Button
-                        variant="outline"
-                        onClick={() => handleDuplicate(template)}
-                        style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
-                      >
+                      <Button variant="outline" size="sm" onClick={() => navigate(`/admin/surat/templates/${template.id}/fields`)}>
+                        Fields (DNA)
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => handleDuplicate(template)}>
                         Duplikat
                       </Button>
                       {template.latestVersion?.status === 'PUBLISHED' && (
-                        <Button
-                          variant="outline"
-                          onClick={() => handleArchive(template.latestVersion!.id)}
-                          style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
-                        >
+                        <Button variant="outline" size="sm" onClick={() => handleArchive(template.latestVersion!.id)}>
                           Arsipkan
                         </Button>
                       )}
                     </div>
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className={styles.pagination}>
+            <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage(p => p - 1)}>Prev</Button>
+            <span className={styles.pageInfo}>Halaman {page} / {totalPages}</span>
+            <Button variant="outline" size="sm" disabled={page === totalPages} onClick={() => setPage(p => p + 1)}>Next</Button>
+          </div>
+        )}
+
+        {/* Create Modal */}
+        <Modal
+          isOpen={showCreateModal}
+          onClose={() => { setShowCreateModal(false); setError(''); }}
+          title="Buat Template Baru"
+        >
+          <div className={styles.modalForm}>
+            <div className={styles.formField}>
+              <label className={styles.formLabel}>Jenis Dokumen *</label>
+              <Select
+                name="dokumenId"
+                value={newTemplate.dokumenId}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                  setNewTemplate({ ...newTemplate, dokumenId: e.target.value })}
+                options={dokumenOptions.map(d => ({ value: d.id, label: `${d.nama} (${d.layananNama})` }))}
+              />
+            </div>
+            <div className={styles.formField}>
+              <label className={styles.formLabel}>Nama Template *</label>
+              <Input
+                name="nama"
+                value={newTemplate.nama}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setNewTemplate({ ...newTemplate, nama: e.target.value, slug: generateSlug(e.target.value) })}
+                placeholder="Contoh: Surat Keterangan Domisili"
+              />
+            </div>
+            <div className={styles.formField}>
+              <label className={styles.formLabel}>Slug URL *</label>
+              <Input
+                name="slug"
+                value={newTemplate.slug}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setNewTemplate({ ...newTemplate, slug: e.target.value })}
+                placeholder="surat-keterangan-domisili"
+              />
+              <span className={styles.formHint}>Akan digunakan untuk URL template</span>
+            </div>
+            <div className={styles.formField}>
+              <label className={styles.formLabel}>Deskripsi (opsional)</label>
+              <Input
+                name="deskripsi"
+                value={newTemplate.deskripsi}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setNewTemplate({ ...newTemplate, deskripsi: e.target.value })}
+                placeholder="Deskripsi singkat template"
+              />
+            </div>
+            {error && <div className={styles.errorAlert}>{error}</div>}
+            <div className={styles.formActions}>
+              <Button variant="outline" onClick={() => { setShowCreateModal(false); setError(''); }}>Batal</Button>
+              <Button onClick={handleCreate} disabled={createLoading}>
+                {createLoading ? 'Membuat...' : 'Buat Template'}
+              </Button>
+            </div>
+          </div>
+        </Modal>
       </div>
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', marginTop: '1rem' }}>
-          <Button
-            variant="outline"
-            disabled={page === 1}
-            onClick={() => setPage(p => p - 1)}
-            style={{ padding: '0.5rem 1rem' }}
-          >
-            Prev
-          </Button>
-          <span style={{ padding: '0.5rem 1rem', fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
-            Halaman {page} / {totalPages}
-          </span>
-          <Button
-            variant="outline"
-            disabled={page === totalPages}
-            onClick={() => setPage(p => p + 1)}
-            style={{ padding: '0.5rem 1rem' }}
-          >
-            Next
-          </Button>
-        </div>
-      )}
-
-      {/* Create Modal */}
-      <Modal
-        isOpen={showCreateModal}
-        onClose={() => {
-          setShowCreateModal(false);
-          setError('');
-        }}
-        title="Buat Template Baru"
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', minWidth: '320px' }}>
-          <div>
-            <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem', fontWeight: 500 }}>
-              Jenis Dokumen *
-            </label>
-            <Select
-              name="dokumenId"
-              value={newTemplate.dokumenId}
-              onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
-                setNewTemplate({ ...newTemplate, dokumenId: e.target.value })}
-              options={dokumenOptions.map(d => ({
-                value: d.id,
-                label: `${d.nama} (${d.layananNama})`
-              }))}
-            />
-          </div>
-
-          <div>
-            <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem', fontWeight: 500 }}>
-              Nama Template *
-            </label>
-            <Input
-              name="nama"
-              value={newTemplate.nama}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setNewTemplate({
-                  ...newTemplate,
-                  nama: e.target.value,
-                  slug: generateSlug(e.target.value),
-                })}
-              placeholder="Contoh: Surat Keterangan Domisili"
-            />
-          </div>
-
-          <div>
-            <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-text-primary)' }}>
-              Slug URL *
-            </label>
-            <Input
-              name="slug"
-              value={newTemplate.slug}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setNewTemplate({ ...newTemplate, slug: e.target.value })}
-              placeholder="surat-keterangan-domisili"
-            />
-            <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginTop: '0.25rem' }}>
-              Akan digunakan untuk URL template
-            </p>
-          </div>
-
-          <div>
-            <label style={{ display: 'block', marginBottom: '0.25rem', fontSize: '0.875rem', fontWeight: 500, color: 'var(--color-text-primary)' }}>
-              Deskripsi (opsional)
-            </label>
-            <Input
-              name="deskripsi"
-              value={newTemplate.deskripsi}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setNewTemplate({ ...newTemplate, deskripsi: e.target.value })}
-              placeholder="Deskripsi singkat template"
-            />
-          </div>
-
-          {error && (
-            <div style={{ fontSize: '0.875rem', color: 'var(--color-error)' }}>{error}</div>
-          )}
-
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowCreateModal(false);
-                setError('');
-              }}
-            >
-              Batal
-            </Button>
-            <Button onClick={handleCreate} disabled={createLoading}>
-              {createLoading ? 'Membuat...' : 'Buat Template'}
-            </Button>
-          </div>
-        </div>
-      </Modal>
-    </div>
+    </AdminLayout>
   );
 }

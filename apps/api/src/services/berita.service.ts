@@ -342,7 +342,7 @@ export class BeritaService {
         judul: data.judul,
         slug: data.slug,
         excerpt: data.excerpt,
-        konten: sanitizedKonten,
+        konten: sanitizedKonten || "",
         gambarUrl: data.gambarUrl,
         status: data.status ?? 'DRAFT',
         kategoriId: data.kategoriId ? BigInt(data.kategoriId) : null,

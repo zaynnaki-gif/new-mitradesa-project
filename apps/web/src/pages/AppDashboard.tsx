@@ -224,25 +224,25 @@ export default function AppDashboard() {
         <div className={styles.statsGrid}>
           <div className={styles.statCard}>
             <div className={styles.statIcon} style={{ backgroundColor: '#dbeafe' }}>📥</div>
-            <div className={styles.statValue}>{stats?.requests.new || 0}</div>
+            <div className={styles.statValue}>{stats?.requests?.new || 0}</div>
             <div className={styles.statLabel}>Permintaan Baru</div>
           </div>
 
           <div className={styles.statCard}>
             <div className={styles.statIcon} style={{ backgroundColor: '#fef3c7' }}>⚙️</div>
-            <div className={styles.statValue}>{stats?.requests.processing || 0}</div>
+            <div className={styles.statValue}>{stats?.requests?.processing || 0}</div>
             <div className={styles.statLabel}>Sedang Diproses</div>
           </div>
 
           <div className={styles.statCard}>
-            <div className={styles.statIcon} style={{ backgroundColor: '#fce7f3' }}>⏳</div>
-            <div className={styles.statValue}>{stats?.requests.pendingApproval || 0}</div>
-            <div className={styles.statLabel}>Menunggu Persetujuan</div>
+            <div className={styles.statIcon} style={{ backgroundColor: '#fef08a' }}>✍️</div>
+            <div className={styles.statValue}>{stats?.requests?.pendingApproval || 0}</div>
+            <div className={styles.statLabel}>Menunggu TTE</div>
           </div>
 
           <div className={styles.statCard}>
-            <div className={styles.statIcon} style={{ backgroundColor: '#d1fae5' }}>✅</div>
-            <div className={styles.statValue}>{stats?.requests.completed || 0}</div>
+            <div className={styles.statIcon} style={{ backgroundColor: '#dcfce7' }}>✅</div>
+            <div className={styles.statValue}>{stats?.requests?.completed || 0}</div>
             <div className={styles.statLabel}>Selesai</div>
           </div>
 

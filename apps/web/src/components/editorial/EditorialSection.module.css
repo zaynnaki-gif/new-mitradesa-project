@@ -1,0 +1,41 @@
+.section {
+  padding: var(--space-24) 40px;
+  background-color: var(--editorial-cream);
+  color: var(--ink-deep);
+}
+
+.section.alternate {
+  background-color: var(--editorial-white);
+}
+
+.inner {
+  max-width: var(--container-max);
+  margin: 0 auto;
+}
+
+.header {
+  margin-bottom: var(--space-16);
+  max-width: 800px;
+}
+
+.title {
+  font-family: var(--font-serif);
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 700;
+  color: var(--ink-deep);
+  margin-bottom: var(--space-4);
+  line-height: 1.2;
+  transition: transform 0.3s ease, color 0.3s ease;
+}
+
+.title:hover {
+  transform: translateX(4px);
+  color: var(--amber-600);
+}
+
+.subtitle {
+  font-family: var(--font-sans);
+  font-size: 1.125rem;
+  color: var(--stone-600);
+  line-height: 1.6;
+}

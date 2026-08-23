@@ -103,6 +103,9 @@ export default function KeluargaPage() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
+
+  const [gubugOptions, setGubugOptions] = useState<{kode: string, nama: string}[]>([]);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch keluarga list
@@ -135,6 +138,21 @@ export default function KeluargaPage() {
   useEffect(() => {
     fetchKeluarga();
   }, [fetchKeluarga]);
+
+  useEffect(() => {
+    if (token) {
+      fetch(`${API_URL}/wilayah/dropdown`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success && data.data?.gubug) {
+          setGubugOptions(data.data.gubug);
+        }
+      })
+      .catch(err => console.error(err));
+    }
+  }, [token]);
 
   // Open create modal
   const openCreateModal = () => {
@@ -283,21 +301,27 @@ export default function KeluargaPage() {
     }
   };
 
-  // Export CSV
-  const handleExport = async () => {
+  // Export Data
+  const handleExport = async (format: 'csv' | 'xlsx') => {
     try {
-      const res = await fetch(`${API_URL}/keluarga/export`, {
+      const res = await fetch(`${API_URL}/keluarga/export?format=${format}`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
 
-      const blob = await res.blob();
+      if (!res.ok) throw new Error('Export failed');
+
+      const arrayBuffer = await res.arrayBuffer();
+      const contentType = format === 'xlsx' 
+        ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+        : 'text/csv; charset=utf-8';
+      const blob = new Blob([arrayBuffer], { type: contentType });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `keluarga_${new Date().toISOString().split('T')[0]}.csv`;
+      a.download = `keluarga_${new Date().toISOString().split('T')[0]}.${format}`;
       document.body.appendChild(a);
       a.click();
-      window.URL.revokeObjectURL(url);
+      setTimeout(() => window.URL.revokeObjectURL(url), 100);
       a.remove();
     } catch {
       alert('Gagal export data');
@@ -356,9 +380,12 @@ export default function KeluargaPage() {
             {pagination?.total || 0} total keluarga
           </p>
         </div>
-        <div className={styles.headerActions}>
-          <Button variant="outline" onClick={handleExport}>
-            📥 Export CSV
+        <div className={styles.headerActions} style={{ gap: '8px', display: 'flex', flexWrap: 'wrap' }}>
+          <Button variant="outline" onClick={() => handleExport('csv')}>
+            📄 Export CSV
+          </Button>
+          <Button variant="outline" onClick={() => handleExport('xlsx')}>
+            📊 Export Excel
           </Button>
           <Button variant="outline" onClick={() => { setShowImportModal(true); setImportResult(null); }}>
             📤 Import CSV
@@ -560,12 +587,16 @@ export default function KeluargaPage() {
             onChange={(e) => setFormData({ ...formData, alamat: e.target.value })}
           />
           <div className={styles.rowFields}>
-            <Input
+            <Select
               label="Dusun"
               value={formData.dusun}
               onChange={(e) => setFormData({ ...formData, dusun: e.target.value })}
-              placeholder="Nama dusun"
-            />
+            >
+              <option value="">Pilih Dusun</option>
+              {gubugOptions.map((g) => (
+                <option key={g.kode} value={g.nama}>{g.nama}</option>
+              ))}
+            </Select>
             <Input
               label="RW"
               value={formData.rw}

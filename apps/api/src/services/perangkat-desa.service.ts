@@ -166,7 +166,7 @@ export class PerangkatDesaService {
           select: {
             id: true, nik: true, namaLengkap: true,
             tempatLahir: true, tanggalLahir: true, jenisKelamin: true,
-            alamat: true, rt: true, rw: true, dusun: true,
+            alamat: true, rtId: true, rwId: true, gubugId: true,
           },
         },
         desa: { select: { id: true, nama: true } },

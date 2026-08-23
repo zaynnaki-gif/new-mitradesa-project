@@ -5,7 +5,35 @@ import { useIdentitasDesa } from '@/hooks/useIdentitasDesa';
 import { usePerangkatDesa } from '@/hooks/usePerangkatDesa';
 import { useSEO, getPageTitle } from '@/hooks/useSeo';
 import { EditorialHero, EditorialSection } from '@/components/editorial';
+import { useScrollReveal } from '@/hooks/useScrollReveal';
 import styles from './PemerintahanPage.module.css';
+
+function LeaderCard({ children, delay = 0 }: { children: React.ReactNode, delay?: number }) {
+  const { ref, isVisible } = useScrollReveal({ threshold: 0.1 });
+  return (
+    <div 
+      ref={ref} 
+      className={`${styles.leaderCard} hover-zoom-container animate-on-scroll ${isVisible ? 'is-visible' : ''}`}
+      style={{ transitionDelay: `${delay}ms` }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function PerangkatCard({ children, delay = 0 }: { children: React.ReactNode, delay?: number }) {
+  const { ref, isVisible } = useScrollReveal({ threshold: 0.1 });
+  return (
+    <div 
+      ref={ref} 
+      className={`${styles.perangkatCard} hover-zoom-container animate-on-scroll ${isVisible ? 'is-visible' : ''}`}
+      style={{ transitionDelay: `${delay}ms` }}
+    >
+      {children}
+    </div>
+  );
+}
+
 
 export default function PemerintahanPage() {
   const { data: identitas, isLoading, error, refetch } = useIdentitasDesa();
@@ -87,7 +115,7 @@ export default function PemerintahanPage() {
           {!isLoading && !error && (
             <div className={styles.grid}>
               {/* Kepala Desa */}
-              <div className={styles.leaderCard}>
+              <LeaderCard delay={0}>
                 <div className={styles.leaderImageWrapper}>
                   {identitas?.kepalaDesa ? (
                     <div className={styles.leaderAvatar}>
@@ -114,10 +142,10 @@ export default function PemerintahanPage() {
                     {villageName}
                   </Typography>
                 </div>
-              </div>
+              </LeaderCard>
 
               {/* Sekretaris Desa */}
-              <div className={styles.leaderCard}>
+              <LeaderCard delay={100}>
                 <div className={styles.leaderImageWrapper}>
                   {identitas?.sekretarisDesa ? (
                     <div className={styles.leaderAvatar}>
@@ -144,7 +172,7 @@ export default function PemerintahanPage() {
                     {villageName}
                   </Typography>
                 </div>
-              </div>
+              </LeaderCard>
 
               {/* Perangkat Desa Section */}
               <div className={styles.section}>
@@ -178,8 +206,8 @@ export default function PemerintahanPage() {
                   <div className={styles.perangkatGrid}>
                     {sortedPerangkat
                       .filter((p) => p.jabatan !== 'KEPALA_DESA' && p.jabatan !== 'SEKRETARIS_DESA')
-                      .map((perangkat) => (
-                        <div key={perangkat.id} className={styles.perangkatCard}>
+                      .map((perangkat, index) => (
+                        <PerangkatCard key={perangkat.id} delay={index * 50}>
                           <div className={styles.perangkatAvatar}>
                             {perangkat.fotoUrl ? (
                               <img
@@ -205,7 +233,7 @@ export default function PemerintahanPage() {
                               {perangkat.status}
                             </span>
                           )}
-                        </div>
+                        </PerangkatCard>
                       ))}
                   </div>
                 )}

@@ -20,6 +20,7 @@ const HalamanPage = lazy(() => import('./pages/public/HalamanPage'));
 const LayananCatalogPage = lazy(() => import('./pages/public/layanan/LayananCatalogPage'));
 const LayananDetailPage = lazy(() => import('./pages/public/layanan/LayananDetailPage'));
 const TrackingPage = lazy(() => import('./pages/public/layanan/TrackingPage'));
+const RiwayatLayananPage = lazy(() => import('./pages/public/layanan/RiwayatLayananPage').then(m => ({ default: m.RiwayatLayananPage })));
 
 // Berita pages
 const BeritaListPage = lazy(() => import('./pages/public/berita/BeritaListPage'));
@@ -47,16 +48,21 @@ const RequestOtpPage = lazy(() => import('./pages/auth/RequestOtpPage').then(m =
 const AppDashboard = lazy(() => import('./pages/AppDashboard'));
 const WilayahPage = lazy(() => import('./pages/admin/WilayahPage').then(m => ({ default: m.WilayahPage })));
 const IdentitasDesaPage = lazy(() => import('./pages/admin/IdentitasDesaPage'));
-const PerangkatDesaPage = lazy(() => import('./pages/admin/PerangkatDesaPage').then(m => ({ default: m.PerangkatDesaPage })));
+const PerangkatDesaPage = lazy(() => import('./pages/admin/PerangkatDesaPage'));
 const PendudukPage = lazy(() => import('./pages/admin/penduduk/PendudukPage'));
 const KeluargaPage = lazy(() => import('./pages/admin/master/KeluargaPage').then(m => ({ default: m.default })));
 const ReferensiPage = lazy(() => import('./pages/admin/master/ReferensiPage').then(m => ({ default: m.default })));
 const LembagaPage = lazy(() => import('./pages/admin/lembaga/LembagaPage').then(m => ({ default: m.default })));
 
 // Surat Template pages
+const JenisSuratPage = lazy(() => import('./pages/admin/surat/JenisSuratPage'));
 const TemplateListPage = lazy(() => import('./pages/admin/surat/TemplateListPage'));
 const TemplateDesignerPage = lazy(() => import('./pages/admin/surat/TemplateDesignerPage'));
+const TemplateFieldsPage = lazy(() => import('./pages/admin/surat/TemplateFieldsPage'));
+const PenandatanganPage = lazy(() => import('./pages/admin/surat/PenandatanganPage'));
+const PenomoranSuratPage = lazy(() => import('./pages/admin/surat/PenomoranSuratPage').then(m => ({ default: m.PenomoranSuratPage })));
 const ArsipSuratPage = lazy(() => import('./pages/admin/surat/ArsipSuratPage'));
+const TteDashboardPage = lazy(() => import('./pages/admin/surat/TteDashboardPage').then(m => ({ default: m.TteDashboardPage })));
 // Admin Request pages
 const RequestListPage = lazy(() => import('./pages/admin/permintaan/PermintaanListPage'));
 const RequestDetailPage = lazy(() => import('./pages/admin/permintaan/PermintaanDetailPage'));
@@ -77,7 +83,7 @@ const MediaAdminPage = lazy(() => import('./pages/admin/konten/MediaPage'));
 const AgendaAdminPage = lazy(() => import('./pages/admin/konten/AgendaPage').then(m => ({ default: m.AgendaPage })));
 const UmkmAdminPage = lazy(() => import('./pages/admin/konten/UmkmPage').then(m => ({ default: m.UmkmPage })));
 const PotensiAdminPage = lazy(() => import('./pages/admin/konten/PotensiPage').then(m => ({ default: m.PotensiPage })));
-const TransparansiAdminPage = lazy(() => import('./pages/admin/konten/TransparansiPage').then(m => ({ default: m.TransparansiPage })));
+const TransparansiAdminPage = lazy(() => import('./pages/admin/konten/TransparansiPage'));
 const ExecutiveDashboard = lazy(() => import('./pages/admin/ExecutiveDashboard'));
 
 // Public verification
@@ -89,7 +95,7 @@ import { useAuthStore } from './stores/auth.store';
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
   const { user, token, loading } = useAuthStore();
-  const isAdmin = user?.roles?.includes('ADMIN') || user?.roles?.includes('DEVELOPER');
+  const isAdmin = user?.roles?.includes('ADMIN') || user?.roles?.includes('DEVELOPER') || user?.roles?.includes('superadmin');
 
   if (loading) return <Loading />;
 
@@ -120,6 +126,7 @@ function App() {
             <Route path="/kontak" element={<KontakPage />} />
             <Route path="/galeri" element={<GaleriPage />} />
             <Route path="/layanan" element={<LayananCatalogPage />} />
+            <Route path="/layanan/riwayat" element={<RiwayatLayananPage />} />
             <Route path="/layanan/tracking" element={<TrackingPage />} />
             <Route path="/layanan/:slug" element={<LayananDetailPage />} />
 
@@ -220,6 +227,14 @@ function App() {
               }
             />
             <Route
+              path="/admin/surat/jenis"
+              element={
+                <AdminRoute>
+                  <JenisSuratPage />
+                </AdminRoute>
+              }
+            />
+            <Route
               path="/admin/surat/templates"
               element={
                 <AdminRoute>
@@ -232,6 +247,38 @@ function App() {
               element={
                 <AdminRoute>
                   <TemplateDesignerPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/surat/templates/:id/fields"
+              element={
+                <AdminRoute>
+                  <TemplateFieldsPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/surat/penandatangan"
+              element={
+                <AdminRoute>
+                  <PenandatanganPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/surat/penomoran"
+              element={
+                <AdminRoute>
+                  <PenomoranSuratPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/surat/tte"
+              element={
+                <AdminRoute>
+                  <TteDashboardPage />
                 </AdminRoute>
               }
             />

@@ -50,7 +50,7 @@ interface FormatterOption {
 export default function TemplateDesignerPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuthStore();
+  const { user, token, loading: authLoading } = useAuthStore();
 
   const [version, setVersion] = useState<TemplateVersion | null>(null);
   const [loading, setLoading] = useState(true);
@@ -80,7 +80,7 @@ export default function TemplateDesignerPage() {
     try {
       const res = await fetch(`${API_URL}/template-designer/versions/${id}`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          Authorization: `Bearer ${token}`,
         },
       });
 
@@ -109,7 +109,7 @@ export default function TemplateDesignerPage() {
     try {
       const res = await fetch(`${API_URL}/template-designer/registry`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          Authorization: `Bearer ${token}`,
         },
       });
 
@@ -210,7 +210,7 @@ export default function TemplateDesignerPage() {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           content,
@@ -241,7 +241,7 @@ export default function TemplateDesignerPage() {
       const res = await fetch(`${API_URL}/template-designer/versions/${id}/validate`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          Authorization: `Bearer ${token}`,
         },
       });
 
@@ -261,7 +261,7 @@ export default function TemplateDesignerPage() {
       const res = await fetch(`${API_URL}/template-designer/versions/${id}/publish`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          Authorization: `Bearer ${token}`,
         },
       });
 

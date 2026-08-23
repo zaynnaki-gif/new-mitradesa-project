@@ -1,6 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import s from '../layanan/LayananListPage.module.css';
+import { AdminLayout } from '@/layouts';
+import { Button } from '@/components/ui';
+import { LoadingState } from '@/components/states';
+import { useAuthStore } from '@/stores/auth.store';
+import { API_URL } from '@/lib/constants';
+import styles from './DokumenDetailPage.module.css';
 
 interface DocumentInstance {
   id: string;
@@ -17,36 +22,21 @@ interface DocumentInstance {
   qrCode?: string;
   generatedAt: string;
   signedAt?: string;
-  dokumen?: {
-    id: string;
-    kode: string;
-    nama: string;
-    slug: string;
-  };
+  dokumen?: { id: string; kode: string; nama: string; slug: string };
   templateVersion?: {
     id: string;
     version: number;
-    template?: {
-      id: string;
-      nama: string;
-    };
+    template?: { id: string; nama: string };
   };
   permintaan?: {
     id: string;
     nomorPermintaan: string;
     status: string;
-    penduduk?: {
-      namaLengkap: string;
-      nik: string;
-    };
+    penduduk?: { namaLengkap: string; nik: string };
   };
   signature?: {
     id: string;
-    penandatangan?: {
-      nama: string;
-      jabatan: string;
-      nip?: string;
-    };
+    penandatangan?: { nama: string; jabatan: string; nip?: string };
     signedAt: string;
   };
   verifikasi?: {
@@ -66,8 +56,8 @@ interface PenandaTangan {
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   GENERATED: { bg: '#f3f4f6', text: '#374151' },
   PENDING_SIGNATURE: { bg: '#fef3c7', text: '#92400e' },
-  SIGNED: { bg: '#dbeafe', text: '#1e40af' },
-  VERIFIED: { bg: '#d1fae5', text: '#065f46' },
+  SIGNED: { bg: '#d1fae5', text: '#065f46' },
+  VERIFIED: { bg: '#dbeafe', text: '#1e40af' },
   ARCHIVED: { bg: '#fee2e2', text: '#991b1b' },
 };
 
@@ -82,33 +72,32 @@ const STATUS_LABELS: Record<string, string> = {
 export default function DokumenDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { token } = useAuthStore();
+
   const [document, setDocument] = useState<DocumentInstance | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  
   const [showSignModal, setShowSignModal] = useState(false);
   const [penandaTangan, setPenandaTangan] = useState<PenandaTangan[]>([]);
   const [selectedPenandatangan, setSelectedPenandatangan] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
 
-  useEffect(() => {
-    fetchDocument();
-    fetchPenandaTangan();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  const headers = { Authorization: `Bearer ${token}` };
 
   const fetchDocument = async () => {
     if (!id) return;
     setLoading(true);
+    setError('');
     try {
-      const res = await fetch(`/api/documents/instances/${id}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-      });
-      if (!res.ok) throw new Error('Gagal memuat dokumen');
+      const res = await fetch(`${API_URL}/documents/instances/${id}`, { headers });
       const json = await res.json();
-      setDocument(json.data || json);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Error');
+      if (json.success) {
+        setDocument(json.data);
+      } else {
+        throw new Error(json.error?.message || 'Gagal memuat dokumen');
+      }
+    } catch (e: any) {
+      setError(e.message);
     } finally {
       setLoading(false);
     }
@@ -116,44 +105,37 @@ export default function DokumenDetailPage() {
 
   const fetchPenandaTangan = async () => {
     try {
-      const res = await fetch('/api/signatories?isActive=true', {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-      });
+      const res = await fetch(`${API_URL}/signatories?isActive=true`, { headers });
       if (res.ok) {
         const data = await res.json();
         setPenandaTangan(data.data || []);
       }
-    } catch (e) {
-      console.error('Failed to fetch penanda tangan:', e);
-    }
+    } catch { /* ignore */ }
   };
+
+  useEffect(() => { fetchDocument(); fetchPenandaTangan(); }, [id]); // eslint-disable-line
 
   const handleSign = async () => {
     if (!id || !selectedPenandatangan) return;
     setActionLoading(true);
     try {
-      const res = await fetch(`/api/documents/${id}/sign`, {
+      const res = await fetch(`${API_URL}/documents/${id}/sign`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ penandatanganId: selectedPenandatangan }),
       });
       if (!res.ok) throw new Error('Gagal menandatangani');
       setShowSignModal(false);
       fetchDocument();
-    } catch (e: unknown) {
-      alert(e instanceof Error ? e.message : 'Error');
+    } catch (e: any) {
+      alert(e.message);
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleDownload = () => {
-    if (document?.fileUrl) {
-      window.open(document.fileUrl, '_blank');
-    }
+    if (document?.fileUrl) window.open(document.fileUrl, '_blank');
   };
 
   const copyVerificationLink = () => {
@@ -167,265 +149,222 @@ export default function DokumenDetailPage() {
   const formatDate = (date?: string) => {
     if (!date) return '-';
     return new Date(date).toLocaleDateString('id-ID', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
+      day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
     });
   };
 
-  if (loading) return <div style={{ padding: '1.5rem' }}>Memuat...</div>;
-  if (error) return <div style={{ padding: '1.5rem', color: 'var(--color-error)' }}>{error}</div>;
-  if (!document) return <div style={{ padding: '1.5rem' }}>Dokumen tidak ditemukan</div>;
+  if (loading) return (
+    <AdminLayout><LoadingState message="Memuat dokumen..." fullPage /></AdminLayout>
+  );
+  if (error) return (
+    <AdminLayout>
+      <div className={styles.container}>
+        <div className={styles.errorState}>{error}</div>
+      </div>
+    </AdminLayout>
+  );
+  if (!document) return (
+    <AdminLayout>
+      <div className={styles.container}>
+        <div className={styles.errorState}>Dokumen tidak ditemukan</div>
+      </div>
+    </AdminLayout>
+  );
+
+  const statusColor = STATUS_COLORS[document.status] || { bg: '#f3f4f6', text: '#374151' };
 
   return (
-    <div style={{ padding: '1.5rem', maxWidth: '1000px', margin: '0 auto' }}>
-      {/* Header */}
-      <div style={{ marginBottom: '1.5rem' }}>
-        <button
-          onClick={() => navigate('/admin/dokumen')}
-          style={{
-            background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer',
-            fontSize: '0.875rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
-            marginBottom: '0.5rem', padding: 0,
-          }}
-        >
-          ← Kembali ke Daftar
-        </button>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div>
-            <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--color-text-primary)', margin: 0 }}>
-              {document.judul}
-            </h1>
-            <p style={{ color: 'var(--color-text-secondary)', fontFamily: 'monospace', marginTop: '0.25rem' }}>
-              {document.nomorDokumen}
-            </p>
+    <AdminLayout>
+      <div className={styles.container}>
+        {/* Back + Header */}
+        <div className={styles.header}>
+          <button className={styles.backButton} onClick={() => navigate('/admin/dokumen')}>
+            ← Kembali ke Daftar
+          </button>
+          <div className={styles.headerMain}>
+            <div>
+              <h1 className={styles.title}>{document.judul}</h1>
+              <p className={styles.nomor}>{document.nomorDokumen}</p>
+            </div>
+            <span className={styles.statusBadge} style={{ backgroundColor: statusColor.bg, color: statusColor.text }}>
+              {STATUS_LABELS[document.status] || document.status}
+            </span>
           </div>
-          <span style={{
-            padding: '0.25rem 0.75rem',
-            borderRadius: '9999px',
-            fontSize: '0.875rem',
-            fontWeight: 500,
-            backgroundColor: STATUS_COLORS[document.status]?.bg || 'var(--color-bg-muted)',
-            color: STATUS_COLORS[document.status]?.text || 'var(--color-text-primary)',
-          }}>
-            {STATUS_LABELS[document.status] || document.status}
-          </span>
         </div>
-      </div>
 
-      {/* Document Info */}
-      <div style={{ background: 'var(--color-bg-base)', borderRadius: 'var(--radius-lg)', padding: '1.5rem', boxShadow: 'var(--shadow-sm)', marginBottom: '1.5rem' }}>
-        <h2 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '1rem', marginTop: 0 }}>Informasi Dokumen</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-          <div>
-            <label style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>Jenis Dokumen</label>
-            <div style={{ fontWeight: 500 }}>{document.dokumen?.nama || '-'}</div>
+        {/* Info Card */}
+        <div className={styles.card}>
+          <h2 className={styles.cardTitle}>Informasi Dokumen</h2>
+          <div className={styles.infoGrid}>
+            <div className={styles.infoItem}>
+              <span className={styles.infoLabel}>Jenis Dokumen</span>
+              <span className={styles.infoValue}>{document.dokumen?.nama || '-'}</span>
+            </div>
+            <div className={styles.infoItem}>
+              <span className={styles.infoLabel}>Template</span>
+              <span className={styles.infoValue}>
+                {document.templateVersion?.template?.nama || '-'}
+                {document.templateVersion && (
+                  <span className={styles.version}> v{document.templateVersion.version}</span>
+                )}
+              </span>
+            </div>
+            <div className={styles.infoItem}>
+              <span className={styles.infoLabel}>Dibuat</span>
+              <span className={styles.infoValue}>{formatDate(document.generatedAt)}</span>
+            </div>
+            {document.signedAt && (
+              <div className={styles.infoItem}>
+                <span className={styles.infoLabel}>Ditandatangani</span>
+                <span className={styles.infoValue}>{formatDate(document.signedAt)}</span>
+              </div>
+            )}
           </div>
-          <div>
-            <label style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>Template</label>
-            <div style={{ fontWeight: 500 }}>
-              {document.templateVersion?.template?.nama || '-'}
-              {document.templateVersion && (
-                <span style={{ color: 'var(--color-text-secondary)', marginLeft: '0.25rem' }}>
-                  v{document.templateVersion.version}
-                </span>
+        </div>
+
+        {/* Permintaan Info */}
+        {document.permintaan && (
+          <div className={styles.card}>
+            <h2 className={styles.cardTitle}>Informasi Permintaan</h2>
+            <div className={styles.infoGrid}>
+              <div className={styles.infoItem}>
+                <span className={styles.infoLabel}>Nomor Permintaan</span>
+                <span className={`${styles.infoValue} ${styles.mono}`}>{document.permintaan.nomorPermintaan}</span>
+              </div>
+              <div className={styles.infoItem}>
+                <span className={styles.infoLabel}>Pemohon</span>
+                <span className={styles.infoValue}>{document.permintaan.penduduk?.namaLengkap || '-'}</span>
+              </div>
+              {document.permintaan.penduduk?.nik && (
+                <div className={styles.infoItem}>
+                  <span className={styles.infoLabel}>NIK</span>
+                  <span className={`${styles.infoValue} ${styles.mono}`}>{document.permintaan.penduduk.nik}</span>
+                </div>
               )}
             </div>
           </div>
-          <div>
-            <label style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>Dibuat</label>
-            <div style={{ fontWeight: 500 }}>{formatDate(document.generatedAt)}</div>
-          </div>
-          <div>
-            <label style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>Status</label>
-            <div style={{ fontWeight: 500 }}>{STATUS_LABELS[document.status] || document.status}</div>
-          </div>
-        </div>
-      </div>
+        )}
 
-      {/* Permintaan Info */}
-      {document.permintaan && (
-        <div style={{ background: 'var(--color-bg-base)', borderRadius: 'var(--radius-lg)', padding: '1.5rem', boxShadow: 'var(--shadow-sm)', marginBottom: '1.5rem' }}>
-          <h2 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '1rem', marginTop: 0 }}>Informasi Permintaan</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-            <div>
-              <label style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>Nomor Permintaan</label>
-              <div style={{ fontWeight: 500, fontFamily: 'monospace' }}>{document.permintaan.nomorPermintaan}</div>
-            </div>
-            <div>
-              <label style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>Pemohon</label>
-              <div style={{ fontWeight: 500 }}>{document.permintaan.penduduk?.namaLengkap || '-'}</div>
-            </div>
-            {document.permintaan.penduduk?.nik && (
-              <div>
-                <label style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>NIK</label>
-                <div style={{ fontWeight: 500, fontFamily: 'monospace' }}>{document.permintaan.penduduk.nik}</div>
+        {/* Signature Info */}
+        {document.signature && (
+          <div className={styles.card}>
+            <h2 className={styles.cardTitle}>Informasi Tanda Tangan</h2>
+            <div className={styles.infoGrid}>
+              <div className={styles.infoItem}>
+                <span className={styles.infoLabel}>Penanda Tangan</span>
+                <span className={styles.infoValue}>{document.signature.penandatangan?.nama || '-'}</span>
               </div>
+              <div className={styles.infoItem}>
+                <span className={styles.infoLabel}>Jabatan</span>
+                <span className={styles.infoValue}>{document.signature.penandatangan?.jabatan || '-'}</span>
+              </div>
+              {document.signature.penandatangan?.nip && (
+                <div className={styles.infoItem}>
+                  <span className={styles.infoLabel}>NIP</span>
+                  <span className={`${styles.infoValue} ${styles.mono}`}>{document.signature.penandatangan.nip}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Verification Info */}
+        {document.verifikasi && (
+          <div className={styles.card}>
+            <h2 className={styles.cardTitle}>Informasi Verifikasi</h2>
+            <div className={styles.infoGrid}>
+              <div className={styles.infoItem}>
+                <span className={styles.infoLabel}>Jumlah Verifikasi</span>
+                <span className={styles.infoValue}>{document.verifikasi.verifyCount} kali</span>
+              </div>
+              <div className={styles.infoItem}>
+                <span className={styles.infoLabel}>Verifikasi Terakhir</span>
+                <span className={styles.infoValue}>{formatDate(document.verifikasi.lastVerifyAt)}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Data Snapshot */}
+        {document.dataSnapshot && Object.keys(document.dataSnapshot).length > 0 && (
+          <div className={styles.card}>
+            <h2 className={styles.cardTitle}>Data Permintaan</h2>
+            <pre className={styles.jsonPre}>
+              {JSON.stringify(document.dataSnapshot, null, 2)}
+            </pre>
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className={styles.card}>
+          <h2 className={styles.cardTitle}>Aksi</h2>
+          <div className={styles.actions}>
+            {document.fileUrl && (
+              <Button onClick={handleDownload} style={{ backgroundColor: '#16a34a', color: 'white', border: 'none' }}>
+                Download PDF
+              </Button>
+            )}
+            {document.verificationToken && (
+              <Button onClick={copyVerificationLink} variant="outline">
+                Salin Link Verifikasi
+              </Button>
+            )}
+            {document.verificationToken && (
+              <a
+                href={`/verifikasi/${document.verificationToken}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.linkButton}
+              >
+                Buka Verifikasi
+              </a>
+            )}
+            {document.status === 'GENERATED' && !document.signature && (
+              <Button onClick={() => setShowSignModal(true)}>
+                Tandatangani
+              </Button>
             )}
           </div>
         </div>
-      )}
 
-      {/* Signature Info */}
-      {document.signature && (
-        <div style={{ background: 'var(--color-bg-base)', borderRadius: 'var(--radius-lg)', padding: '1.5rem', boxShadow: 'var(--shadow-sm)', marginBottom: '1.5rem' }}>
-          <h2 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '1rem', marginTop: 0 }}>Informasi Tanda Tangan</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-            <div>
-              <label style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>Penanda Tangan</label>
-              <div style={{ fontWeight: 500 }}>{document.signature.penandatangan?.nama || '-'}</div>
-            </div>
-            <div>
-              <label style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>Jabatan</label>
-              <div style={{ fontWeight: 500 }}>{document.signature.penandatangan?.jabatan || '-'}</div>
-            </div>
-            {document.signature.penandatangan?.nip && (
-              <div>
-                <label style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>NIP</label>
-                <div style={{ fontWeight: 500, fontFamily: 'monospace' }}>{document.signature.penandatangan.nip}</div>
+        {/* Sign Modal */}
+        {showSignModal && (
+          <div className={styles.modalOverlay} onClick={() => setShowSignModal(false)}>
+            <div className={styles.modal} onClick={e => e.stopPropagation()}>
+              <div className={styles.modalHeader}>
+                <h2>Tandatangani Dokumen</h2>
+                <button onClick={() => setShowSignModal(false)}>&times;</button>
               </div>
-            )}
-            <div>
-              <label style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>Ditandatangani</label>
-              <div style={{ fontWeight: 500 }}>{formatDate(document.signature.signedAt)}</div>
+              <div className={styles.modalBody}>
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>
+                    Penanda Tangan *
+                  </label>
+                  <select
+                    value={selectedPenandatangan}
+                    onChange={e => setSelectedPenandatangan(e.target.value)}
+                    className={styles.select}
+                  >
+                    <option value="">Pilih Penanda Tangan</option>
+                    {penandaTangan.map(pt => (
+                      <option key={pt.id} value={pt.id}>{pt.nama} — {pt.jabatan}</option>
+                    ))}
+                  </select>
+                </div>
+                <p className={styles.disclaimer}>
+                  Dengan menandatangani, Anda menyatakan bahwa dokumen ini telah disetujui dan ditandatangani secara resmi.
+                </p>
+              </div>
+              <div className={styles.modalFooter}>
+                <Button variant="outline" onClick={() => setShowSignModal(false)}>Batal</Button>
+                <Button onClick={handleSign} disabled={!selectedPenandatangan || actionLoading}>
+                  {actionLoading ? 'Menandatangani...' : 'Tandatangani'}
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Verification Info */}
-      {document.verifikasi && (
-        <div style={{ background: 'var(--color-bg-base)', borderRadius: 'var(--radius-lg)', padding: '1.5rem', boxShadow: 'var(--shadow-sm)', marginBottom: '1.5rem' }}>
-          <h2 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '1rem', marginTop: 0 }}>Informasi Verifikasi</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-            <div>
-              <label style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>Jumlah Verifikasi</label>
-              <div style={{ fontWeight: 500 }}>{document.verifikasi.verifyCount} kali</div>
-            </div>
-            <div>
-              <label style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>Verifikasi Terakhir</label>
-              <div style={{ fontWeight: 500 }}>{formatDate(document.verifikasi.lastVerifyAt)}</div>
-            </div>
-            <div>
-              <label style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>Status</label>
-              <div style={{ fontWeight: 500 }}>{document.verifikasi.status}</div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Data Snapshot */}
-      {document.dataSnapshot && Object.keys(document.dataSnapshot).length > 0 && (
-        <div style={{ background: 'var(--color-bg-base)', borderRadius: 'var(--radius-lg)', padding: '1.5rem', boxShadow: 'var(--shadow-sm)', marginBottom: '1.5rem' }}>
-          <h2 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '1rem', marginTop: 0 }}>Data Permintaan</h2>
-          <pre style={{ background: 'var(--color-bg-muted)', padding: '1rem', borderRadius: 'var(--radius-md)', fontSize: '0.875rem', overflow: 'auto', margin: 0 }}>
-            {JSON.stringify(document.dataSnapshot, null, 2)}
-          </pre>
-        </div>
-      )}
-
-      {/* Actions */}
-      <div style={{ background: 'var(--color-bg-base)', borderRadius: 'var(--radius-lg)', padding: '1.5rem', boxShadow: 'var(--shadow-sm)' }}>
-        <h2 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '1rem', marginTop: 0 }}>Aksi</h2>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
-          {document.fileUrl && (
-            <button
-              onClick={handleDownload}
-              style={{
-                background: '#16a34a', color: '#fff', border: 'none', padding: '0.5rem 1rem', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontWeight: 500
-              }}
-            >
-              Download PDF
-            </button>
-          )}
-
-          {document.verificationToken && (
-            <button
-              onClick={copyVerificationLink}
-              style={{
-                background: '#9333ea', color: '#fff', border: 'none', padding: '0.5rem 1rem', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontWeight: 500
-              }}
-            >
-              Salin Link Verifikasi
-            </button>
-          )}
-
-          {document.verificationToken && (
-            <a
-              href={`/verifikasi/${document.verificationToken}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                background: '#4b5563', color: '#fff', textDecoration: 'none', padding: '0.5rem 1rem', borderRadius: 'var(--radius-md)', display: 'inline-block', fontWeight: 500
-              }}
-            >
-              Buka Verifikasi
-            </a>
-          )}
-
-          {document.status === 'GENERATED' && !document.signature && (
-            <button
-              onClick={() => setShowSignModal(true)}
-              style={{
-                background: 'var(--color-primary)', color: '#fff', border: 'none', padding: '0.5rem 1rem', borderRadius: 'var(--radius-md)', cursor: 'pointer', fontWeight: 500
-              }}
-            >
-              Tandatangani
-            </button>
-          )}
-        </div>
+        )}
       </div>
-
-      {/* Sign Modal */}
-      {showSignModal && (
-        <div className={s.modalOverlay}>
-          <div className={s.modalBox}>
-            <div className={s.modalHeader}>
-              <h2 className={s.modalTitle}>Tandatangani Dokumen</h2>
-            </div>
-            <div className={s.modalForm}>
-              <div className={s.fieldGroup}>
-                <label className={s.label}>
-                  Penanda Tangan <span className={s.required}>*</span>
-                </label>
-                <select
-                  value={selectedPenandatangan}
-                  onChange={(e) => setSelectedPenandatangan(e.target.value)}
-                  className={s.input}
-                >
-                  <option value="">Pilih Penanda Tangan</option>
-                  {penandaTangan.map((pt) => (
-                    <option key={pt.id} value={pt.id}>
-                      {pt.nama} - {pt.jabatan}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', marginTop: '1rem', marginBottom: 0 }}>
-                Dengan menandatangani, Anda menyatakan bahwa dokumen ini telah disetujui dan
-                ditandatangani secara resmi.
-              </p>
-            </div>
-            <div className={s.formActions}>
-              <button
-                onClick={() => setShowSignModal(false)}
-                className={s.btnCancel}
-              >
-                Batal
-              </button>
-              <button
-                onClick={handleSign}
-                disabled={!selectedPenandatangan || actionLoading}
-                className={s.btnSubmit}
-              >
-                {actionLoading ? 'Menandatangani...' : 'Tandatangani'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+    </AdminLayout>
   );
 }

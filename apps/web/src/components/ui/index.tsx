@@ -145,8 +145,9 @@ export function Button({
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
+  error?: string;
 }
-export function Input({ label, ...props }: InputProps) {
+export function Input({ label, error, ...props }: InputProps) {
   return (
     <div>
       {label && <label style={{ display: 'block', marginBottom: 4 }}>{label}</label>}
@@ -155,11 +156,16 @@ export function Input({ label, ...props }: InputProps) {
         style={{
           width: '100%',
           padding: '0.5rem',
-          border: '1px solid var(--color-border)',
+          border: `1px solid ${error ? 'var(--color-error)' : 'var(--color-border)'}`,
           borderRadius: '0.25rem',
           ...props.style,
         }}
       />
+      {error && (
+        <p style={{ color: 'var(--color-error)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
+          {error}
+        </p>
+      )}
     </div>
   );
 }
@@ -167,17 +173,38 @@ export function Input({ label, ...props }: InputProps) {
 interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
   options?: { value: string | number; label: string }[];
+  error?: string;
+  loading?: boolean;
+  placeholder?: string;
 }
-export function Select({ label, options = [], ...props }: SelectProps) {
+export function Select({ label, options = [], error, loading, placeholder, ...props }: SelectProps) {
   return (
     <div>
       {label && <label style={{ display: 'block', marginBottom: 4 }}>{label}</label>}
-      <select {...props} style={{ width: '100%', padding: '0.5rem', ...props.style }}>
+      <select
+        {...props}
+        disabled={props.disabled || loading}
+        style={{
+          width: '100%',
+          padding: '0.5rem',
+          border: `1px solid ${error ? 'var(--color-error)' : 'var(--color-border)'}`,
+          borderRadius: '0.25rem',
+          backgroundColor: props.disabled || loading ? '#f5f5f5' : 'white',
+          cursor: props.disabled || loading ? 'not-allowed' : 'pointer',
+          ...props.style,
+        }}
+      >
+        {placeholder && <option value="">{placeholder}</option>}
         {options.map((o) => (
           <option key={o.value} value={o.value}>{o.label}</option>
         ))}
         {props.children}
       </select>
+      {error && (
+        <p style={{ color: 'var(--color-error)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
+          {error}
+        </p>
+      )}
     </div>
   );
 }
@@ -195,10 +222,18 @@ interface ModalProps {
 export function Modal({ isOpen, onClose, title, children }: ModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const previousActiveElement = useRef<HTMLElement | null>(null);
+  const isInitialOpen = useRef(true);
 
-  // Focus management
+  // Focus management - only focus on first open, not every re-render
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      isInitialOpen.current = true;
+      return;
+    }
+
+    // Only auto-focus on first open, not subsequent re-renders
+    if (!isInitialOpen.current) return;
+    isInitialOpen.current = false;
 
     // Store the currently focused element
     previousActiveElement.current = document.activeElement as HTMLElement;
@@ -208,10 +243,10 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
       'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
     );
     if (focusableElements && focusableElements.length > 0) {
-      focusableElements[0].focus();
-    } else {
-      // Fallback: focus the modal container
-      modalRef.current?.focus();
+      // Small delay to ensure input is rendered
+      requestAnimationFrame(() => {
+        focusableElements[0]?.focus();
+      });
     }
 
     // Prevent body scroll
@@ -308,3 +343,17 @@ export function Badge({ color = 'primary', children }: BadgeProps) {
     </span>
   );
 }
+
+export function Card({ children, style }: { children: ReactNode, style?: CSSProperties }) {
+  return (
+    <div style={{
+      background: 'white',
+      borderRadius: '0.5rem',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+      ...style
+    }}>
+      {children}
+    </div>
+  );
+}
+

@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Container, Typography, Button, Modal } from '../../../components/ui';
-import { LoadingState, ErrorState } from '../../../components/states';
-import { useAuthStore } from '../../../stores/auth.store';
-import { MediaUploadForm } from '../../../components/forms/MediaUploadForm';
+import { Typography, Button, Modal } from '@/components/ui';
+import { LoadingState, ErrorState } from '@/components/states';
+import { useAuthStore } from '@/stores/auth.store';
+import { MediaUploadForm } from '@/components/forms/MediaUploadForm';
+import { AdminLayout } from '@/layouts';
+import { API_URL } from '@/lib/constants';
+import styles from './MediaPage.module.css';
 
 interface Media {
   id: string;
@@ -17,10 +20,7 @@ interface Media {
   height: number | null;
   alt: string | null;
   kategori: string | null;
-  uploadedBy: {
-    id: string;
-    username: string;
-  } | null;
+  uploadedBy: { id: string; username: string } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -68,53 +68,33 @@ export function MediaPage() {
   const fetchData = async (page = 1, searchQuery = '', fileType = '') => {
     setLoading(true);
     setError(null);
-    try {
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: '20',
-        ...(searchQuery && { search: searchQuery }),
-        ...(fileType && { fileType }),
-      });
-
-      const headers: HeadersInit = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-
-      const res = await fetch(`/api/media?${params}`, { headers });
-      const result = await res.json();
-
-      if (result.success) {
-        setData(result.data || []);
-        if (result.meta) setMeta(result.meta);
-      } else {
-        throw new Error(result.error?.message || 'Failed to fetch');
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
-    } finally {
-      setLoading(false);
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: '20',
+      ...(searchQuery && { search: searchQuery }),
+      ...(fileType && { fileType }),
+    });
+    const headers: HeadersInit = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(`${API_URL}/media?${params}`, { headers });
+    const result = await res.json();
+    if (result.success) {
+      setData(result.data || []);
+      if (result.meta) setMeta(result.meta);
+    } else {
+      throw new Error(result.error?.message || 'Failed to fetch');
     }
   };
 
   const fetchStats = async () => {
-    try {
-      const headers: HeadersInit = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-
-      const res = await fetch('/api/media/stats', { headers });
-      const result = await res.json();
-
-      if (result.success) {
-        setStats(result.data);
-      }
-    } catch (err) {
-      console.error('Error fetching stats:', err);
-    }
+    const headers: HeadersInit = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(`${API_URL}/media/stats`, { headers });
+    const result = await res.json();
+    if (result.success) setStats(result.data);
   };
 
-  useEffect(() => {
-    fetchData(1, search, fileTypeFilter);
-    fetchStats();
-  }, []);
+  useEffect(() => { fetchData(1, search, fileTypeFilter); fetchStats(); }, []);
 
   const handleSearch = () => fetchData(1, search, fileTypeFilter);
   const handleFilterChange = (newFileType: string) => {
@@ -124,145 +104,94 @@ export function MediaPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm('Yakin ingin menghapus media ini?')) return;
-    try {
-      const headers: HeadersInit = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-
-      const res = await fetch(`/api/media/${id}`, { method: 'DELETE', headers });
-      const result = await res.json();
-      if (result.success) {
-        fetchData(meta.page, search, fileTypeFilter);
-        fetchStats();
-      } else {
-        alert(result.error?.message || 'Gagal menghapus');
-      }
-    } catch (err) {
-      console.error('Error:', err);
-      alert('Gagal menghapus media');
-    }
+    const headers: HeadersInit = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(`${API_URL}/media/${id}`, { method: 'DELETE', headers });
+    const result = await res.json();
+    if (result.success) { fetchData(meta.page, search, fileTypeFilter); fetchStats(); }
+    else alert(result.error?.message || 'Gagal menghapus');
   };
 
-  const handleOpenCreate = () => {
-    setEditingItem(null);
-    setIsModalOpen(true);
-  };
+  const handleOpenCreate = () => { setEditingItem(null); setIsModalOpen(true); };
+  const handleOpenEdit = (item: Media) => { setEditingItem(item); setIsModalOpen(true); };
+  const handleCloseModal = () => { setIsModalOpen(false); setEditingItem(null); };
+  const handleFormSuccess = () => { handleCloseModal(); fetchData(meta.page, search, fileTypeFilter); fetchStats(); };
 
-  const handleOpenEdit = (item: Media) => {
-    setEditingItem(item);
-    setIsModalOpen(true);
-  };
-
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setEditingItem(null);
-  };
-
-  const handleFormSuccess = () => {
-    handleCloseModal();
-    fetchData(meta.page, search, fileTypeFilter);
-    fetchStats();
-  };
-
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('id-ID', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+  const formatDate = (dateStr: string) =>
+    new Date(dateStr).toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
   if (loading && data.length === 0) {
     return (
-      <Container>
-        <div style={{ padding: '2rem' }}>
+      <AdminLayout>
+        <div className={styles.container}>
           <LoadingState message="Memuat data media..." fullPage />
         </div>
-      </Container>
+      </AdminLayout>
     );
   }
 
   if (error && data.length === 0) {
     return (
-      <Container>
-        <div style={{ padding: '2rem' }}>
+      <AdminLayout>
+        <div className={styles.container}>
           <ErrorState message={error} onRetry={() => fetchData()} />
         </div>
-      </Container>
+      </AdminLayout>
     );
   }
 
   return (
-    <Container>
-      <div style={{ padding: '1.5rem' }}>
+    <AdminLayout>
+      <div className={styles.container}>
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+        <div className={styles.header}>
           <div>
-            <Typography variant="h4">
-              Media Library
-            </Typography>
-            <Typography variant="body2" color="secondary">
-              Kelola file media website
-            </Typography>
+            <Typography variant="h4">Media Library</Typography>
+            <Typography variant="body2" color="secondary">Kelola file media website</Typography>
           </div>
-          <Button variant="primary" onClick={handleOpenCreate}>
-            + Upload Media
-          </Button>
+          <Button variant="primary" onClick={handleOpenCreate}>+ Upload Media</Button>
         </div>
 
         {/* Stats */}
         {stats && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '0.5rem', marginBottom: '1.5rem' }}>
-            <div style={{ backgroundColor: '#f3f4f6', padding: '0.75rem', borderRadius: '0.5rem', textAlign: 'center' }}>
-              <div style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>{stats.total}</div>
-              <div style={{ fontSize: '0.625rem', color: '#6b7280' }}>Total</div>
+          <div className={styles.statsGrid}>
+            <div className={`${styles.statCard} ${styles.statTotal}`}>
+              <div className={styles.statValue}>{stats.total}</div>
+              <div className={styles.statLabel}>Total</div>
             </div>
-            <div style={{ backgroundColor: '#dbeafe', padding: '0.75rem', borderRadius: '0.5rem', textAlign: 'center' }}>
-              <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#1e40af' }}>{stats.images}</div>
-              <div style={{ fontSize: '0.625rem', color: '#1e40af' }}>Images</div>
+            <div className={`${styles.statCard} ${styles.statImage}`}>
+              <div className={styles.statValue} style={{ color: '#1e40af' }}>{stats.images}</div>
+              <div className={styles.statLabel} style={{ color: '#1e40af' }}>Images</div>
             </div>
-            <div style={{ backgroundColor: '#fce7f3', padding: '0.75rem', borderRadius: '0.5rem', textAlign: 'center' }}>
-              <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#9d174d' }}>{stats.videos}</div>
-              <div style={{ fontSize: '0.625rem', color: '#9d174d' }}>Videos</div>
+            <div className={`${styles.statCard} ${styles.statVideo}`}>
+              <div className={styles.statValue} style={{ color: '#9d174d' }}>{stats.videos}</div>
+              <div className={styles.statLabel} style={{ color: '#9d174d' }}>Videos</div>
             </div>
-            <div style={{ backgroundColor: '#dcfce7', padding: '0.75rem', borderRadius: '0.5rem', textAlign: 'center' }}>
-              <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#166534' }}>{stats.audio}</div>
-              <div style={{ fontSize: '0.625rem', color: '#166534' }}>Audio</div>
+            <div className={`${styles.statCard} ${styles.statAudio}`}>
+              <div className={styles.statValue} style={{ color: '#166534' }}>{stats.audio}</div>
+              <div className={styles.statLabel} style={{ color: '#166534' }}>Audio</div>
             </div>
-            <div style={{ backgroundColor: '#fef3c7', padding: '0.75rem', borderRadius: '0.5rem', textAlign: 'center' }}>
-              <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#92400e' }}>{stats.documents}</div>
-              <div style={{ fontSize: '0.625rem', color: '#92400e' }}>Docs</div>
+            <div className={`${styles.statCard} ${styles.statDoc}`}>
+              <div className={styles.statValue} style={{ color: '#92400e' }}>{stats.documents}</div>
+              <div className={styles.statLabel} style={{ color: '#92400e' }}>Docs</div>
             </div>
           </div>
         )}
 
         {/* Filters */}
-        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+        <div className={styles.filters}>
           <input
             type="text"
             placeholder="Cari media..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            style={{
-              flex: '1 1 200px',
-              padding: '0.5rem 1rem',
-              border: '1px solid #d1d5db',
-              borderRadius: '0.375rem',
-              fontSize: '0.875rem',
-            }}
+            className={styles.searchInput}
           />
           <select
             value={fileTypeFilter}
             onChange={(e) => handleFilterChange(e.target.value)}
-            style={{
-              padding: '0.5rem 1rem',
-              border: '1px solid #d1d5db',
-              borderRadius: '0.375rem',
-              fontSize: '0.875rem',
-              backgroundColor: 'white',
-            }}
+            className={styles.selectInput}
           >
             <option value="">Semua Tipe</option>
             <option value="IMAGE">Images</option>
@@ -270,68 +199,34 @@ export function MediaPage() {
             <option value="AUDIO">Audio</option>
             <option value="DOCUMENT">Documents</option>
           </select>
-          <Button variant="secondary" onClick={handleSearch}>
-            Cari
-          </Button>
+          <Button variant="secondary" onClick={handleSearch}>Cari</Button>
         </div>
 
         {/* Grid */}
         {data.length === 0 ? (
-          <div style={{ backgroundColor: 'white', borderRadius: '0.5rem', padding: '3rem', textAlign: 'center', border: '1px solid #e5e7eb' }}>
-            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📁</div>
-            <Typography variant="h4" color="secondary" style={{ fontSize: '1rem' }}>
-              Belum ada media
-            </Typography>
-            <Typography variant="body2" color="secondary">
-              Upload media untuk menampilkan di sini
-            </Typography>
+          <div className={styles.emptyState}>
+            <div className={styles.emptyIcon}>📁</div>
+            <Typography variant="h4" color="secondary" style={{ fontSize: '1rem' }}>Belum ada media</Typography>
+            <Typography variant="body2" color="secondary">Upload media untuk menampilkan di sini</Typography>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '0.75rem' }}>
+          <div className={styles.mediaGrid}>
             {data.map((item) => (
-              <div
-                key={item.id}
-                style={{
-                  backgroundColor: 'white',
-                  borderRadius: '0.5rem',
-                  border: '1px solid #e5e7eb',
-                  overflow: 'hidden',
-                }}
-              >
-                {/* Preview */}
-                <div
-                  style={{
-                    height: '120px',
-                    backgroundColor: '#f3f4f6',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    position: 'relative',
-                  }}
-                >
+              <div key={item.id} className={styles.mediaCard}>
+                <div className={styles.mediaPreview}>
                   {item.fileType === 'IMAGE' && item.fileUrl ? (
                     <img
                       src={item.fileUrl}
                       alt={item.alt || item.nama}
-                      style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'cover' }}
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none';
-                      }}
+                      className={styles.mediaPreviewImg}
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                     />
                   ) : (
-                    <span style={{ fontSize: '2rem' }}>
-                      {fileTypeColors[item.fileType]?.icon || '📄'}
-                    </span>
+                    <span style={{ fontSize: '2rem' }}>{fileTypeColors[item.fileType]?.icon || '📄'}</span>
                   )}
                   <span
+                    className={styles.mediaTypeBadge}
                     style={{
-                      position: 'absolute',
-                      top: '0.5rem',
-                      right: '0.5rem',
-                      padding: '0.25rem 0.5rem',
-                      borderRadius: '9999px',
-                      fontSize: '0.625rem',
-                      fontWeight: 600,
                       backgroundColor: fileTypeColors[item.fileType]?.bg || '#f3f4f6',
                       color: fileTypeColors[item.fileType]?.text || '#6b7280',
                     }}
@@ -339,67 +234,32 @@ export function MediaPage() {
                     {item.fileType}
                   </span>
                 </div>
-
-                {/* Info */}
-                <div style={{ padding: '0.75rem' }}>
-                  <div style={{ fontWeight: 500, fontSize: '0.875rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {item.nama}
-                  </div>
-                  <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
+                <div className={styles.mediaInfo}>
+                  <div className={styles.mediaName}>{item.nama}</div>
+                  <div className={styles.mediaMeta}>
                     {formatFileSize(item.fileSize)}
                     {item.width && item.height && ` • ${item.width}x${item.height}`}
                   </div>
-                  <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '0.25rem' }}>
-                    {formatDate(item.createdAt)}
-                  </div>
+                  <div className={styles.mediaDate}>{formatDate(item.createdAt)}</div>
                 </div>
-
-                {/* Actions */}
-                <div style={{ padding: '0.5rem', borderTop: '1px solid #e5e7eb', display: 'flex', gap: '0.5rem' }}>
+                <div className={styles.mediaActions}>
                   <a
                     href={item.fileUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    style={{
-                      flex: 1,
-                      padding: '0.25rem',
-                      textAlign: 'center',
-                      fontSize: '0.75rem',
-                      color: '#6b7280',
-                      textDecoration: 'none',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '0.25rem',
-                    }}
+                    className={styles.mediaActionBtn}
                   >
                     View
                   </a>
                   <button
                     onClick={() => handleOpenEdit(item)}
-                    style={{
-                      flex: 1,
-                      padding: '0.25rem',
-                      fontSize: '0.75rem',
-                      color: '#3B82F6',
-                      background: 'none',
-                      border: '1px solid #bfdbfe',
-                      borderRadius: '0.25rem',
-                      cursor: 'pointer',
-                    }}
+                    className={`${styles.mediaActionBtn} ${styles.btnEdit}`}
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => handleDelete(item.id)}
-                    style={{
-                      flex: 1,
-                      padding: '0.25rem',
-                      fontSize: '0.75rem',
-                      color: '#ef4444',
-                      background: 'none',
-                      border: '1px solid #fecaca',
-                      borderRadius: '0.25rem',
-                      cursor: 'pointer',
-                    }}
+                    className={`${styles.mediaActionBtn} ${styles.btnHapus}`}
                   >
                     Hapus
                   </button>
@@ -411,27 +271,13 @@ export function MediaPage() {
 
         {/* Pagination */}
         {meta.totalPages > 1 && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-            <Typography variant="body2" color="secondary">
+          <div className={styles.pagination}>
+            <span className={styles.pageInfo}>
               Menampilkan {((meta.page - 1) * meta.limit) + 1} - {Math.min(meta.page * meta.limit, meta.total)} dari {meta.total}
-            </Typography>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <Button
-                variant="secondary"
-                size="sm"
-                disabled={meta.page <= 1}
-                onClick={() => fetchData(meta.page - 1, search, fileTypeFilter)}
-              >
-                Previous
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                disabled={meta.page >= meta.totalPages}
-                onClick={() => fetchData(meta.page + 1, search, fileTypeFilter)}
-              >
-                Next
-              </Button>
+            </span>
+            <div className={styles.paginationControls}>
+              <Button variant="secondary" size="sm" disabled={meta.page <= 1} onClick={() => fetchData(meta.page - 1, search, fileTypeFilter)}>Previous</Button>
+              <Button variant="secondary" size="sm" disabled={meta.page >= meta.totalPages} onClick={() => fetchData(meta.page + 1, search, fileTypeFilter)}>Next</Button>
             </div>
           </div>
         )}
@@ -462,7 +308,7 @@ export function MediaPage() {
           />
         </Modal>
       </div>
-    </Container>
+    </AdminLayout>
   );
 }
 

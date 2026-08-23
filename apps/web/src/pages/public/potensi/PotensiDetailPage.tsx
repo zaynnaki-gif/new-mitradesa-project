@@ -1,71 +1,98 @@
 import { useParams, Link } from 'react-router-dom';
-import { Container, Typography } from '../../../components/ui';
-import { LoadingState, ErrorState } from '../../../components/states';
-import { usePotensi } from '../../../hooks/usePotensi';
+import { PublicLayout } from '@/layouts';
+import { Typography } from '@/components/ui';
+import { LoadingState, ErrorState } from '@/components/states';
+import { usePotensi } from '@/hooks/usePotensi';
+import { useIdentitasDesa } from '@/hooks/useIdentitasDesa';
+import { useSEO, getPageTitle } from '@/hooks/useSeo';
+import { sanitizeHtml } from '@/lib/sanitize';
+import styles from './PotensiDetailPage.module.css';
 
 export function PotensiDetailPage() {
   const { slug } = useParams<{ slug: string }>();
+  const { data: identitas } = useIdentitasDesa();
+
   const { data: potensi, loading, error, refetch } = usePotensi(slug || '');
 
-  if (loading && !potensi) return <LoadingState />;
-  if (error || !potensi) return <ErrorState message={error?.message || 'Potensi tidak ditemukan'} onRetry={refetch} />;
+  const villageName = identitas?.namaDesa || 'Desa';
+
+  useSEO({
+    title: potensi ? getPageTitle(potensi.nama) : 'Memuat...',
+    description: potensi?.deskripsi?.substring(0, 150) || `Informasi potensi ${villageName}`,
+    canonical: potensi ? `${window.location.origin}/potensi/${slug}` : undefined,
+  });
+
+  if (loading && !potensi) {
+    return (
+      <PublicLayout>
+        <LoadingState message="Memuat informasi potensi..." fullPage />
+      </PublicLayout>
+    );
+  }
+
+  if (error || !potensi) {
+    return (
+      <PublicLayout>
+        <ErrorState message={error?.message || 'Potensi tidak ditemukan'} onRetry={refetch} />
+      </PublicLayout>
+    );
+  }
 
   return (
-    <Container style={{ padding: 'var(--space-8) 0' }}>
-      <div style={{ marginBottom: 'var(--space-6)' }}>
-        <Link to="/potensi" style={{ display: 'inline-flex', alignItems: 'center', color: 'var(--gray-600)', textDecoration: 'none', fontWeight: 500 }}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 'var(--space-2)' }}>
-            <line x1="19" y1="12" x2="5" y2="12"></line>
-            <polyline points="12 19 5 12 12 5"></polyline>
-          </svg>
-          Kembali ke Daftar Potensi
-        </Link>
-      </div>
-
-      <article>
-        <div style={{ marginBottom: 'var(--space-6)' }}>
-          <span style={{ 
-            display: 'inline-block',
-            backgroundColor: 'var(--primary-100)',
-            color: 'var(--primary-700)',
-            padding: 'var(--space-1) var(--space-3)',
-            borderRadius: 'var(--radius-full)',
-            fontSize: '0.875rem',
-            fontWeight: 600,
-            marginBottom: 'var(--space-3)'
-          }}>
+    <PublicLayout>
+      {/* Breadcrumb */}
+      <nav className={styles.breadcrumb} aria-label="Breadcrumb">
+        <div className={styles.breadcrumbContainer}>
+          <Link to="/" className={styles.breadcrumbLink}>Beranda</Link>
+          <span className={styles.breadcrumbSeparator}>/</span>
+          <Link to="/potensi" className={styles.breadcrumbLink}>Potensi</Link>
+          <span className={styles.breadcrumbSeparator}>/</span>
+          <span className={styles.breadcrumbLink} style={{ color: 'var(--ink-deep)' }}>
             {potensi.kategori}
           </span>
-          <Typography variant="h1" style={{ marginBottom: 'var(--space-4)' }}>{potensi.nama}</Typography>
         </div>
+      </nav>
 
-        {potensi.gambarUrl && (
-          <div style={{ 
-            width: '100%', 
-            height: '400px', 
-            borderRadius: 'var(--radius-xl)', 
-            overflow: 'hidden',
-            marginBottom: 'var(--space-8)'
-          }}>
-            <img 
-              src={potensi.gambarUrl} 
-              alt={potensi.nama} 
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-            />
-          </div>
-        )}
+      {/* Article Header */}
+      <header className={styles.articleHeader}>
+        <div className={styles.articleContainer}>
+          <span
+            className={styles.articleCategory}
+            style={{
+              backgroundColor: 'var(--color-bg-muted)',
+              color: 'var(--amber-700)',
+            }}
+          >
+            {potensi.kategori}
+          </span>
+          <Typography variant="h1" className={styles.articleTitle}>
+            {potensi.nama}
+          </Typography>
+        </div>
+      </header>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 'var(--space-8)' }}>
-          <div>
-            <Typography variant="h3" style={{ marginBottom: 'var(--space-4)' }}>Deskripsi</Typography>
-            <div style={{ whiteSpace: 'pre-wrap', color: 'var(--gray-700)', lineHeight: 1.6 }}>
-              {potensi.deskripsi}
-            </div>
-          </div>
+      {/* Featured Image */}
+      {potensi.gambarUrl && (
+        <div className={styles.featuredImage}>
+          <img
+            src={potensi.gambarUrl}
+            alt={potensi.nama}
+            className={styles.image}
+          />
+        </div>
+      )}
 
-          <div>
-            <div style={{ backgroundColor: 'var(--gray-50)', padding: 'var(--space-6)', borderRadius: 'var(--radius-lg)' }}>
-              <Typography variant="h4" style={{ marginBottom: 'var(--space-4)' }}>Informasi</Typography>
+      {/* Article Content */}
+      <article className={styles.articleContent}>
+        <div className={styles.articleContainer}>
+          <div
+            className={styles.articleBody}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(potensi.deskripsi || '') }}
+          />
+
+          {(potensi.lokasi || potensi.kontak) && (
+            <div style={{ marginTop: 'var(--space-12)', padding: 'var(--space-6)', backgroundColor: 'var(--stone-100)' }}>
+              <Typography variant="h3" style={{ marginBottom: 'var(--space-4)', color: 'var(--ink-deep)' }}>Informasi</Typography>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
                 {potensi.lokasi && (
@@ -83,9 +110,22 @@ export function PotensiDetailPage() {
                 )}
               </div>
             </div>
-          </div>
+          )}
         </div>
       </article>
-    </Container>
+
+      {/* Share & Back */}
+      <div className={styles.articleFooter}>
+        <div className={styles.articleContainer}>
+          <Link to="/potensi" className={styles.backButton}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="20" height="20">
+              <line x1="19" y1="12" x2="5" y2="12" />
+              <polyline points="12,19 5,12 12,5" />
+            </svg>
+            Kembali ke Daftar Potensi
+          </Link>
+        </div>
+      </div>
+    </PublicLayout>
   );
 }

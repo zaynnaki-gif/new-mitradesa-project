@@ -34,6 +34,15 @@ import cmsPotensiRoutes from './routes/cms/potensi.js';
 import publicPotensiRoutes from './routes/public/potensi.js';
 import arsipSuratRoutes from './routes/arsip-surat.js';
 import dashboardRoutes from './routes/dashboard.js';
+import posyanduRoutes from './routes/kesehatan/posyandu.js';
+import kasUmumRoutes from './routes/kas-umum.js';
+import bumilRoutes from './routes/kesehatan/bumil.js';
+import apbdesItemRoutes from './routes/cms/apbdes-item.js';
+import mutasiRoutes from './routes/penduduk/mutasi.js';
+import bansosRoutes from './routes/pemerintahan/bansos.js';
+import saranRoutes from './routes/pemerintahan/saran.js';
+import accountsRoutes from './routes/sistem/accounts.js';
+import configRoutes from './routes/sistem/config.js';
 
 const app = express();
 
@@ -44,7 +53,7 @@ app.use(cors({
   origin: config.allowedOrigins,
   credentials: true
 }));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use(apiRateLimiter);
 
 // Health check route
@@ -71,10 +80,19 @@ app.use('/api/umkm', cmsUmkmRoutes);
 app.use('/api/transparansi', cmsTransparansiRoutes);
 app.use('/api/arsip-surat', arsipSuratRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/posyandu', posyanduRoutes);
+app.use('/api/bumil', bumilRoutes);
 app.use('/api/cms/agenda', cmsAgendaRoutes);
 app.use('/api/cms/umkm', cmsUmkmRoutes);
 app.use('/api/cms/transparansi', cmsTransparansiRoutes);
+app.use('/api/cms/transparansi', apbdesItemRoutes);
 app.use('/api/cms/potensi', cmsPotensiRoutes);
+app.use('/api/kas-umum', kasUmumRoutes);
+app.use('/api/mutasi-penduduk', mutasiRoutes);
+app.use('/api/bansos', bansosRoutes);
+app.use('/api/saran-aduan', saranRoutes);
+app.use('/api/accounts', accountsRoutes);
+app.use('/api/config', configRoutes);
 
 // Service Document Engine routes
 app.use('/api', serviceRoutes);

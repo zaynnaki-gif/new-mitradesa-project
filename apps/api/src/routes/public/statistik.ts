@@ -44,43 +44,57 @@ router.get(
     // Distinct Dusun from Keluarga
     const distinctDusun = await prisma.keluarga.findMany({
       where: {
-        dusun: { not: null },
+        gubugId: { not: null },
         deletedAt: null,
       },
       select: {
-        dusun: true,
+        gubugId: true,
       },
-      distinct: ['dusun'],
+      distinct: ['gubugId'],
     });
 
     // Distinct RT from Keluarga
     const distinctRt = await prisma.keluarga.findMany({
       where: {
-        rt: { not: null },
+        rtId: { not: null },
         deletedAt: null,
       },
       select: {
-        rt: true,
-        rw: true,
-        dusun: true,
+        rtId: true,
+        rwId: true,
+        gubugId: true,
       },
-      distinct: ['rt', 'rw', 'dusun'],
+      distinct: ['rtId', 'rwId', 'gubugId'],
     });
 
     // Distinct RW from Keluarga
     const distinctRw = await prisma.keluarga.findMany({
       where: {
-        rw: { not: null },
+        rwId: { not: null },
         deletedAt: null,
       },
       select: {
-        rw: true,
-        dusun: true,
+        rwId: true,
+        gubugId: true,
       },
-      distinct: ['rw', 'dusun'],
+      distinct: ['rwId', 'gubugId'],
+    });
+
+    // Count surat masuk
+    const totalSuratMasuk = await prisma.suratMasuk.count();
+
+    // Count surat keluar (PermintaanLayanan approved/completed)
+    const totalSuratKeluar = await prisma.permintaanLayanan.count({
+      where: { 
+        status: { in: ['COMPLETED', 'APPROVED'] },
+      },
     });
 
     const data = {
+      surat: {
+        masuk: totalSuratMasuk,
+        keluar: totalSuratKeluar,
+      },
       penduduk: {
         total: totalPenduduk,
         lakiLaki: totalLakiLaki,
@@ -88,7 +102,7 @@ router.get(
       },
       keluarga: totalKeluarga,
       wilayah: {
-        dusun: distinctDusun.length,
+        gubugId: distinctDusun.length,
         rt: distinctRt.length,
         rw: distinctRw.length,
       }

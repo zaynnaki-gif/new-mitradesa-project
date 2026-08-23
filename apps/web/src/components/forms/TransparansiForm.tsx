@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from '../ui';
 import { useAuthStore } from '../../stores/auth.store';
+import { API_URL } from '../../lib/constants';
 
 interface TransparansiFormProps {
   initialData?: any;
@@ -27,7 +28,7 @@ export function TransparansiForm({ initialData, onSuccess, onCancel }: Transpara
     setError(null);
 
     try {
-      const url = initialData ? `/api/transparansi/${initialData.id}` : '/api/transparansi';
+      const url = initialData ? `${API_URL}/transparansi/${initialData.id}` : `${API_URL}/transparansi`;
       const method = initialData ? 'PATCH' : 'POST';
 
       const payload = {

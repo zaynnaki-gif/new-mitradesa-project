@@ -1,6 +1,11 @@
 import { useState, useEffect } from 'react';
 import { API_URL } from '@/lib/constants';
 
+export interface StatistikDemografi {
+  name: string;
+  count: number;
+}
+
 export interface StatistikDesa {
   penduduk: {
     total: number;
@@ -8,10 +13,21 @@ export interface StatistikDesa {
     perempuan: number;
   };
   keluarga: number;
+  surat: {
+    masuk: number;
+    keluar: number;
+  };
   wilayah: {
     dusun: number;
     rt: number;
     rw: number;
+  };
+  distribusi: {
+    agama: StatistikDemografi[];
+    pendidikan: StatistikDemografi[];
+    pekerjaan: StatistikDemografi[];
+    golDarah: StatistikDemografi[];
+    statusPerkawinan: StatistikDemografi[];
   };
 }
 

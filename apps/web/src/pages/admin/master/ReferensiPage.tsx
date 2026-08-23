@@ -1,8 +1,9 @@
+import { AdminLayout } from '@/layouts';
 import { useState, useEffect } from 'react';
-import { Button, Input, Modal } from '../../../components/ui';
-import { LoadingState } from '../../../components/states';
-import { useAuthStore } from '../../../stores/auth.store';
-import { API_URL } from '../../../lib/constants';
+import { Button, Input, Modal } from '@/components/ui';
+import { LoadingState } from '@/components/states';
+import { useAuthStore } from '@/stores/auth.store';
+import { API_URL } from '@/lib/constants';
 import styles from './ReferensiPage.module.css';
 
 type TabType = 'agama' | 'golongan_darah' | 'status_perkawinan' | 'hubungan_keluarga' | 'pendidikan' | 'pekerjaan' | 'status_kependudukan' | 'jabatan_perangkat' | 'status_perangkat';
@@ -179,9 +180,10 @@ export default function ReferensiPage() {
   };
 
   return (
-    <div className={styles.container}>
-      {/* Header */}
-      <div className={styles.header}>
+    <AdminLayout>
+      <div className={styles.container}>
+        {/* Header */}
+        <div className={styles.header}>
         <div>
           <h1 className={styles.title}>Data Referensi</h1>
           <p className={styles.subtitle}>Kelola data referensi master sistem</p>
@@ -322,7 +324,8 @@ export default function ReferensiPage() {
             </Button>
           </div>
         </form>
-      </Modal>
-    </div>
+        </Modal>
+      </div>
+    </AdminLayout>
   );
 }

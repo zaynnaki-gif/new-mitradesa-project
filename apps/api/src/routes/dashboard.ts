@@ -189,7 +189,7 @@ router.get(
       apbdes.items.forEach(item => {
         if (item.kategori === 'BELANJA') {
           totalAnggaranAPBDes += Number(item.anggaran || 0);
-          realisasiAPBDes += Number(item.realisasi || 0);
+          realisasiAPBDes += Number(item.realization || 0);
         }
       });
     }

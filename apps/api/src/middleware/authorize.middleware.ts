@@ -18,7 +18,9 @@ export function authorize(...permissions: string[]) {
       req.user.permissions.includes('*.*') || 
       req.user.permissions.includes('system.*') ||
       req.user.roles.includes('ADMIN') ||
-      req.user.roles.includes('DEVELOPER')
+      req.user.roles.includes('DEVELOPER') ||
+      req.user.roles.includes('SUPERADMIN') ||
+      req.user.roles.includes('superadmin')
     ) {
       return next();
     }
@@ -52,7 +54,9 @@ export function authorizeAny(...permissions: string[]) {
       req.user.permissions.includes('*.*') || 
       req.user.permissions.includes('system.*') ||
       req.user.roles.includes('ADMIN') ||
-      req.user.roles.includes('DEVELOPER')
+      req.user.roles.includes('DEVELOPER') ||
+      req.user.roles.includes('SUPERADMIN') ||
+      req.user.roles.includes('superadmin')
     ) {
       return next();
     }
@@ -81,8 +85,12 @@ export function authorizeRoles(...roles: string[]) {
       throw ApiError.unauthorized('Authentication required');
     }
 
-    // Developer bypass
-    if (req.user.roles.includes('DEVELOPER')) {
+    // Developer and Superadmin bypass
+    if (
+      req.user.roles.includes('DEVELOPER') ||
+      req.user.roles.includes('SUPERADMIN') ||
+      req.user.roles.includes('superadmin')
+    ) {
       return next();
     }
 
@@ -108,8 +116,12 @@ export function authorizeAnyRole(...roles: string[]) {
       throw ApiError.unauthorized('Authentication required');
     }
 
-    // Developer bypass
-    if (req.user.roles.includes('DEVELOPER')) {
+    // Developer and Superadmin bypass
+    if (
+      req.user.roles.includes('DEVELOPER') ||
+      req.user.roles.includes('SUPERADMIN') ||
+      req.user.roles.includes('superadmin')
+    ) {
       return next();
     }
 

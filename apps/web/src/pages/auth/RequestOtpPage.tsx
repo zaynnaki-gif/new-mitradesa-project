@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Container, Typography, Button, Input } from '../../components/ui';
+import { API_URL } from '../../lib/constants';
 
 export function RequestOtpPage() {
   const [nik, setNik] = useState('');
@@ -16,7 +17,7 @@ export function RequestOtpPage() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/auth/citizen/request-otp', {
+      const response = await fetch(`${API_URL}/auth/citizen/request-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ nik }),
@@ -44,7 +45,7 @@ export function RequestOtpPage() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/auth/citizen/verify-otp', {
+      const response = await fetch(`${API_URL}/auth/citizen/verify-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ challenge, otp }),

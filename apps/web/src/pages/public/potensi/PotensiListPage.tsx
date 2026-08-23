@@ -37,7 +37,7 @@ export function PotensiListPage() {
             gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', 
             gap: 'var(--space-8)' 
           }}>
-            {potensi.map((item) => (
+            {potensi.map((item, index) => (
               <EditorialCard
                 key={item.id}
                 title={item.nama}
@@ -45,6 +45,7 @@ export function PotensiListPage() {
                 imageUrl={item.gambarUrl || undefined}
                 meta={item.kategori}
                 href={`/potensi/${item.slug}`}
+                index={index}
               />
             ))}
           </div>

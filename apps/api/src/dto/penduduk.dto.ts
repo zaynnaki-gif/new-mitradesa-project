@@ -35,12 +35,26 @@ export const createPendudukSchema = z.object({
   dusun: z.string().max(100).optional().nullable(),
   kodePos: z.string().max(10).optional().nullable(),
   telepon: z.string().max(20).optional().nullable(),
-  email: z.string().email('Invalid email format').max(255).optional().nullable(),
+  email: z.string().email('Invalid email format').max(255).optional().nullable().or(z.literal('')),
   wargaNegara: z.string().max(50).default('Indonesia'),
-  nikAyah: z.string().regex(/^\d{16}$/, 'NIK Ayah must be 16 digits').optional().nullable(),
-  nikIbu: z.string().regex(/^\d{16}$/, 'NIK Ibu must be 16 digits').optional().nullable(),
+  nikAyah: z.string().regex(/^\d{16}$/, 'NIK Ayah must be 16 digits').optional().nullable().or(z.literal('')),
+  nikIbu: z.string().regex(/^\d{16}$/, 'NIK Ibu must be 16 digits').optional().nullable().or(z.literal('')),
   isAktif: z.boolean().default(true),
   statusKepindahan: z.string().max(50).optional().nullable(),
+  pendidikan: z.string().max(100).optional().nullable(),
+  pekerjaan: z.string().max(100).optional().nullable(),
+  suku: z.string().max(50).optional().nullable(),
+  pendapatan: z.string().max(50).optional().nullable(),
+  kepemilikanRumah: z.string().max(50).optional().nullable(),
+  luasRumah: z.string().max(50).optional().nullable(),
+  jumlahLantai: z.string().max(50).optional().nullable(),
+  jenisLantai: z.string().max(50).optional().nullable(),
+  jenisDinding: z.string().max(50).optional().nullable(),
+  jenisAtap: z.string().max(50).optional().nullable(),
+  sumberAir: z.string().max(50).optional().nullable(),
+  bpjsKesehatan: z.string().max(50).optional().nullable(),
+  bantuanSosial: z.string().max(255).optional().nullable(),
+  kondisiFisik: z.string().max(100).optional().nullable(),
 });
 
 /**
@@ -61,12 +75,26 @@ export const updatePendudukSchema = z.object({
   dusun: z.string().max(100).optional().nullable(),
   kodePos: z.string().max(10).optional().nullable(),
   telepon: z.string().max(20).optional().nullable(),
-  email: z.string().email().max(255).optional().nullable(),
+  email: z.string().email().max(255).optional().nullable().or(z.literal('')),
   wargaNegara: z.string().max(50).optional(),
-  nikAyah: z.string().regex(/^\d{16}$/).optional().nullable(),
-  nikIbu: z.string().regex(/^\d{16}$/).optional().nullable(),
+  nikAyah: z.string().regex(/^\d{16}$/).optional().nullable().or(z.literal('')),
+  nikIbu: z.string().regex(/^\d{16}$/).optional().nullable().or(z.literal('')),
   isAktif: z.boolean().optional(),
   statusKepindahan: z.string().max(50).optional().nullable(),
+  pendidikan: z.string().max(100).optional().nullable(),
+  pekerjaan: z.string().max(100).optional().nullable(),
+  suku: z.string().max(50).optional().nullable(),
+  pendapatan: z.string().max(50).optional().nullable(),
+  kepemilikanRumah: z.string().max(50).optional().nullable(),
+  luasRumah: z.string().max(50).optional().nullable(),
+  jumlahLantai: z.string().max(50).optional().nullable(),
+  jenisLantai: z.string().max(50).optional().nullable(),
+  jenisDinding: z.string().max(50).optional().nullable(),
+  jenisAtap: z.string().max(50).optional().nullable(),
+  sumberAir: z.string().max(50).optional().nullable(),
+  bpjsKesehatan: z.string().max(50).optional().nullable(),
+  bantuanSosial: z.string().max(255).optional().nullable(),
+  kondisiFisik: z.string().max(100).optional().nullable(),
 }).refine(
   (data) => Object.keys(data).length > 0,
   { message: 'At least one field must be provided for update' }
@@ -125,6 +153,30 @@ export interface PendudukResponse {
   wargaNegara: string;
   nikAyah: string | null;
   nikIbu: string | null;
+  namaAyahLengkap: string | null;
+  namaIbuLengkap: string | null;
+  pendidikan: string | null;
+  pekerjaan: string | null;
+  suku: string | null;
+  pendapatan: string | null;
+  kepemilikanRumah: string | null;
+  luasRumah: string | null;
+  jumlahLantai: string | null;
+  jenisLantai: string | null;
+  jenisDinding: string | null;
+  jenisAtap: string | null;
+  kepemilikanTanah: string | null;
+  luasTanah: string | null;
+  penerangan: string | null;
+  sumberEnergiMasak: string | null;
+  mck: string | null;
+  sumberAir: string | null;
+  bantuanSosial: string | null;
+  bantuanExtra: string | null;
+  bpjsKesehatan: string | null;
+  bpjsKetenagakerjaan: string | null;
+  kepemilikanAset: string | null;
+  kondisiFisik: string | null;
   isAktif: boolean;
   statusKepindahan: string | null;
   desaId: string | null;

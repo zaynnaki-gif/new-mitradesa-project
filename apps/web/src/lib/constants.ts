@@ -4,8 +4,8 @@
  */
 
 // API Configuration
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-export const API_URL = `${API_BASE_URL}/api`;
+export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+export const API_BASE_URL = API_URL.replace('/api', '');
 
 // App Configuration
 export const APP_NAME = 'Sistem Desa';
@@ -81,7 +81,7 @@ export const MEGA_NAV_STRUCTURE: NavCategory[] = [
     label: 'Potensi',
     href: '/potensi',
     dropdown: {
-      variant: 'image',
+      variant: 'potensi',
       description: 'Jelajahi potensi dan produk lokal desa.',
       items: [
         { label: 'Potensi Desa', href: '/potensi', description: 'Sumber daya dan potensi' },
@@ -97,7 +97,7 @@ export const MEGA_NAV_STRUCTURE: NavCategory[] = [
   {
     label: 'Informasi',
     dropdown: {
-      variant: 'featured',
+      variant: 'informasi',
       items: [
         { label: 'Berita Desa', href: '/berita', description: 'Berita dan informasi terkini' },
         { label: 'Agenda Kegiatan', href: '/agenda', description: 'Jadwal dan event' },
@@ -140,6 +140,7 @@ export const ADMIN_NAV_LINKS = [
   { label: 'Lembaga', href: '/admin/master/lembaga' },
   { label: 'Identitas Desa', href: '/admin/master/identitas-desa' },
   { label: 'Perangkat Desa', href: '/admin/master/perangkat-desa' },
+  { label: 'Kunjungan Posyandu', href: '/admin/kesehatan/posyandu' },
   { label: 'Layanan', href: '/admin/layanan' },
   { label: 'Permintaan', href: '/admin/permintaan' },
   { label: 'Dokumen', href: '/admin/dokumen' },

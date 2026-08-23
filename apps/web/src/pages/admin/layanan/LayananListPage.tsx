@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AdminLayout } from '@/layouts';
+import { useAuthStore } from '@/stores/auth.store';
+import { API_URL } from '@/lib/constants';
 import shared from '../../../styles/AdminShared.module.css';
 import s from './LayananListPage.module.css';
 
@@ -38,6 +41,7 @@ const KATEGORI_OPTIONS = [
 
 export default function LayananListPage() {
   const navigate = useNavigate();
+  const { token } = useAuthStore();
   const [data, setData] = useState<ILayanan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -75,9 +79,9 @@ export default function LayananListPage() {
       if (filter.kategori) params.append('kategori', filter.kategori);
       if (filter.isActive) params.append('isActive', filter.isActive);
 
-      const res = await fetch(`/api/services?${params.toString()}`, {
+      const res = await fetch(`${API_URL}/services?${params.toString()}`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          Authorization: `Bearer ${token}`,
         },
       });
       if (!res.ok) throw new Error('Gagal memuat data');
@@ -113,14 +117,14 @@ export default function LayananListPage() {
         slug: formData.slug || generateSlug(formData.nama || ''),
       };
 
-      const url = editingId ? `/api/services/${editingId}` : '/api/services';
+      const url = editingId ? `${API_URL}/services/${editingId}` : `${API_URL}/services`;
       const method = editingId ? 'PATCH' : 'POST';
 
       const res = await fetch(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(dataToSubmit),
       });
@@ -172,10 +176,10 @@ export default function LayananListPage() {
   const handleDelete = async (id: string) => {
     if (!confirm('Yakin ingin menghapus layanan ini?')) return;
     try {
-      const res = await fetch(`/api/services/${id}`, {
+      const res = await fetch(`${API_URL}/services/${id}`, {
         method: 'DELETE',
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          Authorization: `Bearer ${token}`,
         },
       });
       if (!res.ok) throw new Error('Gagal menghapus');
@@ -187,11 +191,11 @@ export default function LayananListPage() {
 
   const handleToggleActive = async (item: ILayanan) => {
     try {
-      const res = await fetch(`/api/services/${item.id}`, {
+      const res = await fetch(`${API_URL}/services/${item.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ isActive: !item.isActive }),
       });
@@ -211,6 +215,7 @@ export default function LayananListPage() {
   };
 
   return (
+    <AdminLayout>
     <div style={{ padding: '1.5rem' }}>
       {/* Header */}
       <div className={shared.pageHeader}>
@@ -538,5 +543,6 @@ export default function LayananListPage() {
         </div>
       )}
     </div>
+    </AdminLayout>
   );
 }

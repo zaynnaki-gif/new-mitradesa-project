@@ -6,7 +6,22 @@ import { useStatistikDesa } from '@/hooks/useStatistikDesa';
 import { useHalaman } from '@/hooks/useHalaman';
 import { useSEO, getPageTitle } from '@/hooks/useSeo';
 import { EditorialHero, EditorialSection } from '@/components/editorial';
+import { AnimatedCounter } from '@/components/editorial/StatsSection';
+import { useScrollReveal } from '@/hooks/useScrollReveal';
 import styles from './ProfilPage.module.css';
+
+function ProfilCard({ children, style, delay = 0 }: { children: React.ReactNode, style?: React.CSSProperties, delay?: number }) {
+  const { ref, isVisible } = useScrollReveal({ threshold: 0.1 });
+  return (
+    <div 
+      ref={ref} 
+      className={`${styles.card} animate-on-scroll ${isVisible ? 'is-visible' : ''}`} 
+      style={{ ...style, transitionDelay: `${delay}ms` }}
+    >
+      {children}
+    </div>
+  );
+}
 
 export default function ProfilPage() {
   const { data: identitas, isLoading: isLoadingIdentitas, error: errorIdentitas, refetch } = useIdentitasDesa();
@@ -49,7 +64,7 @@ export default function ProfilPage() {
           {!isLoading && !error && (
             <div className={styles.grid}>
               {/* Identitas Desa */}
-              <div className={styles.card}>
+              <ProfilCard delay={0}>
                 <div className={styles.cardHeader}>
                   <div className={styles.cardIcon}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -93,10 +108,10 @@ export default function ProfilPage() {
                     )}
                   </div>
                 </div>
-              </div>
+              </ProfilCard>
 
               {/* Wilayah */}
-              <div className={styles.card}>
+              <ProfilCard delay={100}>
                 <div className={styles.cardHeader}>
                   <div className={styles.cardIcon}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -142,10 +157,10 @@ export default function ProfilPage() {
                     </Typography>
                   )}
                 </div>
-              </div>
+              </ProfilCard>
 
 
-              <div className={styles.card}>
+              <ProfilCard delay={200}>
                 <div className={styles.cardHeader}>
                   <div className={styles.cardIcon}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -201,12 +216,12 @@ export default function ProfilPage() {
                     )}
                   </div>
                 </div>
-              </div>
+              </ProfilCard>
 
               <div style={{ gridColumn: '1 / -1', marginTop: 'var(--space-8)' }}>
                 {/* Desa Dalam Angka */}
                 {(statistik && statistik.penduduk.total > 0) && (
-                  <div className={styles.card} style={{ marginBottom: 'var(--space-8)' }}>
+                  <ProfilCard style={{ marginBottom: 'var(--space-8)' }}>
                     <div className={styles.cardHeader}>
                       <div className={styles.cardIcon}>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -224,36 +239,36 @@ export default function ProfilPage() {
                       <div className={styles.infoGrid}>
                         <div className={styles.infoItem}>
                           <span className={styles.infoLabel}>Total Penduduk</span>
-                          <span className={styles.infoValue}>{statistik.penduduk.total.toLocaleString()} Jiwa</span>
+                          <span className={styles.infoValue}><AnimatedCounter value={statistik.penduduk.total} /> Jiwa</span>
                         </div>
                         <div className={styles.infoItem}>
                           <span className={styles.infoLabel}>Laki-Laki</span>
-                          <span className={styles.infoValue}>{statistik.penduduk.lakiLaki.toLocaleString()} Jiwa</span>
+                          <span className={styles.infoValue}><AnimatedCounter value={statistik.penduduk.lakiLaki} /> Jiwa</span>
                         </div>
                         <div className={styles.infoItem}>
                           <span className={styles.infoLabel}>Perempuan</span>
-                          <span className={styles.infoValue}>{statistik.penduduk.perempuan.toLocaleString()} Jiwa</span>
+                          <span className={styles.infoValue}><AnimatedCounter value={statistik.penduduk.perempuan} /> Jiwa</span>
                         </div>
                         <div className={styles.infoItem}>
                           <span className={styles.infoLabel}>Keluarga (KK)</span>
-                          <span className={styles.infoValue}>{statistik.keluarga.toLocaleString()} KK</span>
+                          <span className={styles.infoValue}><AnimatedCounter value={statistik.keluarga} /> KK</span>
                         </div>
                         <div className={styles.infoItem}>
                           <span className={styles.infoLabel}>Dusun</span>
-                          <span className={styles.infoValue}>{statistik.wilayah.dusun.toLocaleString()}</span>
+                          <span className={styles.infoValue}><AnimatedCounter value={statistik.wilayah.dusun} /></span>
                         </div>
                         <div className={styles.infoItem}>
                           <span className={styles.infoLabel}>RT / RW</span>
-                          <span className={styles.infoValue}>{statistik.wilayah.rt.toLocaleString()} / {statistik.wilayah.rw.toLocaleString()}</span>
+                          <span className={styles.infoValue}><AnimatedCounter value={statistik.wilayah.rt} /> / <AnimatedCounter value={statistik.wilayah.rw} /></span>
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </ProfilCard>
                 )}
 
                 {/* Visi Misi */}
                 {visiMisi && (
-                  <div className={styles.card} style={{ marginBottom: 'var(--space-8)' }}>
+                  <ProfilCard style={{ marginBottom: 'var(--space-8)' }}>
                     <div className={styles.cardHeader}>
                       <div className={styles.cardIcon}>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -267,14 +282,14 @@ export default function ProfilPage() {
                       </Typography>
                     </div>
                     <div className={styles.cardBody}>
-                      <div dangerouslySetInnerHTML={{ __html: visiMisi.konten }} />
+                      <div className="editorial-drop-cap editorial-oversized-serif" dangerouslySetInnerHTML={{ __html: visiMisi.konten }} />
                     </div>
-                  </div>
+                  </ProfilCard>
                 )}
 
                 {/* Sejarah Desa */}
                 {sejarah && (
-                  <div className={styles.card} style={{ marginBottom: 'var(--space-8)' }}>
+                  <ProfilCard style={{ marginBottom: 'var(--space-8)' }}>
                     <div className={styles.cardHeader}>
                       <div className={styles.cardIcon}>
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -286,9 +301,9 @@ export default function ProfilPage() {
                       </Typography>
                     </div>
                     <div className={styles.cardBody}>
-                      <div dangerouslySetInnerHTML={{ __html: sejarah.konten }} />
+                      <div className="editorial-drop-cap" dangerouslySetInnerHTML={{ __html: sejarah.konten }} />
                     </div>
-                  </div>
+                  </ProfilCard>
                 )}
                 
                 {((!statistik || statistik.penduduk.total === 0) && !visiMisi && !sejarah) && (

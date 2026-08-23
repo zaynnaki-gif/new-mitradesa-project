@@ -56,7 +56,7 @@ model Kecamatan {
 model Desa {
   id             BigInt          @id @default(autoincrement())
   kecamatanId    BigInt          @map("kecamatan_id")
-  kode           String          @db.VarChar(10)
+  kode           String          @db.VarChar(20)
   nama           String          @db.VarChar(100)
   createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt      DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
@@ -93,6 +93,12 @@ model Gubug {
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
   rws       Rw[]
+  // Reverse relations
+  penduduksFromGubug     Penduduk[]        @relation("GubugToPenduduk")
+  keluargaFromGubug      Keluarga[]        @relation("GubugToKeluarga")
+  bumilFromGubug        Bumil[]          @relation("GubugToBumil")
+  mutasiAsalFromGubug   MutasiPenduduk[] @relation("GubugAsal")
+  mutasiTujuanFromGubug MutasiPenduduk[] @relation("GubugTujuan")
   desa      Desa      @relation(fields: [desaId], references: [id], onUpdate: NoAction, map: "gubug_desa_id_foreign")
 
   @@unique([desaId, kode])
@@ -108,11 +114,16 @@ model Rw {
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
   rts       Rt[]
+  // Reverse relations
+  penduduksFromRw      Penduduk[]        @relation("RwToPenduduk")
+  keluargaFromRw       Keluarga[]        @relation("RwToKeluarga")
+  bumilFromRw         Bumil[]          @relation("RwToBumil")
+  mutasiAsalFromRw   MutasiPenduduk[] @relation("RwAsal")
+  mutasiTujuanFromRw  MutasiPenduduk[] @relation("RwTujuan")
   gubug     Gubug    @relation(fields: [gubugId], references: [id], onUpdate: NoAction, map: "rw_gubug_id_foreign")
 
   @@unique([gubugId, kode])
   @@index([gubugId])
-  @@map("rw")
 }
 
 model Rt {
@@ -122,10 +133,15 @@ model Rt {
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamp(6)
   rw        Rw       @relation(fields: [rwId], references: [id], onUpdate: NoAction, map: "rt_rw_id_foreign")
+  // Reverse relations
+  penduduksFromRt     Penduduk[]        @relation("RtToPenduduk")
+  keluargaFromRt      Keluarga[]        @relation("RtToKeluarga")
+  bumilFromRt        Bumil[]          @relation("RtToBumil")
+  mutasiAsalFromRt  MutasiPenduduk[] @relation("RtAsal")
+  mutasiTujuanFromRt MutasiPenduduk[] @relation("RtTujuan")
 
   @@unique([rwId, kode])
   @@index([rwId])
-  @@map("rt")
 }
 
 /// Lembaga - Organisasi kemasyarakatan: BPD, PKK, KADER, RT, RW, dll
@@ -341,7 +357,6 @@ model Configuration {
   isSystem    Boolean?    @default(false) @map("is_system")
   createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt   DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
-
   @@unique([groupName, key])
   @@map("configuration")
 }
@@ -355,35 +370,67 @@ model Penduduk {
   jenisKelamin         String                @map("jenis_kelamin") @db.VarChar(1)
   golDarah             String?               @map("gol_darah") @db.VarChar(3)
   agama                String?               @map("agama") @db.VarChar(50)
+  pendidikan           String?               @db.VarChar(100)
+  pekerjaan            String?               @db.VarChar(100)
+  suku                 String?               @db.VarChar(50)
   statusPerkawinan     String                @map("status_perkawinan") @db.VarChar(50)
   hubunganKeluarga     String?               @map("hubungan_keluarga") @db.VarChar(50)
   alamat               String?
-  rt                   String?               @map("rt") @db.VarChar(10)
-  rw                   String?               @map("rw") @db.VarChar(10)
-  dusun                String?               @db.VarChar(100)
   kodePos              String?               @map("kode_pos") @db.VarChar(10)
   telepon              String?               @map("telepon") @db.VarChar(20)
   email                String?               @db.VarChar(255)
   wargaNegara          String?               @default("Indonesia") @map("warga_negara") @db.VarChar(50)
   nikAyah              String?               @map("nik_ayah") @db.VarChar(16)
   nikIbu               String?               @map("nik_ibu") @db.VarChar(16)
+  namaAyahLengkap      String?               @map("nama_ayah_lengkap") @db.VarChar(255)
+  namaIbuLengkap       String?               @map("nama_ibu_lengkap") @db.VarChar(255)
+  pendapatan           String?               @db.VarChar(50)
+  kepemilikanRumah     String?               @map("kepemilikan_rumah") @db.VarChar(50)
+  luasRumah            String?               @map("luas_rumah") @db.VarChar(50)
+  jumlahLantai         String?               @map("jumlah_lantai") @db.VarChar(50)
+  jenisLantai          String?               @map("jenis_lantai") @db.VarChar(50)
+  jenisDinding         String?               @map("jenis_dinding") @db.VarChar(50)
+  jenisAtap            String?               @map("jenis_atap") @db.VarChar(50)
+  kepemilikanTanah     String?               @map("kepemilikan_tanah") @db.VarChar(50)
+  luasTanah            String?               @map("luas_tanah") @db.VarChar(50)
+  penerangan           String?               @db.VarChar(50)
+  sumberEnergiMasak    String?               @map("sumber_energi_masak") @db.VarChar(50)
+  mck                  String?               @db.VarChar(50)
+  sumberAir            String?               @map("sumber_air") @db.VarChar(50)
+  bantuanSosial        String?               @map("bantuan_sosial") @db.VarChar(255)
+  bantuanExtra         String?               @map("bantuan_extra") @db.VarChar(255)
+  bpjsKesehatan        String?               @map("bpjs_kesehatan") @db.VarChar(50)
+  bpjsKetenagakerjaan  String?               @map("bpjs_ketenagakerjaan") @db.VarChar(50)
+  kepemilikanAset      String?               @map("kepemilikan_aset") @db.VarChar(255)
+  kondisiFisik         String?               @map("kondisi_fisik") @db.VarChar(100)
   isAktif              Boolean?              @default(true) @map("is_aktif")
   statusKepindahan     String?               @map("status_kepindahan") @db.VarChar(50)
   createdAt            DateTime              @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt            DateTime              @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
   deletedAt            DateTime?             @map("deleted_at") @db.Timestamp(6)
   desaId               BigInt?               @map("desa_id")
+  // FK references to wilayah hierarchy
+  gubugId              BigInt?               @map("gubug_id")
+  rwId                 BigInt?               @map("rw_id")
+  rtId                 BigInt?               @map("rt_id")
+
   anggotaKeluarga      AnggotaKeluarga[]
   citizenSessions      CitizenSession[]
   citizenVerifications CitizenVerification[]
   keluargaAsKepala     Keluarga?             @relation("KeluargaKepala")
   desa                 Desa?                 @relation(fields: [desaId], references: [id], onUpdate: NoAction, map: "penduduk_desa_id_foreign")
+  gubug                Gubug?                @relation("GubugToPenduduk", fields: [gubugId], references: [id], onUpdate: NoAction, map: "penduduk_gubug_id_foreign")
+  rwRel                Rw?                   @relation("RwToPenduduk", fields: [rwId], references: [id], onUpdate: NoAction, map: "penduduk_rw_id_foreign")
+  rtRel                Rt?                   @relation("RtToPenduduk", fields: [rtId], references: [id], onUpdate: NoAction, map: "penduduk_rt_id_foreign")
   perangkatDesas       PerangkatDesa[]
   permintaan           PermintaanLayanan[]
 
   @@index([nik])
   @@index([desaId])
   @@index([namaLengkap])
+  @@index([gubugId])
+  @@index([rwId])
+  @@index([rtId])
   @@map("penduduk")
 }
 
@@ -392,21 +439,29 @@ model Keluarga {
   noKk      String            @unique @map("no_kk") @db.VarChar(16)
   kepalaId  BigInt            @unique @map("kepala_id")
   alamat    String?
-  rt        String?           @map("rt") @db.VarChar(10)
-  rw        String?           @map("rw") @db.VarChar(10)
-  dusun     String?           @db.VarChar(100)
   kodePos   String?           @map("kode_pos") @db.VarChar(10)
   createdAt DateTime          @default(now()) @map("created_at") @db.Timestamp(6)
   updatedAt DateTime          @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
   deletedAt DateTime?         @map("deleted_at") @db.Timestamp(6)
   desaId    BigInt?           @map("desa_id")
+  // FK references to wilayah hierarchy
+  gubugId    BigInt?           @map("gubug_id")
+  rwId       BigInt?           @map("rw_id")
+  rtId       BigInt?           @map("rt_id")
+
   anggota   AnggotaKeluarga[]
   desa      Desa?             @relation(fields: [desaId], references: [id], onUpdate: NoAction, map: "keluarga_desa_id_foreign")
   kepala    Penduduk          @relation("KeluargaKepala", fields: [kepalaId], references: [id], onUpdate: NoAction, map: "keluarga_kepala_id_foreign")
+  gubug     Gubug?            @relation("GubugToKeluarga", fields: [gubugId], references: [id], onUpdate: NoAction, map: "keluarga_gubug_id_foreign")
+  rwRel     Rw?               @relation("RwToKeluarga", fields: [rwId], references: [id], onUpdate: NoAction, map: "keluarga_rw_id_foreign")
+  rtRel     Rt?               @relation("RtToKeluarga", fields: [rtId], references: [id], onUpdate: NoAction, map: "keluarga_rt_id_foreign")
 
   @@index([noKk])
   @@index([kepalaId])
   @@index([desaId])
+  @@index([gubugId])
+  @@index([rwId])
+  @@index([rtId])
   @@map("keluarga")
 }
 
@@ -827,6 +882,7 @@ model Layanan {
   requiresDocument Boolean   @default(false) @map("requires_document")
   requiresApproval Boolean   @default(true) @map("requires_approval")
   isActive         Boolean   @default(true) @map("is_active")
+  isMandiri        Boolean   @default(false) @map("is_mandiri")
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
   deletedAt        DateTime? @map("deleted_at") @db.Timestamp(6)
@@ -1171,7 +1227,7 @@ model ApbdesItem {
   kategori  ApbdesKategori
   nama      String         @db.VarChar(255)
   anggaran  Float          @default(0)
-  realisasi Float          @default(0)
+  realization Float          @default(0) @map("realisasi")
   createdAt DateTime       @default(now()) @map("created_at")
 
   apbdes Apbdes @relation(fields: [apbdesId], references: [id], onDelete: Cascade, onUpdate: NoAction)
@@ -1309,4 +1365,205 @@ model Banner {
   @@index([desaId])
   @@index([urutan])
   @@map("banner")
+}
+
+// ============================================================
+// Posyandu Kesehatan
+// ============================================================
+
+model PosyanduKunjungan {
+  id                String    @id @default(cuid())
+  pendudukId        BigInt    @map("penduduk_id")
+  tanggalKunjungan  DateTime  @map("tanggal_kunjungan") @db.Date
+  kategori          String    @db.VarChar(30) // IBU_HAMIL, BALITA, LANSIA, UMUM
+  mingguKehamilan  Int?
+  tekananDarah     String?   @map("tekanan_darah") @db.VarChar(20)
+  beratBadanIbu   Float?
+  beratBadan       Float?
+  panjangBadan    Float?
+  lingkarKepala   Float?
+  statusGizi       String?
+  gulaDarah       Float?
+  imunisasi       String?
+  vitamin          String?
+  catatan         String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([pendudukId])
+  @@index([tanggalKunjungan])
+  @@index([kategori])
+  @@map("posyandu_kunjungan")
+}
+
+model Bumil {
+  id              String    @id @default(cuid())
+  pendudukId      BigInt    @unique @map("penduduk_id")
+  namaLengkap     String    @map("nama_lengkap") @db.VarChar(255)
+  nik             String    @map("nik") @db.VarChar(16)
+  telepon         String?
+  alamat          String?
+  trimester       Int?      @default(1)
+  // FK references to wilayah hierarchy
+  gubugId          BigInt?   @map("gubug_id")
+  rwId             BigInt?   @map("rw_id")
+  rtId             BigInt?   @map("rt_id")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  gubug            Gubug?      @relation("GubugToBumil", fields: [gubugId], references: [id], onUpdate: NoAction, map: "bumil_gubug_id_foreign")
+  rwRel             Rw?          @relation("RwToBumil", fields: [rwId], references: [id], onUpdate: NoAction, map: "bumil_rw_id_foreign")
+  rtRel             Rt?          @relation("RtToBumil", fields: [rtId], references: [id], onUpdate: NoAction, map: "bumil_rt_id_foreign")
+
+  @@index([pendudukId])
+  @@index([gubugId])
+  @@index([rwId])
+  @@index([rtId])
+  @@map("bumil")
+}
+
+model KasUmum {
+  id          String   @id @default(cuid())
+  tanggal     DateTime @db.Date
+  jenis       String   @db.VarChar(20) // KAS_MASUK, KAS_KELUAR
+  uraian      String   @db.VarChar(500)
+  jumlah      Float
+  saldo       Float
+  createdAt  DateTime @default(now())
+
+  @@map("kas_umum")
+}
+
+model BukuBank {
+  id            String   @id @default(cuid())
+  bank           String   @db.VarChar(100)
+  tanggal        DateTime @db.Date
+  uraian         String   @map("uraian") @db.VarChar(500)
+  kodeBukti      String?  @map("kode_bukti") @db.VarChar(50)
+  debit          Float   @default(0)
+  kredit         Float   @default(0)
+  saldo          Float
+ rekonsiliasi   Boolean  @default(false) @map("rekonsiliasi")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("buku_bank")
+}
+
+model Bansos {
+  id             String   @id @default(cuid())
+  nama           String   @db.VarChar(255)
+  jenis          String   @db.VarChar(100) // BLT, PKH, BPNT, dll
+  tahun          Int
+  periode        String?  @db.VarChar(50)
+  jumlahPenerima  Int      @default(0) @map("jumlah_penerima")
+  jumlahDana     Float    @default(0) @map("jumlah_dana")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("bansos")
+}
+
+// ============================================================
+// Saran / Aspirasi / Aduan
+// ============================================================
+
+model SaranAduan {
+  id           String           @id @default(cuid())
+  judul        String           @map("judul") @db.VarChar(255)
+  isi          String           @map("isi") @db.Text
+  kategori     String           @map("kategori") @db.VarChar(50) // SARAN, ADUAN, ASPIRASI
+  status       SaranAduanStatus @default(BARU)
+  namaPengirim String?          @map("nama_pengirim") @db.VarChar(255)
+  emailPengirim String?         @map("email_pengirim") @db.VarChar(255)
+  teleponPengirim String?       @map("telepon_pengirim") @db.VarChar(20)
+  jawaban      String?          @map("jawaban") @db.Text
+  dijawabOleh String?          @map("dijawab_oleh") @db.VarChar(255)
+  dijawabPada  DateTime?       @map("dijawab_pada") @db.Timestamp(6)
+  createdAt    DateTime        @default(now()) @map("created_at")
+  updatedAt    DateTime        @updatedAt @map("updated_at")
+
+  @@index([kategori])
+  @@index([status])
+  @@index([createdAt])
+  @@map("saran_aduan")
+}
+
+enum SaranAduanStatus {
+  BARU
+  DIPROSES
+  SELESAI
+  DITOLAK
+}
+
+// ============================================================
+// Mutasi Penduduk
+// ============================================================
+
+model MutasiPenduduk {
+  id            String          @id @default(cuid())
+  jenisMutasi   MutasiJenis     @map("jenis_mutasi")
+  tanggalMutasi DateTime        @map("tanggal_mutasi") @db.Date
+  nik           String          @map("nik") @db.VarChar(16)
+  namaLengkap   String          @map("nama_lengkap") @db.VarChar(255)
+  jenisKelamin String?         @map("jenis_kelamin") @db.VarChar(1)
+  tanggalLahir  DateTime?       @map("tanggal_lahir") @db.Date
+  // Data tambahan berdasarkan jenis mutasi
+  tempatLahir   String?         @map("tempat_lahir") @db.VarChar(100)
+  // Untuk Lahir
+  nikAyah       String?         @map("nik_ayah") @db.VarChar(16)
+  nikIbu        String?         @map("nik_ibu") @db.VarChar(16)
+  // Untuk Mati
+  penyebabMati  String?         @map("penyebab_mati") @db.VarChar(255)
+  // Untuk Pindah Datang
+  alamatAsal   String?         @map("alamat_asal") @db.VarChar(500)
+  desaAsal      String?         @map("desa_asal") @db.VarChar(255)
+  kecamatanAsal String?         @map("kecamatan_asal") @db.VarChar(255)
+  kabupatenAsal String?         @map("kabupaten_asal") @db.VarChar(255)
+  // Untuk Pindah Pergi
+  alamatTujuan  String?         @map("alamat_tujuan") @db.VarChar(500)
+  desaTujuan   String?         @map("desa_tujuan") @db.VarChar(255)
+  kecamatanTujuan String?       @map("kecamatan_tujuan") @db.VarChar(255)
+  kabupatenTujuan String?       @map("kabupaten_tujuan") @db.VarChar(255)
+  // FK references to wilayah hierarchy (for origin)
+  gubugAsalId    BigInt?       @map("gubug_asal_id")
+  rwAsalId       BigInt?       @map("rw_asal_id")
+  rtAsalId       BigInt?       @map("rt_asal_id")
+  // FK references to wilayah hierarchy (for destination)
+  gubugTujuanId  BigInt?       @map("gubug_tujuan_id")
+  rwTujuanId     BigInt?       @map("rw_tujuan_id")
+  rtTujuanId     BigInt?       @map("rt_tujuan_id")
+  // Info tambahan
+  keterangan    String?         @db.VarChar(500)
+  dokumenUrl    String?         @map("dokumen_url") @db.VarChar(500)
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+
+  // Relations for origin wilayah
+  gubugAsal    Gubug?        @relation("GubugAsal", fields: [gubugAsalId], references: [id], onUpdate: NoAction, map: "mutasi_gubug_asal_id_foreign")
+  rwAsal       Rw?           @relation("RwAsal", fields: [rwAsalId], references: [id], onUpdate: NoAction, map: "mutasi_rw_asal_id_foreign")
+  rtAsal       Rt?           @relation("RtAsal", fields: [rtAsalId], references: [id], onUpdate: NoAction, map: "mutasi_rt_asal_id_foreign")
+  // Relations for destination wilayah
+  gubugTujuan  Gubug?        @relation("GubugTujuan", fields: [gubugTujuanId], references: [id], onUpdate: NoAction, map: "mutasi_gubug_tujuan_id_foreign")
+  rwTujuan     Rw?           @relation("RwTujuan", fields: [rwTujuanId], references: [id], onUpdate: NoAction, map: "mutasi_rw_tujuan_id_foreign")
+  rtTujuan     Rt?           @relation("RtTujuan", fields: [rtTujuanId], references: [id], onUpdate: NoAction, map: "mutasi_rt_tujuan_id_foreign")
+
+  @@index([jenisMutasi])
+  @@index([tanggalMutasi])
+  @@index([nik])
+  @@index([gubugAsalId])
+  @@index([rwAsalId])
+  @@index([rtAsalId])
+  @@index([gubugTujuanId])
+  @@index([rwTujuanId])
+  @@index([rtTujuanId])
+  @@map("mutasi_penduduk")
+}
+
+enum MutasiJenis {
+  LAHIR
+  MATI
+  PINDAH_DATANG
+  PINDAH_PERGI
 }

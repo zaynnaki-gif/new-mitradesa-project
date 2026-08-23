@@ -228,7 +228,7 @@ export class HalamanService {
       data: {
         judul: data.judul,
         slug: data.slug,
-        konten: sanitizedKonten,
+        konten: sanitizedKonten || "",
         excerpt: data.excerpt,
         gambarUrl: data.gambarUrl,
         status: data.status ?? 'DRAFT',

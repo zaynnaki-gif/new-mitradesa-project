@@ -2,7 +2,22 @@ import { PublicLayout } from '@/layouts';
 import { useIdentitasDesa } from '@/hooks/useIdentitasDesa';
 import { useSEO, getPageTitle } from '@/hooks/useSeo';
 import { EditorialHero, EditorialSection } from '@/components/editorial';
+import { useScrollReveal } from '@/hooks/useScrollReveal';
 import styles from './KontakPage.module.css';
+
+function ContactCard({ children, style, className = '', delay = 0 }: { children: React.ReactNode, style?: React.CSSProperties, className?: string, delay?: number }) {
+  const { ref, isVisible } = useScrollReveal({ threshold: 0.1 });
+  return (
+    <div 
+      ref={ref} 
+      className={`${styles.card} ${className} animate-on-scroll ${isVisible ? 'is-visible' : ''}`}
+      style={{ ...style, transitionDelay: `${delay}ms` }}
+    >
+      {children}
+    </div>
+  );
+}
+
 
 export default function KontakPage() {
   const { data: identitas } = useIdentitasDesa();
@@ -27,7 +42,7 @@ export default function KontakPage() {
           {/* Contact Cards */}
           <div className={styles.cardsGrid}>
             {/* Address */}
-            <div className={styles.card}>
+            <ContactCard delay={0}>
               <h2 className={styles.cardTitle}>
                 <div className={styles.cardIcon}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -53,10 +68,10 @@ export default function KontakPage() {
               ) : (
                 <p className={styles.emptyText}>Alamat belum tersedia</p>
               )}
-            </div>
+            </ContactCard>
 
             {/* Contact Info */}
-            <div className={styles.card}>
+            <ContactCard delay={100}>
               <h2 className={styles.cardTitle}>
                 <div className={styles.cardIcon}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -94,11 +109,11 @@ export default function KontakPage() {
                   <p className={styles.emptyText}>Informasi kontak belum tersedia</p>
                 )}
               </div>
-            </div>
+            </ContactCard>
 
             {/* Leadership - Full Width */}
             {(identitas?.kepalaDesa || identitas?.sekretarisDesa) && (
-              <div className={`${styles.card} ${styles.cardFull}`}>
+              <ContactCard className={styles.cardFull} delay={200}>
                 <h2 className={styles.cardTitle}>
                   <div className={styles.cardIcon}>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -124,7 +139,7 @@ export default function KontakPage() {
                     </div>
                   )}
                 </div>
-              </div>
+              </ContactCard>
             )}
           </div>
         </div>

@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Container, Typography, Button, Modal } from '../../../components/ui';
-import { LoadingState, ErrorState } from '../../../components/states';
-import { useAuthStore } from '../../../stores/auth.store';
-import { UmkmForm } from '../../../components/forms/UmkmForm';
+import { Typography, Button, Modal } from '@/components/ui';
+import { LoadingState, ErrorState } from '@/components/states';
+import { useAuthStore } from '@/stores/auth.store';
+import { UmkmForm } from '@/components/forms/UmkmForm';
+import { AdminLayout } from '@/layouts';
+import { API_URL } from '@/lib/constants';
+import styles from './UmkmPage.module.css';
 
 interface Umkm {
   id: string;
@@ -48,7 +51,7 @@ export function UmkmPage() {
       const headers: HeadersInit = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      const res = await fetch(`/api/umkm?${params}`, { headers });
+      const res = await fetch(`${API_URL}/umkm?${params}`, { headers });
       const result = await res.json();
 
       if (result.success) {
@@ -96,7 +99,7 @@ export function UmkmPage() {
       const headers: HeadersInit = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      const res = await fetch(`/api/umkm/${id}`, { method: 'DELETE', headers });
+      const res = await fetch(`${API_URL}/umkm/${id}`, { method: 'DELETE', headers });
       const result = await res.json();
       if (result.success) {
         fetchData(meta.page);
@@ -109,61 +112,78 @@ export function UmkmPage() {
   };
 
   return (
-    <Container>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-        <Typography variant="h2">Kelola UMKM</Typography>
-        <Button onClick={handleOpenCreate}>Tambah UMKM</Button>
-      </div>
-
-      <div style={{ marginBottom: '1rem', display: 'flex', gap: '0.5rem' }}>
-        <input 
-          type="text" 
-          value={search} 
-          onChange={(e) => setSearch(e.target.value)} 
-          placeholder="Cari nama..." 
-          style={{ padding: '0.5rem', border: '1px solid #ccc', borderRadius: '4px' }}
-        />
-        <Button onClick={handleSearch} variant="secondary">Cari</Button>
-      </div>
-
-      {loading && <LoadingState />}
-      {error && <ErrorState message={error} onRetry={() => fetchData()} />}
-
-      {!loading && !error && (
-        <div style={{ overflowX: 'auto', marginTop: '1rem', WebkitOverflowScrolling: 'touch' }}>
-          <table style={{ width: '100%', minWidth: '600px', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid #eee', textAlign: 'left' }}>
-                <th style={{ padding: '0.5rem' }}>Nama</th>
-                <th style={{ padding: '0.5rem' }}>Kategori</th>
-                <th style={{ padding: '0.5rem' }}>Pemilik</th>
-                <th style={{ padding: '0.5rem' }}>Harga</th>
-                <th style={{ padding: '0.5rem' }}>Status</th>
-                <th style={{ padding: '0.5rem', whiteSpace: 'nowrap' }}>Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.map((item) => (
-                <tr key={item.id} style={{ borderBottom: '1px solid #eee' }}>
-                  <td style={{ padding: '0.5rem' }}>{item.nama}</td>
-                  <td style={{ padding: '0.5rem' }}>{item.kategori}</td>
-                  <td style={{ padding: '0.5rem' }}>{item.pemilik}</td>
-                  <td style={{ padding: '0.5rem' }}>{item.harga || '-'}</td>
-                  <td style={{ padding: '0.5rem' }}>{item.isAktif ? 'Aktif' : 'Nonaktif'}</td>
-                  <td style={{ padding: '0.5rem', whiteSpace: 'nowrap' }}>
-                    <Button onClick={() => handleOpenEdit(item)} variant="outline" size="sm" style={{ marginRight: '0.5rem' }}>Edit</Button>
-                    <Button onClick={() => handleDelete(item.id)} variant="outline" size="sm" style={{ color: 'red', borderColor: 'red' }}>Hapus</Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+    <AdminLayout>
+      <div className={styles.container}>
+        <div className={styles.header}>
+          <Typography variant="h2">Kelola UMKM</Typography>
+          <Button onClick={handleOpenCreate}>Tambah UMKM</Button>
         </div>
-      )}
 
-      <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={editingItem ? 'Edit UMKM' : 'Tambah UMKM'}>
-        <UmkmForm initialData={editingItem} onSuccess={handleFormSuccess} onCancel={handleCloseModal} />
-      </Modal>
-    </Container>
+        <div className={styles.filters}>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+            placeholder="Cari nama..."
+            className={styles.searchInput}
+          />
+          <Button onClick={handleSearch} variant="secondary">Cari</Button>
+        </div>
+
+        {loading && <LoadingState />}
+        {error && <ErrorState message={error} onRetry={() => fetchData()} />}
+
+        {!loading && !error && (
+          <div className={styles.tableContainer}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th className={styles.th}>Nama</th>
+                  <th className={styles.th}>Kategori</th>
+                  <th className={styles.th}>Pemilik</th>
+                  <th className={styles.th}>Harga</th>
+                  <th className={styles.th}>Status</th>
+                  <th className={styles.th}>Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className={styles.emptyState}>
+                      Belum ada data UMKM
+                    </td>
+                  </tr>
+                ) : data.map((item) => (
+                  <tr key={item.id} className={styles.tr}>
+                    <td className={styles.td}>{item.nama}</td>
+                    <td className={styles.td}>{item.kategori}</td>
+                    <td className={styles.td}>{item.pemilik}</td>
+                    <td className={styles.td}>{item.harga || '-'}</td>
+                    <td className={styles.td}>
+                      <span className={`${styles.badge} ${item.isAktif ? styles.badgeAktif : styles.badgeNonaktif}`}>
+                        {item.isAktif ? 'Aktif' : 'Nonaktif'}
+                      </span>
+                    </td>
+                    <td className={styles.td}>
+                      <div className={styles.actionsRow}>
+                        <Button onClick={() => handleOpenEdit(item)} variant="outline" size="sm">Edit</Button>
+                        <Button onClick={() => handleDelete(item.id)} variant="outline" size="sm" className={styles.btnHapus}>Hapus</Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <Modal isOpen={isModalOpen} onClose={handleCloseModal} title={editingItem ? 'Edit UMKM' : 'Tambah UMKM'}>
+          <UmkmForm initialData={editingItem} onSuccess={handleFormSuccess} onCancel={handleCloseModal} />
+        </Modal>
+      </div>
+    </AdminLayout>
   );
 }
+
+export default UmkmPage;

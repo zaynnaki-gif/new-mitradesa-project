@@ -6,6 +6,7 @@ import { useIdentitasDesa } from '@/hooks/useIdentitasDesa';
 import { useSEO, getPageTitle } from '@/hooks/useSeo';
 import { API_URL } from '@/lib/constants';
 import { EditorialHero, EditorialSection } from '@/components/editorial';
+import { useScrollReveal } from '@/hooks/useScrollReveal';
 import styles from './GaleriPage.module.css';
 
 interface MediaItem {
@@ -16,6 +17,30 @@ interface MediaItem {
   fileType: string;
   mimeType: string;
   alt: string | null;
+}
+
+function GalleryItem({ item, index, onClick }: { item: MediaItem; index: number; onClick: () => void }) {
+  const { ref, isVisible } = useScrollReveal({ threshold: 0.1 });
+
+  return (
+    <button
+      ref={ref}
+      className={`${styles.galleryItem} animate-on-scroll hover-zoom-container ${isVisible ? 'is-visible' : ''}`}
+      style={{ transitionDelay: `${index * 100}ms` }}
+      onClick={onClick}
+      aria-label={`Lihat foto ${item.nama}`}
+    >
+      <img
+        src={item.fileUrl}
+        alt={item.alt || item.nama}
+        className={styles.galleryImage}
+        loading="lazy"
+      />
+      <div className={styles.galleryOverlay}>
+        <span className={styles.galleryName}>{item.nama}</span>
+      </div>
+    </button>
+  );
 }
 
 export default function GaleriPage() {
@@ -93,23 +118,13 @@ export default function GaleriPage() {
 
           {!loading && !error && media.length > 0 && (
             <div className={styles.galleryGrid}>
-              {media.map((item) => (
-                <button
-                  key={item.id}
-                  className={styles.galleryItem}
-                  onClick={() => setSelectedItem(item)}
-                  aria-label={`Lihat foto ${item.nama}`}
-                >
-                  <img
-                    src={item.fileUrl}
-                    alt={item.alt || item.nama}
-                    className={styles.galleryImage}
-                    loading="lazy"
-                  />
-                  <div className={styles.galleryOverlay}>
-                    <span className={styles.galleryName}>{item.nama}</span>
-                  </div>
-                </button>
+              {media.map((item, index) => (
+                <GalleryItem 
+                  key={item.id} 
+                  item={item} 
+                  index={index} 
+                  onClick={() => setSelectedItem(item)} 
+                />
               ))}
             </div>
           )}

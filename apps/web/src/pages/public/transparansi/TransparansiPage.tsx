@@ -5,7 +5,66 @@ import { useIdentitasDesa } from '@/hooks/useIdentitasDesa';
 import { useSEO, getPageTitle } from '@/hooks/useSeo';
 import { useApbdes } from '@/hooks/useTransparansi';
 import { EditorialHero, EditorialSection } from '@/components/editorial';
+import { useScrollReveal } from '@/hooks/useScrollReveal';
 import styles from './TransparansiPage.module.css';
+
+function SummaryCard({ label, value, type, delay = 0 }: { label: string, value: string, type: 'pendapatan' | 'belanja' | 'pembiayaan', delay?: number }) {
+  const { ref, isVisible } = useScrollReveal({ threshold: 0.1 });
+  return (
+    <div 
+      ref={ref} 
+      className={`${styles.summaryCard} animate-on-scroll ${isVisible ? 'is-visible' : ''}`}
+      style={{ transitionDelay: `${delay}ms` }}
+    >
+      <span className={styles.summaryLabel}>{label}</span>
+      <span className={`${styles.summaryValue} ${styles[type]}`}>{value}</span>
+    </div>
+  );
+}
+
+function ItemCard({ item, percentage, type, delay = 0 }: { item: any, percentage: number, type: 'pendapatan' | 'belanja' | 'pembiayaan', delay?: number }) {
+  const { ref, isVisible } = useScrollReveal({ threshold: 0.1 });
+  const formatRupiah = (angka: number) => {
+    if (isNaN(angka) || angka === null || angka === undefined) return 'Rp 0';
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(angka);
+  };
+  
+  return (
+    <div 
+      ref={ref} 
+      className={`${styles.itemCard} animate-on-scroll ${isVisible ? 'is-visible' : ''}`}
+      style={{ transitionDelay: `${delay}ms` }}
+    >
+      <div className={styles.itemTitle}>{item.nama}</div>
+      <div className={styles.itemStats}>
+        <div className={styles.statRow}>
+          <span className={styles.statLabel}>Anggaran</span>
+          <span className={styles.statValue}>{formatRupiah(item.anggaran)}</span>
+        </div>
+        <div className={styles.statRow}>
+          <span className={styles.statLabel}>Realisasi</span>
+          <span className={styles.statValue}>{formatRupiah(item.realisasi)}</span>
+        </div>
+        <div className={styles.progressBarContainer}>
+          <div 
+            className={`${styles.progressBar} ${styles[type]}`} 
+            style={{ width: `${percentage}%` }}
+          />
+        </div>
+        <div className={styles.statRow}>
+          <span className={styles.statLabel}>Persentase</span>
+          <span className={styles.statValue}>{percentage}%</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 export default function TransparansiPage() {
   const { data: identitas } = useIdentitasDesa();
@@ -65,24 +124,9 @@ export default function TransparansiPage() {
             <>
               {/* Summary Cards */}
               <div className={styles.summaryGrid}>
-                <div className={styles.summaryCard}>
-                  <span className={styles.summaryLabel}>Total Pendapatan</span>
-                  <span className={`${styles.summaryValue} ${styles.pendapatan}`}>
-                    {formatRupiah(apbdes.totalPendapatan)}
-                  </span>
-                </div>
-                <div className={styles.summaryCard}>
-                  <span className={styles.summaryLabel}>Total Belanja</span>
-                  <span className={`${styles.summaryValue} ${styles.belanja}`}>
-                    {formatRupiah(apbdes.totalBelanja)}
-                  </span>
-                </div>
-                <div className={styles.summaryCard}>
-                  <span className={styles.summaryLabel}>Pembiayaan Netto</span>
-                  <span className={`${styles.summaryValue} ${styles.pembiayaan}`}>
-                    {formatRupiah(apbdes.totalPembiayaan)}
-                  </span>
-                </div>
+                <SummaryCard label="Total Pendapatan" value={formatRupiah(apbdes.totalPendapatan)} type="pendapatan" delay={0} />
+                <SummaryCard label="Total Belanja" value={formatRupiah(apbdes.totalBelanja)} type="belanja" delay={100} />
+                <SummaryCard label="Pembiayaan Netto" value={formatRupiah(apbdes.totalPembiayaan)} type="pembiayaan" delay={200} />
               </div>
 
               {/* Details */}
@@ -93,30 +137,14 @@ export default function TransparansiPage() {
                     <span className={styles.columnTitle}>Pendapatan</span>
                   </div>
                   <div className={styles.itemContainer}>
-                    {apbdes.items.filter(i => i.kategori === 'PENDAPATAN').map(item => (
-                      <div key={item.id} className={styles.itemCard}>
-                        <div className={styles.itemTitle}>{item.nama}</div>
-                        <div className={styles.itemStats}>
-                          <div className={styles.statRow}>
-                            <span className={styles.statLabel}>Anggaran</span>
-                            <span className={styles.statValue}>{formatRupiah(item.anggaran)}</span>
-                          </div>
-                          <div className={styles.statRow}>
-                            <span className={styles.statLabel}>Realisasi</span>
-                            <span className={styles.statValue}>{formatRupiah(item.realisasi)}</span>
-                          </div>
-                          <div className={styles.progressBarContainer}>
-                            <div 
-                              className={`${styles.progressBar} ${styles.pendapatan}`} 
-                              style={{ width: `${calculatePercentage(item.realisasi, item.anggaran)}%` }}
-                            />
-                          </div>
-                          <div className={styles.statRow}>
-                            <span className={styles.statLabel}>Persentase</span>
-                            <span className={styles.statValue}>{calculatePercentage(item.realisasi, item.anggaran)}%</span>
-                          </div>
-                        </div>
-                      </div>
+                    {apbdes.items.filter(i => i.kategori === 'PENDAPATAN').map((item, index) => (
+                      <ItemCard 
+                        key={item.id} 
+                        item={item} 
+                        percentage={calculatePercentage(item.realisasi, item.anggaran)} 
+                        type="pendapatan" 
+                        delay={index * 100} 
+                      />
                     ))}
                   </div>
                 </div>
@@ -127,30 +155,14 @@ export default function TransparansiPage() {
                     <span className={styles.columnTitle}>Belanja</span>
                   </div>
                   <div className={styles.itemContainer}>
-                    {apbdes.items.filter(i => i.kategori === 'BELANJA').map(item => (
-                      <div key={item.id} className={styles.itemCard}>
-                        <div className={styles.itemTitle}>{item.nama}</div>
-                        <div className={styles.itemStats}>
-                          <div className={styles.statRow}>
-                            <span className={styles.statLabel}>Anggaran</span>
-                            <span className={styles.statValue}>{formatRupiah(item.anggaran)}</span>
-                          </div>
-                          <div className={styles.statRow}>
-                            <span className={styles.statLabel}>Realisasi</span>
-                            <span className={styles.statValue}>{formatRupiah(item.realisasi)}</span>
-                          </div>
-                          <div className={styles.progressBarContainer}>
-                            <div 
-                              className={`${styles.progressBar} ${styles.belanja}`} 
-                              style={{ width: `${calculatePercentage(item.realisasi, item.anggaran)}%` }}
-                            />
-                          </div>
-                          <div className={styles.statRow}>
-                            <span className={styles.statLabel}>Persentase</span>
-                            <span className={styles.statValue}>{calculatePercentage(item.realisasi, item.anggaran)}%</span>
-                          </div>
-                        </div>
-                      </div>
+                    {apbdes.items.filter(i => i.kategori === 'BELANJA').map((item, index) => (
+                      <ItemCard 
+                        key={item.id} 
+                        item={item} 
+                        percentage={calculatePercentage(item.realisasi, item.anggaran)} 
+                        type="belanja" 
+                        delay={index * 100} 
+                      />
                     ))}
                   </div>
                 </div>
@@ -161,30 +173,14 @@ export default function TransparansiPage() {
                     <span className={styles.columnTitle}>Pembiayaan</span>
                   </div>
                   <div className={styles.itemContainer}>
-                    {apbdes.items.filter(i => i.kategori === 'PEMBIAYAAN').map(item => (
-                      <div key={item.id} className={styles.itemCard}>
-                        <div className={styles.itemTitle}>{item.nama}</div>
-                        <div className={styles.itemStats}>
-                          <div className={styles.statRow}>
-                            <span className={styles.statLabel}>Anggaran</span>
-                            <span className={styles.statValue}>{formatRupiah(item.anggaran)}</span>
-                          </div>
-                          <div className={styles.statRow}>
-                            <span className={styles.statLabel}>Realisasi</span>
-                            <span className={styles.statValue}>{formatRupiah(item.realisasi)}</span>
-                          </div>
-                          <div className={styles.progressBarContainer}>
-                            <div 
-                              className={`${styles.progressBar} ${styles.pembiayaan}`} 
-                              style={{ width: `${calculatePercentage(item.realisasi, item.anggaran)}%` }}
-                            />
-                          </div>
-                          <div className={styles.statRow}>
-                            <span className={styles.statLabel}>Persentase</span>
-                            <span className={styles.statValue}>{calculatePercentage(item.realisasi, item.anggaran)}%</span>
-                          </div>
-                        </div>
-                      </div>
+                    {apbdes.items.filter(i => i.kategori === 'PEMBIAYAAN').map((item, index) => (
+                      <ItemCard 
+                        key={item.id} 
+                        item={item} 
+                        percentage={calculatePercentage(item.realisasi, item.anggaran)} 
+                        type="pembiayaan" 
+                        delay={index * 100} 
+                      />
                     ))}
                   </div>
                 </div>

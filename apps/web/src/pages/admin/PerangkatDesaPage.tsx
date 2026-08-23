@@ -1,8 +1,11 @@
-import { useState, useEffect } from 'react';
-import { Container, Typography, Button, Badge } from '../../components/ui';
-import { LoadingState, ErrorState } from '../../components/states';
-import { useAuthStore } from '../../stores/auth.store';
-import styles from '../../styles/AdminShared.module.css';
+import { useState, useEffect, useCallback } from 'react';
+import { AdminLayout } from '@/layouts';
+import { Button, Select, Badge } from '@/components/ui';
+import { LoadingState, ErrorState } from '@/components/states';
+import { Pagination } from '@/components/Pagination';
+import { useAuthStore } from '@/stores/auth.store';
+import { API_URL } from '@/lib/constants';
+import styles from './PerangkatDesaPage.module.css';
 
 interface PerangkatDesa {
   id: string;
@@ -16,6 +19,9 @@ interface PerangkatDesa {
   fotoUrl: string | null;
   accountId: string | null;
   accountUsername: string | null;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
   isAktif: boolean;
 }
 
@@ -26,169 +32,345 @@ interface PaginationMeta {
   totalPages: number;
 }
 
-export function PerangkatDesaPage() {
+const JABATAN_OPTIONS = [
+  { value: 'KEPALA_DESA', label: 'Kepala Desa' },
+  { value: 'SEKRETARIS', label: 'Sekretaris Desa' },
+  { value: 'KAUR', label: 'Kaur (Kepala Urusan)' },
+  { value: 'KASI', label: 'Kasi (Kepala Seksi)' },
+  { value: 'RT', label: 'RT' },
+  { value: 'RW', label: 'RW' },
+  { value: 'LAINNYA', label: 'Lainnya' },
+];
+
+const STATUS_OPTIONS = [
+  { value: 'AKTIF', label: 'Aktif' },
+  { value: 'NONAKTIF', label: 'Nonaktif' },
+];
+
+export default function PerangkatDesaPage() {
   const { token } = useAuthStore();
-  const [data, setData] = useState<PerangkatDesa[]>([]);
-  const [meta, setMeta] = useState<PaginationMeta>({ page: 1, limit: 20, total: 0, totalPages: 0 });
+
+  const [items, setItems] = useState<PerangkatDesa[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
+  const [meta, setMeta] = useState<PaginationMeta | null>(null);
 
-  const fetchData = async (page = 1, searchQuery = '') => {
+  // Filters
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('');
+
+  // Modal
+  const [showModal, setShowModal] = useState(false);
+  const [editing, setEditing] = useState<PerangkatDesa | null>(null);
+  const [formLoading, setFormLoading] = useState(false);
+  const [formData, setFormData] = useState({ jabatan: '', status: 'AKTIF' });
+
+  // Penduduk search for linking
+  const [pendudukSearch, setPendudukSearch] = useState('');
+  const [selectedPenduduk, setSelectedPenduduk] = useState<{ id: string; nik: string; namaLengkap: string } | null>(null);
+  const [pendudukLoading, setPendudukLoading] = useState(false);
+  const [pendudukList, setPendudukList] = useState<{ id: string; nik: string; namaLengkap: string }[]>([]);
+
+  const fetchItems = useCallback(async (page = 1) => {
     setLoading(true);
     setError(null);
+    const params = new URLSearchParams({ page: String(page), limit: '20' });
+    if (search) params.set('search', search);
+    if (status) params.set('status', status);
+
     try {
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: '20',
-        ...(searchQuery && { search: searchQuery }),
+      const res = await fetch(`${API_URL}/perangkat-desa?${params}`, {
+        headers: { Authorization: `Bearer ${token}` },
       });
-
-      const headers: HeadersInit = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-
-      const res = await fetch(`/api/perangkat-desa?${params}`, { headers });
-      const result = await res.json();
-
-      if (result.success) {
-        setData(result.data || []);
-        if (result.meta) setMeta(result.meta);
+      const data = await res.json();
+      if (data.success) {
+        setItems(data.data || []);
+        setMeta(data.meta);
       } else {
-        throw new Error(result.error?.message || 'Failed to fetch');
+        throw new Error(data.error?.message || 'Gagal memuat data');
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
+    } catch (e: any) {
+      setError(e.message);
     } finally {
       setLoading(false);
     }
-  };
+  }, [token, search, status]);
 
+  useEffect(() => { fetchItems(); }, [fetchItems]);
+
+  // Search penduduk for linking
   useEffect(() => {
-    fetchData();
-  }, []);
-
-  const handleSearch = () => fetchData(1, search);
-
-  const handleDelete = async (id: string) => {
-    if (!confirm('Yakin ingin menghapus?')) return;
-    try {
-      const headers: HeadersInit = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-
-      const res = await fetch(`/api/perangkat-desa/${id}`, { method: 'DELETE', headers });
-      const result = await res.json();
-      if (result.success) {
-        fetchData(meta.page);
-      } else {
-        alert(result.error?.message || 'Gagal menghapus');
-      }
-    } catch (err) {
-      console.error('Error:', err);
-      alert('Gagal menghapus perangkat desa');
+    if (!pendudukSearch || pendudukSearch.length < 3) {
+      setPendudukList([]);
+      return;
     }
+    const timer = setTimeout(async () => {
+      setPendudukLoading(true);
+      try {
+        const res = await fetch(`${API_URL}/penduduk?search=${encodeURIComponent(pendudukSearch)}&limit=10`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await res.json();
+        if (data.success) {
+          setPendudukList(data.data.map((p: any) => ({ id: p.id, nik: p.nik, namaLengkap: p.namaLengkap })));
+        }
+      } catch { /* ignore */ }
+      finally { setPendudukLoading(false); }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [pendudukSearch, token]);
+
+  const openCreate = () => {
+    setEditing(null);
+    setFormData({ jabatan: '', status: 'AKTIF' });
+    setSelectedPenduduk(null);
+    setPendudukSearch('');
+    setPendudukList([]);
+    setShowModal(true);
   };
 
-  if (loading) {
-    return (
-      <Container>
-        <div style={{ padding: '2rem' }}>
-          <LoadingState message="Memuat data perangkat desa..." fullPage />
-        </div>
-      </Container>
-    );
-  }
+  const openEdit = (item: PerangkatDesa) => {
+    setEditing(item);
+    setFormData({ jabatan: item.jabatan, status: item.status });
+    setSelectedPenduduk(null);
+    setPendudukSearch('');
+    setPendudukList([]);
+    setShowModal(true);
+  };
 
-  if (error) {
-    return (
-      <Container>
-        <div style={{ padding: '2rem' }}>
-          <ErrorState title="Gagal Memuat Data" message={error} onRetry={() => fetchData()} />
-        </div>
-      </Container>
-    );
-  }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Validate
+    if (!editing && !selectedPenduduk) {
+      alert('Pilih penduduk terlebih dahulu');
+      return;
+    }
+    if (!formData.jabatan) {
+      alert('Jabatan wajib diisi');
+      return;
+    }
+
+    setFormLoading(true);
+    try {
+      const url = editing
+        ? `${API_URL}/perangkat-desa/${editing.id}`
+        : `${API_URL}/perangkat-desa`;
+      const method = editing ? 'PATCH' : 'POST';
+      const body: Record<string, unknown> = { ...formData };
+      if (!editing && selectedPenduduk) body.pendudukId = selectedPenduduk.id;
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setShowModal(false);
+        fetchItems(meta?.page || 1);
+      } else {
+        alert(data.error?.message || data.message || 'Terjadi kesalahan');
+      }
+    } catch { alert('Terjadi kesalahan'); }
+    finally { setFormLoading(false); }
+  };
+
+  const handleDelete = async (item: PerangkatDesa) => {
+    if (!confirm(`Hapus perangkat "${item.pendudukNama}" (${item.jabatan})?`)) return;
+    try {
+      const res = await fetch(`${API_URL}/perangkat-desa/${item.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success) fetchItems(meta?.page || 1);
+      else alert(data.error?.message || 'Gagal hapus');
+    } catch { alert('Terjadi kesalahan'); }
+  };
+
+  const formatDate = (date: string) => {
+    return new Date(date).toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric' });
+  };
 
   return (
-    <Container>
-      <div style={{ padding: '1.5rem' }}>
-        <div className={styles.pageHeader}>
-          <Typography variant="h2">Perangkat Desa</Typography>
+    <AdminLayout>
+      <div className={styles.container}>
+        {/* Header */}
+        <div className={styles.header}>
+          <div>
+            <h1 className={styles.title}>Perangkat Desa</h1>
+            <p className={styles.subtitle}>{meta?.total || 0} total perangkat desa</p>
+          </div>
+          <Button onClick={openCreate}>+ Tambah Perangkat</Button>
         </div>
 
-        {/* Search */}
+        {/* Filters */}
         <div className={styles.filters}>
-          <input
-            type="text"
-            placeholder="Cari NIK atau nama..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            className={styles.searchInput}
-          />
-          <Button variant="secondary" onClick={handleSearch}>Cari</Button>
+          <div className={styles.filterRow}>
+            <input
+              type="text"
+              placeholder="Cari NIK atau nama..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && fetchItems(1)}
+              className={styles.filterInput}
+              style={{ padding: '0.5rem', border: '1px solid var(--color-border)', borderRadius: '0.375rem', fontSize: '0.875rem', minWidth: '200px' }}
+            />
+            <Select
+              value={status}
+              onChange={e => setStatus(e.target.value)}
+              style={{ width: 140 }}
+            >
+              <option value="">Semua Status</option>
+              {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </Select>
+            <Button onClick={() => fetchItems(1)}>Cari</Button>
+            <Button variant="outline" onClick={() => { setSearch(''); setStatus(''); fetchItems(1); }}>Reset</Button>
+          </div>
         </div>
 
-        {/* Info */}
-        <Typography variant="body2" color="secondary" style={{ marginBottom: '1rem' }}>
-          Total: {meta.total} perangkat desa
-        </Typography>
+        {/* Content */}
+        {loading ? (
+          <LoadingState message="Memuat data..." fullPage />
+        ) : error ? (
+          <ErrorState title="Gagal Memuat Data" message={error} onRetry={() => fetchItems()} />
+        ) : (
+          <>
+            <div className={styles.tableWrapper}>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th>NIK</th>
+                    <th>Nama</th>
+                    <th>Jabatan</th>
+                    <th>Status</th>
+                    <th>Daftar</th>
+                    <th>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className={styles.empty}>
+                        Belum ada data.{' '}
+                        <Button size="sm" variant="outline" onClick={openCreate}>+ Tambah</Button>
+                      </td>
+                    </tr>
+                  ) : items.map(item => (
+                    <tr key={item.id}>
+                      <td className={styles.nik}>{item.pendudukNik}</td>
+                      <td>{item.pendudukNama}</td>
+                      <td><Badge color="primary">{item.jabatan}</Badge></td>
+                      <td>
+                        <Badge color={item.status === 'AKTIF' ? 'success' : 'secondary'}>
+                          {item.status}
+                        </Badge>
+                      </td>
+                      <td>{formatDate(item.createdAt)}</td>
+                      <td className={styles.actions}>
+                        <Button variant="outline" size="sm" onClick={() => openEdit(item)}>Edit</Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDelete(item)}
+                          style={{ color: 'var(--color-error)', borderColor: 'var(--color-error)' }}
+                        >Hapus</Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-        {/* Table */}
-        <div className={styles.tableContainer}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                {['NIK', 'Nama', 'Jabatan', 'Desa', 'Status', 'Aksi'].map((h) => (
-                  <th key={h} className={styles.th}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {data.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className={styles.emptyState}>
-                    Tidak ada data.
-                  </td>
-                </tr>
-              ) : data.map((item) => (
-                <tr key={item.id} className={styles.tr}>
-                  <td className={styles.td}>{item.pendudukNik}</td>
-                  <td className={styles.td}>{item.pendudukNama}</td>
-                  <td className={styles.td}>
-                    <Badge color="primary">{item.jabatan}</Badge>
-                  </td>
-                  <td className={styles.td}>{item.desaNama}</td>
-                  <td className={styles.td}>
-                    <Badge color={item.isAktif ? 'success' : 'error'}>{item.status}</Badge>
-                  </td>
-                  <td className={styles.td}>
-                    <Button variant="secondary" size="sm" onClick={() => handleDelete(item.id)}>
-                      Hapus
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+            {meta && meta.totalPages > 1 && (
+              <Pagination
+                currentPage={meta.page}
+                totalPages={meta.totalPages}
+                onPageChange={fetchItems}
+                disabled={loading}
+              />
+            )}
+          </>
+        )}
 
-        {/* Pagination */}
-        {meta.totalPages > 1 && (
-          <div className={styles.pagination}>
-            <span className={styles.pageInfo}>
-              Halaman {meta.page} dari {meta.totalPages}
-            </span>
-            <div className={styles.paginationControls}>
-              <Button variant="secondary" size="sm" disabled={meta.page <= 1} onClick={() => fetchData(meta.page - 1, search)}>
-                Sebelumnya
-              </Button>
-              <Button variant="secondary" size="sm" disabled={meta.page >= meta.totalPages} onClick={() => fetchData(meta.page + 1, search)}>
-                Selanjutnya
-              </Button>
+        {/* Modal */}
+        {showModal && (
+          <div className={styles.modalOverlay} onClick={() => setShowModal(false)}>
+            <div className={styles.modal} onClick={e => e.stopPropagation()}>
+              <div className={styles.modalHeader}>
+                <h2>{editing ? 'Edit Perangkat Desa' : 'Tambah Perangkat Desa'}</h2>
+                <button onClick={() => setShowModal(false)}>&times;</button>
+              </div>
+              <form onSubmit={handleSubmit} className={styles.form}>
+                {!editing && (
+                  <>
+                    <div className={styles.formGrid}>
+                      <div>
+                        <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500, fontSize: '0.875rem' }}>
+                          Penduduk *
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Ketik nama atau NIK untuk mencari..."
+                          value={pendudukSearch}
+                          onChange={e => {
+                            setPendudukSearch(e.target.value);
+                            setSelectedPenduduk(null);
+                          }}
+                          style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--color-border)', borderRadius: '0.375rem', fontSize: '0.875rem' }}
+                        />
+                        {pendudukLoading && <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', margin: '0.25rem 0 0' }}>Mencari...</p>}
+                        {pendudukList.length > 0 && !selectedPenduduk && (
+                          <ul style={{ listStyle: 'none', margin: '0.25rem 0 0', padding: '0.5rem', border: '1px solid var(--color-border)', borderRadius: '0.375rem', background: 'white', maxHeight: '150px', overflowY: 'auto' }}>
+                            {pendudukList.map(p => (
+                              <li key={p.id} style={{ padding: '0.25rem 0', cursor: 'pointer', fontSize: '0.875rem' }} onClick={() => { setSelectedPenduduk(p); setPendudukSearch(p.namaLengkap); setPendudukList([]); }}>
+                                {p.namaLengkap} — NIK: {p.nik}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        {selectedPenduduk && (
+                          <p style={{ fontSize: '0.875rem', color: 'var(--color-success)', margin: '0.25rem 0 0' }}>
+                            ✓ Dipilih: {selectedPenduduk.namaLengkap} (NIK: {selectedPenduduk.nik})
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                <div className={styles.formGrid}>
+                  <Select
+                    label="Jabatan *"
+                    value={formData.jabatan}
+                    onChange={e => setFormData(f => ({ ...f, jabatan: e.target.value }))}
+                    required
+                  >
+                    <option value="">Pilih Jabatan</option>
+                    {JABATAN_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </Select>
+                  <Select
+                    label="Status *"
+                    value={formData.status}
+                    onChange={e => setFormData(f => ({ ...f, status: e.target.value }))}
+                    required
+                  >
+                    {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </Select>
+                </div>
+
+                <div className={styles.formActions}>
+                  <Button type="button" variant="outline" onClick={() => setShowModal(false)}>Batal</Button>
+                  <Button type="submit" disabled={formLoading}>
+                    {formLoading ? 'Menyimpan...' : 'Simpan'}
+                  </Button>
+                </div>
+              </form>
             </div>
           </div>
         )}
       </div>
-    </Container>
+    </AdminLayout>
   );
 }

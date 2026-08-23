@@ -18,6 +18,8 @@ import mediaRoutes from './routes/cms/media.js';
 import serviceRoutes from './routes/service/index.js';
 import publicRoutes from './routes/public/layanan.js';
 import galeriRoutes from './routes/public/galeri.js';
+import verifikasiRoutes from './routes/public/verifikasi.js';
+import webhookRoutes from './routes/public/webhook.js';
 import citizenRoutes from './routes/citizen/request.js';
 import cmsAgendaRoutes from './routes/cms/agenda.js';
 import cmsUmkmRoutes from './routes/cms/umkm.js';
@@ -85,6 +87,8 @@ app.use('/api', serviceRoutes);
 // Public citizen routes (no auth required)
 app.use('/api/public/layanan', publicRoutes);
 app.use('/api/public/galeri', galeriRoutes);
+app.use('/api/public/verify', verifikasiRoutes);
+app.use('/api/public/webhook', webhookRoutes);
 app.use('/api/citizen', citizenRoutes);
 
 // API root

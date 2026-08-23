@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useScrollReveal } from '../../hooks/useScrollReveal';
 import styles from './SplitMediaSection.module.css';
 
 export interface MediaItem {
@@ -33,6 +34,8 @@ export function SplitMediaSection({
   const isReversed = layout === 'image-right';
   const isDark = variant === 'dark';
   const isFull = variant === 'full';
+  
+  const { ref, isVisible } = useScrollReveal();
 
   const bodyContent = Array.isArray(body)
     ? body.map((paragraph, index) => (
@@ -42,12 +45,13 @@ export function SplitMediaSection({
 
   return (
     <section
-      className={`${styles.split} ${isDark ? styles.splitDark : ''} ${isFull ? styles.splitFull : ''}`}
+      ref={ref}
+      className={`${styles.split} ${isDark ? styles.splitDark : ''} ${isFull ? styles.splitFull : ''} animate-on-scroll ${isVisible ? 'is-visible' : ''}`}
     >
       <div className={styles.splitInner}>
         <div className={isReversed ? styles.splitGridReverse : styles.splitGrid}>
           {/* Image - Large editorial */}
-          <div className={styles.splitImageWrapper}>
+          <div className={`${styles.splitImageWrapper} hover-zoom-container`}>
             {image?.url && (
               <>
                 <img
@@ -66,7 +70,7 @@ export function SplitMediaSection({
           </div>
 
           {/* Content */}
-          <div className={styles.splitContent}>
+          <div className={`${styles.splitContent} delay-200 animate-fade-up`}>
             {eyebrow && <span className={styles.splitEyebrow}>{eyebrow}</span>}
             <h2 className={styles.splitTitle}>{title}</h2>
             {bodyContent && <div className={styles.splitBody}>{bodyContent}</div>}

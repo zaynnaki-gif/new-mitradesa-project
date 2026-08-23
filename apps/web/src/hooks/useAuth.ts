@@ -1,5 +1,7 @@
 // hooks/useAuth.ts — standalone auth API helpers
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+
 export interface LoginResponse {
   token: string;
   tokenType: string;
@@ -29,7 +31,7 @@ export const authApi = {
    * Internal login
    */
   login: async (username: string, password: string): Promise<LoginResponse> => {
-    const response = await fetch('/api/auth/login', {
+    const response = await fetch(`${API_URL}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password }),
@@ -51,7 +53,7 @@ export const authApi = {
     const token = localStorage.getItem('token');
     if (!token) return;
 
-    await fetch('/api/auth/logout', {
+    await fetch(`${API_URL}/auth/logout`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -68,7 +70,7 @@ export const authApi = {
     const token = localStorage.getItem('token');
     if (!token) throw new Error('Not authenticated');
 
-    const response = await fetch('/api/auth/me', {
+    const response = await fetch(`${API_URL}/auth/me`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -87,7 +89,7 @@ export const authApi = {
    * Request OTP for citizen
    */
   requestOtp: async (nik: string): Promise<CitizenOtpResponse> => {
-    const response = await fetch('/api/auth/citizen/request-otp', {
+    const response = await fetch(`${API_URL}/auth/citizen/request-otp`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ nik }),
@@ -106,7 +108,7 @@ export const authApi = {
    * Verify OTP for citizen
    */
   verifyOtp: async (challenge: string, otp: string): Promise<CitizenVerifyResponse> => {
-    const response = await fetch('/api/auth/citizen/verify-otp', {
+    const response = await fetch(`${API_URL}/auth/citizen/verify-otp`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ challenge, otp }),
@@ -128,7 +130,7 @@ export const authApi = {
     const token = localStorage.getItem('citizen_token');
     if (!token) return;
 
-    await fetch('/api/auth/citizen/logout', {
+    await fetch(`${API_URL}/auth/citizen/logout`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,

@@ -55,6 +55,7 @@ export interface DynamicFormProps {
   onSubmit?: (values: Record<string, unknown>) => void;
   onChange?: (values: Record<string, unknown>) => void;
   disabled?: boolean;
+  readOnlyFields?: string[];
   showLabels?: boolean;
   className?: string;
 }
@@ -168,6 +169,7 @@ interface FieldInputProps {
   onChange: (key: string, value: unknown) => void;
   error?: string;
   disabled?: boolean;
+  readOnly?: boolean;
   showLabel?: boolean;
 }
 
@@ -177,6 +179,7 @@ function FieldInput({
   onChange,
   error,
   disabled = false,
+  readOnly = false,
   showLabel = true,
 }: FieldInputProps) {
   const { key, label, type, placeholder, options, required } = field;
@@ -192,7 +195,8 @@ function FieldInput({
       ? 'border-red-500 focus:ring-red-200'
       : 'border-gray-300 focus:ring-blue-200 focus:border-blue-500'
   }`;
-  const disabledClass = disabled ? 'bg-gray-100 cursor-not-allowed' : '';
+  const disabledClass = (disabled || readOnly) ? 'bg-gray-100 cursor-not-allowed' : '';
+  const isInputDisabled = disabled || readOnly;
 
   const renderInput = () => {
     const commonProps = {
@@ -214,7 +218,8 @@ function FieldInput({
             value={(value as string) || ''}
             onChange={(e) => handleChange(e.target.value)}
             placeholder={placeholder || `Masukkan ${label.toLowerCase()}`}
-            disabled={disabled}
+            disabled={isInputDisabled}
+            readOnly={readOnly}
             className={`${baseClass} ${disabledClass}`}
             maxLength={type === 'NIK' ? 16 : undefined}
             autoComplete={type === 'EMAIL' ? 'email' : type === 'PHONE' ? 'tel' : undefined}
@@ -230,7 +235,8 @@ function FieldInput({
             value={(value as number) ?? ''}
             onChange={(e) => handleChange(e.target.value ? Number(e.target.value) : '')}
             placeholder={placeholder || `Masukkan angka`}
-            disabled={disabled}
+            disabled={isInputDisabled}
+            readOnly={readOnly}
             className={`${baseClass} ${disabledClass}`}
             {...commonProps}
           />
@@ -243,7 +249,8 @@ function FieldInput({
             name={key}
             value={(value as string) || ''}
             onChange={(e) => handleChange(e.target.value)}
-            disabled={disabled}
+            disabled={isInputDisabled}
+            readOnly={readOnly}
             className={`${baseClass} ${disabledClass}`}
             {...commonProps}
           />
@@ -256,7 +263,8 @@ function FieldInput({
             name={key}
             value={(value as string) || ''}
             onChange={(e) => handleChange(e.target.value)}
-            disabled={disabled}
+            disabled={isInputDisabled}
+            readOnly={readOnly}
             className={`${baseClass} ${disabledClass}`}
             {...commonProps}
           />
@@ -269,7 +277,8 @@ function FieldInput({
             value={(value as string) || ''}
             onChange={(e) => handleChange(e.target.value)}
             placeholder={placeholder || `Masukkan ${label.toLowerCase()}`}
-            disabled={disabled}
+            disabled={isInputDisabled}
+            readOnly={readOnly}
             rows={4}
             className={`${baseClass} ${disabledClass} resize-none`}
             {...commonProps}
@@ -282,7 +291,7 @@ function FieldInput({
             name={key}
             value={(value as string) || ''}
             onChange={(e) => handleChange(e.target.value)}
-            disabled={disabled}
+            disabled={isInputDisabled}
             className={`${baseClass} ${disabledClass}`}
             {...commonProps}
           >
@@ -311,7 +320,7 @@ function FieldInput({
                       handleChange(multiValue.filter((v) => v !== opt.value));
                     }
                   }}
-                  disabled={disabled}
+                  disabled={isInputDisabled}
                   className="w-4 h-4 text-blue-600 rounded border-gray-300"
                 />
                 <span>{opt.label}</span>
@@ -331,7 +340,7 @@ function FieldInput({
                   value={opt.value}
                   checked={value === opt.value}
                   onChange={(e) => handleChange(e.target.value)}
-                  disabled={disabled}
+                  disabled={isInputDisabled}
                   className="w-4 h-4 text-blue-600 border-gray-300"
                 />
                 <span>{opt.label}</span>
@@ -347,7 +356,7 @@ function FieldInput({
               type="checkbox"
               checked={(value as boolean) || false}
               onChange={(e) => handleChange(e.target.checked)}
-              disabled={disabled}
+              disabled={isInputDisabled}
               className="w-4 h-4 text-blue-600 rounded border-gray-300"
             />
             <span>{placeholder || label}</span>
@@ -361,7 +370,8 @@ function FieldInput({
             value={(value as string) || ''}
             onChange={(e) => handleChange(e.target.value)}
             placeholder={placeholder || 'Masukkan alamat lengkap'}
-            disabled={disabled}
+            disabled={isInputDisabled}
+            readOnly={readOnly}
             rows={3}
             className={`${baseClass} ${disabledClass} resize-none`}
           />
@@ -379,7 +389,7 @@ function FieldInput({
                   handleChange(file);
                 }
               }}
-              disabled={disabled}
+              disabled={isInputDisabled}
               className={`${baseClass} ${disabledClass} file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100`}
             />
             {(value && typeof value === 'object' && !!(value as File).name) ? (
@@ -398,7 +408,8 @@ function FieldInput({
             value={(value as string) || ''}
             onChange={(e) => handleChange(e.target.value)}
             placeholder={placeholder}
-            disabled={disabled}
+            disabled={isInputDisabled}
+            readOnly={readOnly}
             className={`${baseClass} ${disabledClass}`}
           />
         );
@@ -436,6 +447,7 @@ export function DynamicForm({
   onSubmit,
   onChange,
   disabled = false,
+  readOnlyFields = [],
   showLabels = true,
   className = '',
 }: DynamicFormProps) {
@@ -539,6 +551,7 @@ export function DynamicForm({
                 onChange={handleChange}
                 error={errors[field.key]}
                 disabled={disabled}
+                readOnly={readOnlyFields.includes(field.key)}
                 showLabel={showLabels}
               />
             </div>
@@ -555,6 +568,7 @@ export function DynamicForm({
             onChange={handleChange}
             error={errors[field.key]}
             disabled={disabled}
+            readOnly={readOnlyFields.includes(field.key)}
             showLabel={showLabels}
           />
         </div>
@@ -571,6 +585,7 @@ export function DynamicForm({
                 onChange={handleChange}
                 error={errors[field.key]}
                 disabled={disabled}
+                readOnly={readOnlyFields.includes(field.key)}
                 showLabel={showLabels}
               />
             </div>
@@ -587,6 +602,7 @@ export function DynamicForm({
             onChange={handleChange}
             error={errors[field.key]}
             disabled={disabled}
+            readOnly={readOnlyFields.includes(field.key)}
             showLabel={showLabels}
           />
         </div>

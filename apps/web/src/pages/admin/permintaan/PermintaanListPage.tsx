@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@/layouts';
+import { useAuthStore } from '@/stores/auth.store';
 import { API_URL } from '@/lib/constants';
 import styles from './PermintaanListPage.module.css';
 
@@ -51,6 +52,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export default function PermintaanListPage() {
+  const { token } = useAuthStore();
   const navigate = useNavigate();
   const [requests, setRequests] = useState<RequestItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,7 +87,7 @@ export default function PermintaanListPage() {
       if (q) params.set('search', q);
 
       const res = await fetch(`${API_URL}/service-requests?${params}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error('Gagal memuat permintaan');
       const data = await res.json();

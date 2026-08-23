@@ -1,16 +1,24 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { API_URL } from '@/lib/constants';
 import styles from './VerifyPage.module.css';
 
 interface VerificationResult {
   nomorDokumen: string;
-  judul: string;
+  jenisSurat: string;
+  layanan?: string;
   status: string;
-  generatedAt: string;
-  signedAt?: string;
-  tujuan?: string;
+  tanggal: string;
+  pemohon?: {
+    nama?: string;
+    nik?: string;
+  };
+  penandatangan?: {
+    nama: string;
+    jabatan: string;
+    nip?: string;
+  };
   fileUrl?: string;
-  signature?: { penandatangan: string; jabatan: string };
 }
 
 type StatusColor = 'green' | 'yellow' | 'gray' | 'red';
@@ -46,7 +54,7 @@ export default function VerificationPage() {
 
     const fetchVerify = async () => {
       try {
-        const res = await fetch(`/api/public/verify/${token}`);
+        const res = await fetch(`${API_URL}/public/verify/${token}`);
         if (!res.ok) {
           setError('Dokumen tidak ditemukan atau sudah tidak valid');
           setLoading(false);
@@ -125,38 +133,63 @@ export default function VerificationPage() {
         {/* Document Info */}
         <div className={styles.infoCard}>
           <div className={styles.infoRow}>
-            <span className={styles.infoLabel}>Nomor Dokumen</span>
+            <span className={styles.infoLabel}>Nomor Registrasi Surat</span>
             <span className={`${styles.infoValue} ${styles.infoValueMono}`}>
-              {result.nomorDokumen}
+              {result.nomorDokumen || '-'}
             </span>
           </div>
           <div className={styles.infoRow}>
-            <span className={styles.infoLabel}>Judul Dokumen</span>
-            <span className={styles.infoValue}>{result.judul}</span>
+            <span className={styles.infoLabel}>Jenis Surat</span>
+            <span className={styles.infoValue}>{result.jenisSurat}</span>
           </div>
           <div className={styles.infoRow}>
-            <span className={styles.infoLabel}>Tanggal Pembuatan</span>
-            <span className={styles.infoValue}>{formatDate(result.generatedAt)}</span>
+            <span className={styles.infoLabel}>Layanan</span>
+            <span className={styles.infoValue}>{result.layanan || '-'}</span>
           </div>
-          {result.tujuan && (
+          <div className={styles.infoRow}>
+            <span className={styles.infoLabel}>Tanggal Dikeluarkan</span>
+            <span className={styles.infoValue}>{formatDate(result.tanggal)}</span>
+          </div>
+          
+          <div className={styles.infoSectionTitle}>Identitas Pemohon</div>
+          {result.pemohon ? (
+            <>
+              <div className={styles.infoRow}>
+                <span className={styles.infoLabel}>Nama Pemohon</span>
+                <span className={styles.infoValue}>{result.pemohon.nama || '-'}</span>
+              </div>
+              <div className={styles.infoRow}>
+                <span className={styles.infoLabel}>NIK (Disamarkan)</span>
+                <span className={styles.infoValue}>{result.pemohon.nik || '-'}</span>
+              </div>
+            </>
+          ) : (
             <div className={styles.infoRow}>
-              <span className={styles.infoLabel}>Tujuan</span>
-              <span className={styles.infoValue}>{result.tujuan}</span>
+              <span className={styles.infoValue}>Informasi pemohon tidak tersedia</span>
             </div>
           )}
-          {result.signature && (
+
+          <div className={styles.infoSectionTitle}>Profil Penandatangan</div>
+          {result.penandatangan ? (
+            <>
+              <div className={styles.infoRow}>
+                <span className={styles.infoLabel}>Nama Penandatangan</span>
+                <span className={styles.infoValue}>{result.penandatangan.nama}</span>
+              </div>
+              <div className={styles.infoRow}>
+                <span className={styles.infoLabel}>Jabatan (Pamong)</span>
+                <span className={styles.infoValue}>{result.penandatangan.jabatan}</span>
+              </div>
+              {result.penandatangan.nip && (
+                <div className={styles.infoRow}>
+                  <span className={styles.infoLabel}>NIP</span>
+                  <span className={styles.infoValue}>{result.penandatangan.nip}</span>
+                </div>
+              )}
+            </>
+          ) : (
             <div className={styles.infoRow}>
-              <span className={styles.infoLabel}>Ditandatangani Oleh</span>
-              <span className={styles.infoValue}>
-                {result.signature.penandatangan}
-                {result.signature.jabatan && ` - ${result.signature.jabatan}`}
-              </span>
-            </div>
-          )}
-          {result.signedAt && (
-            <div className={styles.infoRow}>
-              <span className={styles.infoLabel}>Waktu TTD</span>
-              <span className={styles.infoValue}>{formatDate(result.signedAt)}</span>
+              <span className={styles.infoValue}>Menunggu penandatanganan</span>
             </div>
           )}
         </div>

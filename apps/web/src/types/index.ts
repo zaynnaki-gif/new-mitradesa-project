@@ -32,32 +32,32 @@ export interface ApiError {
 // ============================================
 
 export interface Provinsi {
-  id: number;
+  id: string;
   kode: string;
   nama: string;
 }
 
 export interface Kabupaten {
-  id: number;
+  id: string;
   kode: string;
   nama: string;
-  provinsiId: number;
+  provinsiId: string;
   provinsi?: Provinsi;
 }
 
 export interface Kecamatan {
-  id: number;
+  id: string;
   kode: string;
   nama: string;
-  kabupatenId: number;
+  kabupatenId: string;
   kabupaten?: Kabupaten;
 }
 
 export interface Desa {
-  id: number;
+  id: string;
   kode: string;
   nama: string;
-  kecamatanId: number;
+  kecamatanId: string;
   kecamatan?: Kecamatan;
 }
 

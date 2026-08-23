@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Container, Typography, Button, Modal } from '../../../components/ui';
-import { LoadingState, ErrorState } from '../../../components/states';
-import { useAuthStore } from '../../../stores/auth.store';
-import { BeritaForm } from '../../../components/forms/BeritaForm';
-import styles from '../../../styles/AdminShared.module.css';
+import { Typography, Button, Modal } from '@/components/ui';
+import { LoadingState, ErrorState } from '@/components/states';
+import { useAuthStore } from '@/stores/auth.store';
+import { BeritaForm } from '@/components/forms/BeritaForm';
+import { AdminLayout } from '@/layouts';
+import { API_URL } from '@/lib/constants';
+import styles from '@/styles/AdminShared.module.css';
 
 interface Berita {
   id: string;
@@ -67,7 +69,7 @@ export function BeritaPage() {
       const headers: HeadersInit = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      const res = await fetch(`/api/berita?${params}`, { headers });
+      const res = await fetch(`${API_URL}/berita?${params}`, { headers });
       const result = await res.json();
 
       if (result.success) {
@@ -99,7 +101,7 @@ export function BeritaPage() {
       const headers: HeadersInit = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      const res = await fetch(`/api/berita/${id}/publish`, { method: 'POST', headers });
+      const res = await fetch(`${API_URL}/berita/${id}/publish`, { method: 'POST', headers });
       const result = await res.json();
       if (result.success) {
         fetchData(meta.page, search, statusFilter);
@@ -117,7 +119,7 @@ export function BeritaPage() {
       const headers: HeadersInit = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      const res = await fetch(`/api/berita/${id}/archive`, { method: 'POST', headers });
+      const res = await fetch(`${API_URL}/berita/${id}/archive`, { method: 'POST', headers });
       const result = await res.json();
       if (result.success) {
         fetchData(meta.page, search, statusFilter);
@@ -136,7 +138,7 @@ export function BeritaPage() {
       const headers: HeadersInit = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      const res = await fetch(`/api/berita/${id}`, { method: 'DELETE', headers });
+      const res = await fetch(`${API_URL}/berita/${id}`, { method: 'DELETE', headers });
       const result = await res.json();
       if (result.success) {
         fetchData(meta.page, search, statusFilter);
@@ -180,16 +182,16 @@ export function BeritaPage() {
 
   if (error && data.length === 0) {
     return (
-      <Container>
+      <AdminLayout>
         <div style={{ padding: '2rem' }}>
           <ErrorState message={error} onRetry={() => fetchData()} />
         </div>
-      </Container>
+      </AdminLayout>
     );
   }
 
   return (
-    <Container>
+    <AdminLayout>
       <div style={{ padding: '1.5rem' }}>
         {/* Header */}
         <div className={styles.pageHeader}>
@@ -392,7 +394,7 @@ export function BeritaPage() {
           />
         </Modal>
       </div>
-    </Container>
+    </AdminLayout>
   );
 }
 export default BeritaPage;

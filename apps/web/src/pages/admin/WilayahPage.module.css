@@ -26,6 +26,19 @@
   margin: 0;
 }
 
+.activeDesa {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.wilayahHint {
+  font-size: 0.75rem;
+  color: var(--color-success);
+  margin: 0.5rem 0 0 0;
+  padding-top: 0.5rem;
+  border-top: 1px solid #e5e7eb;
+}
+
 .headerActions {
   display: flex;
   gap: 0.5rem;
@@ -37,7 +50,7 @@
   padding: 1rem;
   border-radius: 0.5rem;
   margin-bottom: 1rem;
-  max-width: 400px;
+  max-width: 600px;
 }
 
 .treeContainer {

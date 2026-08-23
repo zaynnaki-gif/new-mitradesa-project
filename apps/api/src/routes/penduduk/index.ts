@@ -20,6 +20,46 @@ const querySchema = queryPendudukSchema;
 const idSchema = idParamSchema;
 
 /**
+ * @route   GET /api/penduduk/export
+ * @desc    Export penduduk data to CSV or XLSX
+ * @access  Private (Admin with penduduk.view)
+ */
+router.get(
+  '/export',
+  authenticateInternal(),
+  authorize('penduduk.view'),
+  asyncHandler(async (req, res) => {
+    const format = req.query.format === 'csv' ? 'csv' : 'xlsx';
+    const buffer = await (pendudukService as any).exportData(format);
+    
+    if (format === 'csv') {
+      res.header('Content-Type', 'text/csv');
+      res.attachment('penduduk.csv');
+      return res.send(buffer);
+    } else {
+      res.header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.attachment('penduduk.xlsx');
+      return res.send(buffer);
+    }
+  })
+);
+
+/**
+ * @route   POST /api/penduduk/import
+ * @desc    Import penduduk data from CSV
+ * @access  Private (Admin with penduduk.create)
+ */
+router.post(
+  '/import',
+  authenticateInternal(),
+  authorize('penduduk.create'),
+  asyncHandler(async (req, res) => {
+    const { csv } = req.body;
+    if (!csv) throw ApiError.badRequest('CSV data is required');
+    const result = await (pendudukService as any).importData(csv);
+    return response.success(res, result, 'Import completed');
+  })
+);/**
  * @route   GET /api/penduduk
  * @desc    Get all penduduks with pagination
  * @access  Private (Admin with penduduk.view)

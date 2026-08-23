@@ -33,7 +33,11 @@ const NAV_SECTIONS: NavSection[] = [
   {
     title: 'Surat',
     items: [
-      { label: 'Template Surat', href: '/admin/surat/templates', icon: '📝' },
+      { label: 'Persetujuan (TTE)', href: '/admin/surat/tte', icon: '📝' },
+      { label: 'Jenis Surat', href: '/admin/surat/jenis', icon: '📄' },
+      { label: 'Template Surat', href: '/admin/surat/templates', icon: '📋' },
+      { label: 'Penandatangan', href: '/admin/surat/penandatangan', icon: '✍️' },
+      { label: 'Penomoran Surat', href: '/admin/surat/penomoran', icon: '🔢' },
     ],
   },
   {
@@ -50,11 +54,45 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: 'Pemerintahan',
+    title: 'Master Data',
     items: [
+      { label: 'Penduduk', href: '/admin/master/penduduk', icon: '👤' },
+      { label: 'Keluarga', href: '/admin/master/keluarga', icon: '👨‍👩‍👧‍👦' },
+      { label: 'Mutasi Penduduk', href: '/admin/master/mutasi-penduduk', icon: '🔄' },
+      { label: 'Lembaga', href: '/admin/master/lembaga', icon: '🏛️' },
       { label: 'Identitas Desa', href: '/admin/master/identitas-desa', icon: '🏘️' },
       { label: 'Perangkat Desa', href: '/admin/master/perangkat-desa', icon: '👥' },
       { label: 'Wilayah', href: '/admin/master/wilayah', icon: '🗺️' },
+    ],
+  },
+  {
+    title: 'Kesehatan',
+    items: [
+      { label: 'Posyandu', href: '/admin/kesehatan/posyandu', icon: '🩺' },
+      { label: 'Ibu Hamil', href: '/admin/kesehatan/bumil', icon: '🤰' },
+    ],
+  },
+  {
+    title: 'Keuangan',
+    items: [
+      { label: 'Kas Umum', href: '/admin/keuangan/kas-umum', icon: '💰' },
+      { label: 'APBDes Entry', href: '/admin/keuangan/apbdes-entry', icon: '📑' },
+    ],
+  },
+  {
+    title: 'Pemerintahan',
+    items: [
+      { label: 'Bansos', href: '/admin/pemerintahan/bansos', icon: '🎁' },
+      { label: 'Saran & Aduan', href: '/admin/pemerintahan/saran', icon: '💬' },
+    ],
+  },
+  {
+    title: 'Sistem',
+    items: [
+      { label: 'User Management', href: '/admin/sistem/user-management', icon: '⚙️' },
+      { label: 'Activity Log', href: '/admin/sistem/activity-log', icon: '📜' },
+      { label: 'Konfigurasi', href: '/admin/sistem/config', icon: '🔧' },
+      { label: 'Export Data', href: '/admin/sistem/export', icon: '📥' },
     ],
   },
 ];

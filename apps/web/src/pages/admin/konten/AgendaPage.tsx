@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Container, Typography, Button, Modal } from '../../../components/ui';
-import { LoadingState, ErrorState } from '../../../components/states';
-import { useAuthStore } from '../../../stores/auth.store';
-import { AgendaForm } from '../../../components/forms/AgendaForm';
-import styles from '../../../styles/AdminShared.module.css';
+import { Typography, Button, Modal } from '@/components/ui';
+import { LoadingState, ErrorState } from '@/components/states';
+import { useAuthStore } from '@/stores/auth.store';
+import { AgendaForm } from '@/components/forms/AgendaForm';
+import { AdminLayout } from '@/layouts';
+import { API_URL } from '@/lib/constants';
+import styles from '@/styles/AdminShared.module.css';
 
 interface Agenda {
   id: string;
@@ -49,7 +51,7 @@ export function AgendaPage() {
       const headers: HeadersInit = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      const res = await fetch(`/api/agenda?${params}`, { headers });
+      const res = await fetch(`${API_URL}/api/agenda?${params}`, { headers });
       const result = await res.json();
 
       if (result.success) {
@@ -97,7 +99,7 @@ export function AgendaPage() {
       const headers: HeadersInit = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      const res = await fetch(`/api/agenda/${id}`, { method: 'DELETE', headers });
+      const res = await fetch(`${API_URL}/api/agenda/${id}`, { method: 'DELETE', headers });
       const result = await res.json();
       if (result.success) {
         fetchData(meta.page);
@@ -110,7 +112,7 @@ export function AgendaPage() {
   };
 
   return (
-    <Container>
+    <AdminLayout>
       <div style={{ padding: '1.5rem' }}>
         <div className={styles.pageHeader}>
           <Typography variant="h2">Kelola Agenda</Typography>
@@ -191,6 +193,6 @@ export function AgendaPage() {
           <AgendaForm initialData={editingItem} onSuccess={handleFormSuccess} onCancel={handleCloseModal} />
         </Modal>
       </div>
-    </Container>
+    </AdminLayout>
   );
 }

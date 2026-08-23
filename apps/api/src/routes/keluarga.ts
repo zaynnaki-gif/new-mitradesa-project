@@ -179,18 +179,25 @@ router.delete(
 );
 
 /**
- * POST /api/keluarga/export - Export semua keluarga ke CSV
+ * GET /api/keluarga/export - Export semua keluarga ke CSV/XLSX
  */
-router.post(
+router.get(
   '/export',
   authenticateInternal(),
   authorize('keluarga.view'),
-  asyncHandler(async (_req, res) => {
-    const csv = await keluargaService.exportToCsv();
-    const date = new Date().toISOString().split('T')[0];
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="keluarga_${date}.csv"`);
-    return res.send('﻿' + csv); // BOM for UTF-8
+  asyncHandler(async (req, res) => {
+    const format = req.query.format === 'csv' ? 'csv' : 'xlsx';
+    const buffer = await (keluargaService as any).exportData(format);
+    
+    if (format === 'csv') {
+      res.header('Content-Type', 'text/csv');
+      res.attachment('keluarga.csv');
+      return res.send(buffer);
+    } else {
+      res.header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.attachment('keluarga.xlsx');
+      return res.send(buffer);
+    }
   })
 );
 
@@ -202,13 +209,9 @@ router.post(
   authenticateInternal(),
   authorize('keluarga.create'),
   asyncHandler(async (req, res) => {
-    const { csv } = req.body as { csv: string };
-    if (!csv) {
-      throw new Error('File CSV diperlukan');
-    }
-
-    const result = await keluargaService.importFromCsv(csv);
-
+    const { csv } = req.body;
+    if (!csv) throw new Error('File CSV diperlukan');
+    const result = await (keluargaService as any).importData(csv);
     return response.success(res, result, 'Import selesai');
   })
 );
