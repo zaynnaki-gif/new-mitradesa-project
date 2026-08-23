@@ -117,27 +117,20 @@ jobs:
         env:
           VITE_API_URL: ${{ secrets.PROD_API_URL }}
 
-      - name: Deploy Web to Hostinger
-        uses: appleboy/scp-action@master
-        with:
-          host: ${{ secrets.HOSTINGER_HOST }}
-          username: ${{ secrets.HOSTINGER_USER }}
-          password: ${{ secrets.HOSTINGER_PASSWORD }}
-          port: ${{ secrets.HOSTINGER_PORT }}
-          command_timeout: 10m
-          source: "apps/web/dist/*"
-          target: "${{ secrets.HOSTINGER_WEB_PATH }}"
-          strip_components: 0
-          overwrite: true
+      - name: Install rsync & sshpass
+        run: sudo apt-get install -y rsync sshpass
 
-      - name: Clean Web folder
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.HOSTINGER_HOST }}
-          username: ${{ secrets.HOSTINGER_USER }}
-          password: ${{ secrets.HOSTINGER_PASSWORD }}
-          port: ${{ secrets.HOSTINGER_PORT }}
-          command_timeout: 10m
-          script: |
-            cd ${{ secrets.HOSTINGER_WEB_PATH }}
-            ls -la
+      - name: Deploy Web via rsync over SSH
+        env:
+          SSH_HOST: ${{ secrets.HOSTINGER_HOST }}
+          SSH_USER: ${{ secrets.HOSTINGER_USER }}
+          SSH_PASS: ${{ secrets.HOSTINGER_PASSWORD }}
+          SSH_PORT: ${{ secrets.HOSTINGER_PORT }}
+          DEST_PATH: ${{ secrets.HOSTINGER_WEB_PATH }}
+        run: |
+          export SSHPASS=$SSH_PASS
+          sshpass -e rsync -avz --delete --timeout=300 \
+            -e "ssh -p $SSH_PORT -o StrictHostKeyChecking=no -o ConnectTimeout=60" \
+            apps/web/dist/ \
+            $SSH_USER@$SSH_HOST:$DEST_PATH/
+          echo "Web deploy selesai!"
