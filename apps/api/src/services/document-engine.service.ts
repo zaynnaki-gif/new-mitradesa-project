@@ -116,13 +116,23 @@ export class DocumentEngineService {
     // 4. Generate verification token
     const verificationToken = generateVerificationToken();
 
-    // 5. Process template content
+    // 5. Load default penanda tangan for the village
+    let signatureImageUrl: string | undefined;
+    const defaultSignatory = await this.db.penandaTangan.findFirst({
+      where: { desaId, isActive: true },
+      orderBy: { createdAt: 'asc' },
+    });
+    if (defaultSignatory?.tandaTanganUrl) {
+      signatureImageUrl = defaultSignatory.tandaTanganUrl;
+    }
+
+    // 6. Process template content
     const processedContent = this.processContent(
       version.content as Record<string, unknown>,
       context as unknown as Record<string, unknown>
     );
 
-    // 6. Create document record with snapshot
+    // 7. Create document record with snapshot
     const document = await this.db.instanDokumen.create({
       data: {
         dokumenId: version.template.dokumen.id,
@@ -137,19 +147,25 @@ export class DocumentEngineService {
       },
     });
 
-    // 7. Generate PDF if requested
+    // 8. Generate PDF if requested
     if (generatePdf) {
       try {
         const pdfBuffer = await this.generatePdfFromContent(
           processedContent,
           context,
           version.kopConfig as Record<string, unknown> | undefined,
-          version.signatureConfig as Record<string, unknown> | undefined
+          version.signatureConfig as Record<string, unknown> | undefined,
+          {
+            signatureImageUrl,
+            verificationToken,
+            nomorDokumen,
+            judul,
+          }
         );
 
         // Store PDF
         const storageFile = await this.storage.upload(pdfBuffer, {
-          filename: 'document.pdf',
+          filename: `${nomorDokumen.replace(/[\/\\]/g, '-')}.pdf`,
           contentType: 'application/pdf',
         });
 
@@ -187,7 +203,13 @@ export class DocumentEngineService {
     content: unknown,
     context: BindingContext,
     kopConfig?: Record<string, unknown>,
-    signatureConfig?: Record<string, unknown>
+    signatureConfig?: Record<string, unknown>,
+    options?: {
+      signatureImageUrl?: string;
+      verificationToken?: string;
+      nomorDokumen?: string;
+      judul?: string;
+    }
   ): Promise<Buffer> {
     const contentObj = content as Record<string, unknown>;
 
@@ -204,6 +226,12 @@ export class DocumentEngineService {
       context as unknown as Record<string, unknown>
     );
 
+    // Merge signature config with TTE image
+    const mergedSignatureConfig = this.mergeSignatureConfig(
+      signatureConfig as Record<string, unknown>,
+      options?.signatureImageUrl
+    );
+
     // Build render options
     const renderOptions: RenderOptions = {
       layout: {
@@ -218,7 +246,7 @@ export class DocumentEngineService {
       },
       kop: kopConfig as RenderOptions['kop'],
       elements,
-      signature: signatureConfig as RenderOptions['signature'],
+      signature: mergedSignatureConfig,
       pageNumber: {
         enabled: true,
         format: 'Page {page} of {total}',
@@ -226,7 +254,36 @@ export class DocumentEngineService {
       },
     };
 
-    return generatePdf(renderOptions);
+    // Generate PDF with TTE and QR
+    // Note: QR overlay in PDF requires post-processing, currently handled in signature config
+    const pdfBuffer = await generatePdf(renderOptions);
+
+    return pdfBuffer;
+  }
+
+  /**
+   * Merge signature config with TTE image URL
+   */
+  private mergeSignatureConfig(
+    signatureConfig?: Record<string, unknown>,
+    signatureImageUrl?: string
+  ): RenderOptions['signature'] {
+    if (!signatureConfig && !signatureImageUrl) {
+      return undefined;
+    }
+
+    const merged = signatureConfig ? { ...signatureConfig } : {};
+
+    if (signatureImageUrl) {
+      merged.signatureImage = {
+        enabled: true,
+        url: signatureImageUrl,
+        width: 100,
+        height: 40,
+      };
+    }
+
+    return merged as RenderOptions['signature'];
   }
 
   /**

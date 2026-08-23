@@ -639,4 +639,85 @@ router.post(
   })
 );
 
+// ============================================================
+// Export Routes
+// ============================================================
+
+/**
+ * GET /api/documents/export/register
+ * Export document register to XLSX
+ */
+router.get(
+  '/export/register',
+  authenticateInternal(),
+  authorize('document.view'),
+  asyncHandler(async (req, res) => {
+    const { startDate, endDate, layananId, status, format = 'xlsx' } = req.query;
+
+    const options = {
+      startDate: startDate ? new Date(startDate as string) : undefined,
+      endDate: endDate ? new Date(endDate as string) : undefined,
+      layananId: layananId ? BigInt(layananId as string) : undefined,
+      status: status as string | undefined,
+      format: format as 'xlsx' | 'csv',
+    };
+
+    const { exportDokumenRegisterXlsx, exportDokumenRegisterCsv } = await import(
+      '../../services/export-register.service.js'
+    );
+
+    const filename = `register-dokumen-${new Date().toISOString().split('T')[0]}`;
+
+    if (options.format === 'csv') {
+      const csv = await exportDokumenRegisterCsv(options);
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}.csv"`);
+      return res.send(csv);
+    } else {
+      const xlsx = await exportDokumenRegisterXlsx(options);
+      res.setHeader(
+        'Content-Type',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      );
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}.xlsx"`);
+      return res.send(xlsx);
+    }
+  })
+);
+
+/**
+ * GET /api/documents/export/permintaan
+ * Export service request register to XLSX
+ */
+router.get(
+  '/export/permintaan',
+  authenticateInternal(),
+  authorize('document.view'),
+  asyncHandler(async (req, res) => {
+    const { startDate, endDate, layananId, status, format = 'xlsx' } = req.query;
+
+    const options = {
+      startDate: startDate ? new Date(startDate as string) : undefined,
+      endDate: endDate ? new Date(endDate as string) : undefined,
+      layananId: layananId ? BigInt(layananId as string) : undefined,
+      status: status as string | undefined,
+      format: format as 'xlsx' | 'csv',
+    };
+
+    const { exportPermintaanRegisterXlsx } = await import(
+      '../../services/export-register.service.js'
+    );
+
+    const filename = `register-permintaan-${new Date().toISOString().split('T')[0]}`;
+
+    const xlsx = await exportPermintaanRegisterXlsx(options);
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}.xlsx"`);
+    return res.send(xlsx);
+  })
+);
+
 export default router;

@@ -7,6 +7,8 @@
 
 import PDFDocument from 'pdfkit';
 import { PassThrough } from 'stream';
+import fetch from 'node-fetch';
+import { generateQrCodeBuffer } from '../utils/qr-generator.js';
 
 // ============================================================
 // Types
@@ -277,7 +279,7 @@ export class PdfRenderer {
   // ============================================================
 
   /**
-   * Render Kop Surat header
+   * Render Kop Surat header (sync version)
    */
   renderKop(kop: KopConfig): void {
     const startY = this.doc.page.margins.top;
@@ -289,9 +291,9 @@ export class PdfRenderer {
     const logoSize = kop.logoDesa?.size || 60;
     const logoWidth = this.mmToPoints(logoSize / 10);
 
-    // Left logo (Desa)
+    // Left logo (Desa) - sync version, no image loading
     if (kop.logoDesa?.visible && kop.logoDesa.source) {
-      this.drawLogo(kop.logoDesa.source, this.doc.page.margins.left, startY, logoWidth);
+      this.drawLogoSync(kop.logoDesa.source, this.doc.page.margins.left, startY, logoWidth);
     }
 
     // Right logo (Kabupaten) - would draw here if source available
@@ -396,9 +398,9 @@ export class PdfRenderer {
   }
 
   /**
-   * Render signature block
+   * Render signature block with TTE and QR code (async)
    */
-  renderSignatureBlock(config: SignatureConfig): void {
+  async renderSignatureBlock(config: SignatureConfig, qrData?: string): Promise<void> {
     const signatureY = this.pageHeight - this.doc.page.margins.bottom - 200;
 
     // Move to signature area
@@ -423,10 +425,25 @@ export class PdfRenderer {
       this.currentY += 30;
     }
 
-    // Signature image
+    // Signature image (TTE)
     if (config.signatureImage?.enabled && config.signatureImage.url) {
-      // Would load and draw image here
-      this.currentY += config.signatureImage.height || 50;
+      try {
+        const imageData = await this.loadImageData(config.signatureImage.url);
+        if (imageData) {
+          const imgWidth = config.signatureImage.width || 100;
+          const imgHeight = config.signatureImage.height || 40;
+          const x = this.pageWidth - this.doc.page.margins.right - this.mmToPoints(imgWidth / 10);
+          this.doc.image(imageData, x, this.currentY, {
+            width: this.mmToPoints(imgWidth / 10),
+            height: this.mmToPoints(imgHeight / 10),
+          });
+          this.currentY += this.mmToPoints(imgHeight / 10) + 10;
+        }
+      } catch (error) {
+        console.warn('Failed to load signature image:', error);
+        // Draw signature line as fallback
+        this.currentY += 50;
+      }
     } else {
       // Draw signature line
       this.currentY += 60;
@@ -454,11 +471,82 @@ export class PdfRenderer {
         { align: 'right', width: this.contentWidth }
       );
     }
+
+    // QR Code
+    if (config.qrCode?.enabled && qrData) {
+      await this.renderQrCode(qrData);
+    }
+  }
+
+  /**
+   * Render QR code at bottom-left
+   */
+  private async renderQrCode(data: string): Promise<void> {
+    try {
+      const qrBuffer = await generateQrCodeBuffer(data);
+      const qrSize = 30; // mm
+      const x = this.doc.page.margins.left;
+      const y = this.pageHeight - this.doc.page.margins.bottom - this.mmToPoints(qrSize / 10) - 10;
+
+      this.doc.image(qrBuffer, x, y, {
+        width: this.mmToPoints(qrSize / 10),
+        height: this.mmToPoints(qrSize / 10),
+      });
+
+      // Add verification text below QR
+      this.doc.fontSize(6);
+      this.doc.fillColor('#666666');
+      this.doc.text(
+        'Scan untuk verifikasi',
+        x,
+        y + this.mmToPoints(qrSize / 10) + 2,
+        { width: this.mmToPoints(qrSize / 10) }
+      );
+      this.doc.fillColor('#000000');
+    } catch (error) {
+      console.warn('Failed to render QR code:', error);
+    }
   }
 
   // ============================================================
   // Private Rendering Methods
   // ============================================================
+
+  /**
+   * Load image data from URL
+   */
+  private async loadImageData(url: string): Promise<Buffer | null> {
+    try {
+      // Handle data URLs (base64)
+      if (url.startsWith('data:')) {
+        const base64 = url.split(',')[1];
+        return Buffer.from(base64, 'base64');
+      }
+
+      // Handle local/file URLs
+      if (url.startsWith('file://')) {
+        const fs = await import('fs/promises');
+        const path = await import('path');
+        const filePath = url.replace('file://', '');
+        return await fs.readFile(path.resolve(filePath));
+      }
+
+      // Handle HTTP/HTTPS URLs
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch image: ${response.status}`);
+        }
+        const arrayBuffer = await response.arrayBuffer();
+        return Buffer.from(arrayBuffer);
+      }
+
+      return null;
+    } catch (error) {
+      console.warn('Failed to load image from URL:', url, error);
+      return null;
+    }
+  }
 
   private renderText(element: TextElement): void {
     // Check for page break
@@ -649,8 +737,71 @@ export class PdfRenderer {
       this.currentY += 40;
     }
 
-    // Signature line
-    this.currentY += 40;
+    // Signature image
+    if (element.imageUrl) {
+      // Signature image will be rendered by the async method
+      this.currentY += 50;
+    } else {
+      // Signature line
+      this.currentY += 40;
+    }
+
+    if (element.name) {
+      this.doc.font('Helvetica').fontSize(11);
+      this.doc.text(element.name, 0, this.currentY, {
+        width: this.contentWidth,
+        align: element.position || 'right',
+      });
+      this.currentY += 18;
+    }
+
+    if (element.nip) {
+      this.doc.fontSize(10);
+      this.doc.text(`NIP. ${element.nip}`, 0, this.currentY, {
+        width: this.contentWidth,
+        align: element.position || 'right',
+      });
+    }
+  }
+
+  /**
+   * Async version of renderSignature that loads and draws signature image
+   */
+  async renderSignatureAsync(element: SignatureElement): Promise<void> {
+    const signatureY = this.pageHeight - this.doc.page.margins.bottom - 150;
+    this.currentY = signatureY;
+
+    if (element.title) {
+      this.doc.font('Helvetica-Bold').fontSize(11);
+      this.doc.text(element.title, 0, this.currentY, {
+        width: this.contentWidth,
+        align: element.position || 'right',
+      });
+      this.currentY += 40;
+    }
+
+    // Load and draw signature image
+    if (element.imageUrl) {
+      const imageData = await this.loadImageData(element.imageUrl);
+      if (imageData) {
+        const imgWidth = 80;
+        const imgHeight = 30;
+        const x = element.position === 'left'
+          ? this.doc.page.margins.left
+          : element.position === 'center'
+            ? this.pageWidth / 2 - this.mmToPoints(imgWidth / 10) / 2
+            : this.pageWidth - this.doc.page.margins.right - this.mmToPoints(imgWidth / 10);
+
+        this.doc.image(imageData, x, this.currentY, {
+          width: this.mmToPoints(imgWidth / 10),
+          height: this.mmToPoints(imgHeight / 10),
+        });
+        this.currentY += this.mmToPoints(imgHeight / 10);
+      }
+    } else {
+      // Signature line
+      this.currentY += 40;
+    }
 
     if (element.name) {
       this.doc.font('Helvetica').fontSize(11);
@@ -684,10 +835,10 @@ export class PdfRenderer {
     this.doc.moveTo(startX, y).lineTo(endX, y).stroke();
   }
 
-  private drawLogo(_url: string, _x: number, _y: number, _width: number): void {
+  private drawLogoSync(_url: string, _x: number, _y: number, width: number): void {
     // Logo loading would be implemented here
     // For now, just reserve space
-    // This would typically load image data and draw with doc.image()
+    this.currentY += width;
   }
 
   private addPageBreak(): void {

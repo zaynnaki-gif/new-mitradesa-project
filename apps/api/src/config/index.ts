@@ -1,4 +1,4 @@
-import dotenv from 'dotenv';
+import * as dotenv from 'dotenv';
 
 // Load environment variables
 dotenv.config();
@@ -45,6 +45,11 @@ export const config = {
   storageBackend: process.env.STORAGE_BACKEND || 'local',
   uploadDir: process.env.UPLOAD_DIR || './uploads',
   maxFileSize: parseInt(process.env.MAX_FILE_SIZE || '10485760', 10), // 10MB
+
+  // Supabase Storage
+  supabaseUrl: process.env.SUPABASE_URL || '',
+  supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY || '',
+  supabaseBucket: process.env.SUPABASE_BUCKET || 'documents',
 
   // Logging
   logLevel: process.env.LOG_LEVEL || 'info',
