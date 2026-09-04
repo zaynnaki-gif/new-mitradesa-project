@@ -17,6 +17,7 @@ const formatDate = (dateString: string) => {
   };
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function AgendaCard({ item, index }: { item: any; index: number }) {
   const { ref, isVisible } = useScrollReveal({ threshold: 0.1 });
   const dateInfo = formatDate(item.tanggalMulai);

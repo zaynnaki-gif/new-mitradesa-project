@@ -53,6 +53,7 @@ export default function TransparansiPage() {
       } else {
         throw new Error(result.error?.message || 'Gagal memuat data');
       }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -60,6 +61,7 @@ export default function TransparansiPage() {
     }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchData(); }, [token]);
 
   const handleSearch = () => fetchData(1);

@@ -44,6 +44,7 @@ const getKategoriIcon = (kategori?: string) => {
   }
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function ServiceCard({ service, index }: { service: any; index: number }) {
   const { ref, isVisible } = useScrollReveal({ threshold: 0.1 });
   

@@ -1,5 +1,5 @@
 import { ApiError } from '../../utils/response.js';
-import { Router } from 'express';
+import { Router, Request } from 'express';
 import { asyncHandler, response } from '../../utils/response.js';
 import { authenticateInternal, authorize } from '../../middleware/index.js';
 import { templateDesignerService } from '../../services/template-designer.service.js';
@@ -22,7 +22,7 @@ const router = Router();
 /**
  * Get current user's account ID
  */
-function getAccountId(req: Express.Request): bigint {
+function getAccountId(req: Request): bigint {
   const accountId = req.user?.accountId;
   if (!accountId) {
     throw ApiError.unauthorized('Tidak ter-authentikasi');

@@ -83,23 +83,23 @@ export function WilayahSelector({
   // Selection state - use string for IDs (API returns string)
   // Priority: initialValues > stored > undefined
   const [selectedProvinsiId, setSelectedProvinsiId] = useState<string | undefined>(() => {
-    if (initialValues?.provinsiId) return initialValues.provinsiId.toString();
+    if (initialValues?.provinsiId && initialValues.provinsiId !== 0) return initialValues.provinsiId.toString();
     if (hasStoredValues) return activeWilayah.provinsiId;
     return undefined;
   });
   const [selectedKabupatenId, setSelectedKabupatenId] = useState<string | undefined>(() => {
-    if (initialValues?.kabupatenId) return initialValues.kabupatenId.toString();
+    if (initialValues?.kabupatenId && initialValues.kabupatenId !== 0) return initialValues.kabupatenId.toString();
     if (hasStoredValues) return activeWilayah.kabupatenId;
     return undefined;
   });
   const [selectedKecamatanId, setSelectedKecamatanId] = useState<string | undefined>(() => {
-    if (initialValues?.kecamatanId) return initialValues.kecamatanId.toString();
+    if (initialValues?.kecamatanId && initialValues.kecamatanId !== 0) return initialValues.kecamatanId.toString();
     if (hasStoredValues) return activeWilayah.kecamatanId;
     return undefined;
   });
   const [selectedDesaIdState, setSelectedDesaIdState] = useState<string | undefined>(() => {
-    if (selectedDesaId !== undefined) return selectedDesaId.toString();
-    if (initialValues?.desaId) return initialValues.desaId.toString();
+    if (selectedDesaId !== undefined && selectedDesaId !== 0) return selectedDesaId.toString();
+    if (initialValues?.desaId && initialValues.desaId !== 0) return initialValues.desaId.toString();
     if (hasStoredValues) return activeWilayah.desaId;
     return undefined;
   });
@@ -121,7 +121,7 @@ export function WilayahSelector({
   // Sync external selectedDesaId prop
   useEffect(() => {
     if (selectedDesaId !== undefined) {
-      setSelectedDesaIdState(selectedDesaId.toString());
+      setSelectedDesaIdState(selectedDesaId === 0 ? undefined : selectedDesaId.toString());
     }
   }, [selectedDesaId]);
 
@@ -176,6 +176,7 @@ export function WilayahSelector({
     setFullWilayahData({});
 
     if (onChange && !value) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       onChange(0 as any); // Clear selection
     }
   }, [onChange]);
@@ -189,6 +190,7 @@ export function WilayahSelector({
     setFullWilayahData(prev => ({ ...prev, kabupaten: undefined, kecamatan: undefined, desa: undefined }));
 
     if (onChange && !value) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       onChange(0 as any);
     }
   }, [onChange]);
@@ -201,6 +203,7 @@ export function WilayahSelector({
     setFullWilayahData(prev => ({ ...prev, kecamatan: undefined, desa: undefined }));
 
     if (onChange && !value) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       onChange(0 as any);
     }
   }, [onChange]);
@@ -226,6 +229,7 @@ export function WilayahSelector({
       setFullWilayahData(fullData);
       onChange(parseInt(value), fullData);
     } else if (onChange && !value) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       onChange(0 as any);
     }
   }, [onChange, desaList, selectedKecamatanId, selectedKabupatenId, selectedProvinsiId,
@@ -428,4 +432,3 @@ export function WilayahSelector({
   );
 }
 
-export default WilayahSelector;

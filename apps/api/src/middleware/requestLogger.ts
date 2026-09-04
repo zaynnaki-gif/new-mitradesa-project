@@ -10,7 +10,11 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
   
   res.on('finish', () => {
     const duration = Date.now() - start;
-    console.log(`[${requestId}] ${req.method} ${req.originalUrl} ${res.statusCode} ${duration}ms`);
+    const sanitizedUrl = req.originalUrl
+      .replace(/([?&](?:nik|password|token|otp)=)[^&]+/gi, '$1***')
+      .replace(/\b\d{16}\b/g, '****************');
+    // eslint-disable-next-line no-console
+    console.log(`[${requestId}] ${req.method} ${sanitizedUrl} ${res.statusCode} ${duration}ms`);
   });
 
   next();

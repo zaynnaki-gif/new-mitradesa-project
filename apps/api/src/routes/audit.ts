@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { asyncHandler, response } from '../utils/response.js';
 import { prisma } from '../services/index.js';
 import { authenticateInternal, authorize } from '../middleware/index.js';
@@ -14,7 +14,7 @@ router.get(
   '/',
   authenticateInternal(),
   authorize('audit.view'),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const page = parseInt(req.query.page as string) || 1;
     const perPage = parseInt(req.query.per_page as string) || 20;
     const entityType = req.query.entity_type as string;
@@ -24,7 +24,7 @@ router.get(
     const fromDate = req.query.from_date ? new Date(req.query.from_date as string) : undefined;
     const toDate = req.query.to_date ? new Date(req.query.to_date as string) : undefined;
 
-    const where: any = {};
+    const where: any = {}; // eslint-disable-line @typescript-eslint/no-explicit-any
     if (entityType) where.entityType = entityType;
     if (entityId) where.entityId = entityId;
     if (action) where.action = action;
@@ -77,7 +77,7 @@ router.get(
   '/:id',
   authenticateInternal(),
   authorize('audit.view'),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const id = BigInt(req.params.id);
 
     const log = await prisma.auditLog.findUnique({

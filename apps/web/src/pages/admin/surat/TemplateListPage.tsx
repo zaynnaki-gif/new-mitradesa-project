@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import { API_URL } from '@/lib/constants';
 import { Button, Input, Select, Modal, Badge } from '@/components/ui';
 import styles from './TemplateListPage.module.css';
+import { safeFetchJson } from '@/lib/fetch';
 
 interface TemplateVersion {
   id: string;
@@ -73,16 +74,14 @@ export default function TemplateListPage() {
       });
       if (search) params.append('search', search);
 
-      const res = await fetch(`${API_URL}/template-designer/templates?${params}`, {
+      const data = await safeFetchJson(`${API_URL}/template-designer/templates?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error?.message || 'Gagal memuat template');
+      if (!data.success) {
+        throw new Error(data.message || 'Gagal memuat template');
       }
 
-      const data = await res.json();
       setTemplates(data.data || []);
       setTotalPages(data.meta?.totalPages || 1);
     } catch (e: unknown) {
@@ -94,12 +93,11 @@ export default function TemplateListPage() {
 
   const loadDokumenOptions = async () => {
     try {
-      const res = await fetch(`${API_URL}/documents?limit=100`, {
+      const data = await safeFetchJson(`${API_URL}/documents?limit=100`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (res.ok) {
-        const data = await res.json();
+      if (data.success) {
         setDokumenOptions(
           (data.data || []).map((d: { id: string; kode: string; nama: string; layanan?: { nama: string } }) => ({
             id: d.id,
@@ -114,10 +112,12 @@ export default function TemplateListPage() {
     }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadTemplates(); }, [page, search]);
 
   useEffect(() => {
     if (showCreateModal) loadDokumenOptions();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showCreateModal]);
 
   const handleCreate = async () => {
@@ -128,16 +128,14 @@ export default function TemplateListPage() {
     setCreateLoading(true);
     setError('');
     try {
-      const res = await fetch(`${API_URL}/template-designer/templates`, {
+      const data = await safeFetchJson(`${API_URL}/template-designer/templates`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ ...newTemplate, dokumenId: parseInt(newTemplate.dokumenId) }),
       });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error?.message || 'Gagal membuat template');
+      if (!data.success) {
+        throw new Error(data.message || 'Gagal membuat template');
       }
-      const data = await res.json();
       setShowCreateModal(false);
       setNewTemplate({ dokumenId: '', nama: '', slug: '', deskripsi: '' });
       if (data.data?.latestVersion?.id) {
@@ -154,12 +152,12 @@ export default function TemplateListPage() {
     const newNama = `${template.nama} (Copy)`;
     const newSlug = `${template.slug}-copy-${Date.now()}`;
     try {
-      const res = await fetch(`${API_URL}/template-designer/templates/${template.id}/duplicate`, {
+      const data = await safeFetchJson(`${API_URL}/template-designer/templates/${template.id}/duplicate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ nama: newNama, slug: newSlug }),
       });
-      if (res.ok) loadTemplates();
+      if (data.success) loadTemplates();
     } catch {
       console.error('Failed to duplicate template');
     }
@@ -168,11 +166,11 @@ export default function TemplateListPage() {
   const handleArchive = async (versionId: string) => {
     if (!confirm('Arsipkan versi ini?')) return;
     try {
-      const res = await fetch(`${API_URL}/template-designer/versions/${versionId}/archive`, {
+      const data = await safeFetchJson(`${API_URL}/template-designer/versions/${versionId}/archive`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) loadTemplates();
+      if (data.success) loadTemplates();
     } catch {
       console.error('Failed to archive version');
     }

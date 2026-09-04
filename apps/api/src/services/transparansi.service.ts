@@ -136,6 +136,49 @@ export class TransparansiService {
     if (!apbdes) throw ApiError.notFound('Data APBDes tidak ditemukan');
     await prisma.apbdes.delete({ where: { id } });
   }
+  async addItem(apbdesId: bigint, data: { kategori: 'PENDAPATAN' | 'BELANJA' | 'PEMBIAYAAN'; nama: string; anggaran: number; realization: number }) {
+    const { desaId } = getInstanceContext();
+    const apbdes = await prisma.apbdes.findFirst({ where: { id: apbdesId, desaId } });
+    if (!apbdes) throw ApiError.notFound('Data APBDes tidak ditemukan');
+    const item = await prisma.apbdesItem.create({
+      data: {
+        apbdesId,
+        kategori: data.kategori,
+        nama: data.nama,
+        anggaran: data.anggaran,
+        realization: data.realization
+      }
+    });
+    return { ...item, id: item.id.toString(), apbdesId: item.apbdesId.toString() };
+  }
+
+  async updateItem(apbdesId: bigint, itemId: bigint, data: { nama?: string; anggaran?: number; realization?: number }) {
+    const { desaId } = getInstanceContext();
+    const apbdes = await prisma.apbdes.findFirst({ where: { id: apbdesId, desaId } });
+    if (!apbdes) throw ApiError.notFound('Data APBDes tidak ditemukan');
+    const existing = await prisma.apbdesItem.findFirst({ where: { id: itemId, apbdesId } });
+    if (!existing) throw ApiError.notFound('Data Rincian APBDes tidak ditemukan');
+    
+    const updated = await prisma.apbdesItem.update({
+      where: { id: itemId },
+      data: {
+        nama: data.nama,
+        anggaran: data.anggaran,
+        realization: data.realization
+      }
+    });
+    return { ...updated, id: updated.id.toString(), apbdesId: updated.apbdesId.toString() };
+  }
+
+  async deleteItem(apbdesId: bigint, itemId: bigint) {
+    const { desaId } = getInstanceContext();
+    const apbdes = await prisma.apbdes.findFirst({ where: { id: apbdesId, desaId } });
+    if (!apbdes) throw ApiError.notFound('Data APBDes tidak ditemukan');
+    const existing = await prisma.apbdesItem.findFirst({ where: { id: itemId, apbdesId } });
+    if (!existing) throw ApiError.notFound('Data Rincian APBDes tidak ditemukan');
+    
+    await prisma.apbdesItem.delete({ where: { id: itemId } });
+  }
 }
 
 export const transparansiService = new TransparansiService();

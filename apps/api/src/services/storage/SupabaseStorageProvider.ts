@@ -27,6 +27,12 @@ export class SupabaseStorageProvider implements IStorageProvider {
         autoRefreshToken: false,
         persistSession: false,
       },
+      // Disable realtime websocket connection since this client is strictly used for storage
+      realtime: {
+        params: {
+          eventsPerSecond: 0,
+        },
+      },
     });
 
     this.bucketName = config.supabaseBucket || 'documents';

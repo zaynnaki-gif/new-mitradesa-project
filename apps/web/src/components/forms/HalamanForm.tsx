@@ -84,6 +84,7 @@ export function HalamanForm({ mode, initialData, onSuccess, onCancel }: HalamanF
     if (!slugManual && form.judul && mode === 'create') {
       setForm(prev => ({ ...prev, slug: generateSlug(prev.judul) }));
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

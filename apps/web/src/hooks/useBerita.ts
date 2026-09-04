@@ -117,6 +117,7 @@ export function useBeritaList(options: UseBeritaOptions = {}): UseBeritaResult {
     };
 
     fetchBerita();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [options.limit, options.page, options.kategori, refreshKey]);
 
   const refetch = () => setRefreshKey((k) => k + 1);

@@ -5,6 +5,7 @@ import { LoadingState, ErrorState } from '@/components/states';
 import { useAuthStore } from '@/stores/auth.store';
 import { API_URL } from '@/lib/constants';
 import styles from './ConfigPage.module.css';
+import { safeFetchJson } from '@/lib/fetch';
 
 // ============================================
 // Types
@@ -12,7 +13,7 @@ import styles from './ConfigPage.module.css';
 
 interface ConfigItem {
   id: string;
-  groupname: any;
+  groupname: any; // eslint-disable-line @typescript-eslint/no-explicit-any
   key: string;
   value: string;
   valueType: 'STRING' | 'NUMBER' | 'BOOLEAN' | 'JSON';
@@ -23,7 +24,7 @@ interface ConfigItem {
 }
 
 interface ConfigGroup {
-  name: any;
+  name: any; // eslint-disable-line @typescript-eslint/no-explicit-any
   count: number;
 }
 
@@ -81,21 +82,18 @@ export default function ConfigPage() {
       const params = new URLSearchParams();
       if (selectedGroup) params.append('groupname', selectedGroup);
 
-      const res = await fetch(`${API_URL}/config?${params}`, {
+      const data = await safeFetchJson(`${API_URL}/config?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
 
-      if (!res.ok) throw new Error('Gagal mengambil data');
-
-      const data = await res.json();
       if (data.success) {
         setGrouped(data.grouped || {});
         // Get unique groups from data
         const uniqueGroups = [...new Set((data.data || []).map((item: ConfigItem) => item.groupname))];
-        setGroups(uniqueGroups.map((name: any) => ({
+        setGroups(uniqueGroups.map((name: any) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
           name,
           count: (data.data || []).filter((item: ConfigItem) => item.groupname === name).length,
         })));
@@ -113,6 +111,7 @@ export default function ConfigPage() {
     if (token) {
       fetchConfig();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, selectedGroup]);
 
   // ============================================
@@ -130,7 +129,7 @@ export default function ConfigPage() {
     setShowEditModal(true);
   };
 
-  const openAddModal = (groupname: any = '') => {
+  const openAddModal = (groupname: any = '') => { // eslint-disable-line @typescript-eslint/no-explicit-any
     setEditingItem(null);
     setFormData({
       groupname: groupname || 'GENERAL',
@@ -148,7 +147,7 @@ export default function ConfigPage() {
 
     setFormLoading(true);
     try {
-      const res = await fetch(`${API_URL}/config/${editingItem.id}`, {
+      const data = await safeFetchJson(`${API_URL}/config/${editingItem.id}`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -161,7 +160,6 @@ export default function ConfigPage() {
         }),
       });
 
-      const data = await res.json();
       if (data.success) {
         setShowEditModal(false);
         fetchConfig();
@@ -180,7 +178,7 @@ export default function ConfigPage() {
     setFormLoading(true);
 
     try {
-      const res = await fetch(`${API_URL}/config`, {
+      const data = await safeFetchJson(`${API_URL}/config`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -189,7 +187,6 @@ export default function ConfigPage() {
         body: JSON.stringify(formData),
       });
 
-      const data = await res.json();
       if (data.success) {
         setShowAddModal(false);
         fetchConfig();
@@ -207,17 +204,12 @@ export default function ConfigPage() {
     if (!confirm(`Hapus konfigurasi "${item.key}"?`)) return;
 
     try {
-      const res = await fetch(`${API_URL}/config/${item.id}`, {
+      await safeFetchJson(`${API_URL}/config/${item.id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (res.ok) {
-        fetchConfig();
-      } else {
-        const data = await res.json();
-        alert(data.message || 'Gagal menghapus');
-      }
+      fetchConfig();
     } catch {
       alert('Terjadi kesalahan');
     }

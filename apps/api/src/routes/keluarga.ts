@@ -178,42 +178,4 @@ router.delete(
   })
 );
 
-/**
- * GET /api/keluarga/export - Export semua keluarga ke CSV/XLSX
- */
-router.get(
-  '/export',
-  authenticateInternal(),
-  authorize('keluarga.view'),
-  asyncHandler(async (req, res) => {
-    const format = req.query.format === 'csv' ? 'csv' : 'xlsx';
-    const buffer = await (keluargaService as any).exportData(format);
-    
-    if (format === 'csv') {
-      res.header('Content-Type', 'text/csv');
-      res.attachment('keluarga.csv');
-      return res.send(buffer);
-    } else {
-      res.header('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      res.attachment('keluarga.xlsx');
-      return res.send(buffer);
-    }
-  })
-);
-
-/**
- * POST /api/keluarga/import - Import keluarga dari CSV
- */
-router.post(
-  '/import',
-  authenticateInternal(),
-  authorize('keluarga.create'),
-  asyncHandler(async (req, res) => {
-    const { csv } = req.body;
-    if (!csv) throw new Error('File CSV diperlukan');
-    const result = await (keluargaService as any).importData(csv);
-    return response.success(res, result, 'Import selesai');
-  })
-);
-
 export default router;

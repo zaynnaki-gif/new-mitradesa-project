@@ -103,6 +103,7 @@ export function BeritaForm({ mode, initialData, onSuccess, onCancel }: BeritaFor
     if (!slugManual && form.judul && mode === 'create') {
       setForm(prev => ({ ...prev, slug: generateSlug(prev.judul) }));
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

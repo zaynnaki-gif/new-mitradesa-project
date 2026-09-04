@@ -96,6 +96,7 @@ export default function DokumenDetailPage() {
       } else {
         throw new Error(json.error?.message || 'Gagal memuat dokumen');
       }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -127,6 +128,7 @@ export default function DokumenDetailPage() {
       if (!res.ok) throw new Error('Gagal menandatangani');
       setShowSignModal(false);
       fetchDocument();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       alert(e.message);
     } finally {

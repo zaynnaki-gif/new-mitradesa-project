@@ -58,6 +58,9 @@ jobs:
             sshpass -e rsync -avz --timeout=300 \
               -e "ssh $SSH_OPTS" \
               apps/api/dist/ $SSH_USER@$SSH_HOST:$DEST_PATH/dist/ && \
+            sshpass -e rsync -avz --timeout=120 \
+              -e "ssh $SSH_OPTS" \
+              apps/api/prisma/ $SSH_USER@$SSH_HOST:$DEST_PATH/prisma/ && \
             sshpass -e rsync -avz --timeout=60 \
               -e "ssh $SSH_OPTS" \
               apps/api/.env apps/api/package.json \
@@ -69,7 +72,6 @@ jobs:
           done
 
       - name: Restart API via SSH
-        continue-on-error: true
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.HOSTINGER_HOST }}
@@ -96,10 +98,15 @@ jobs:
               [ -x "$dir/node" ] && export PATH="$dir:$PATH" && echo "Node: $(node -v)" && break
             done
 
-            node -v || { echo "node not found - skip restart"; exit 0; }
+            node -v || { echo "node not found in PATH"; exit 1; }
 
             cd ${{ secrets.HOSTINGER_API_PATH }}
             npm install --omit=dev --quiet
+
+            # Jalankan migrasi database otomatis sebelum restart
+            echo "Menjalankan migrasi database (prisma migrate deploy)..."
+            npx prisma migrate deploy || { echo "Migrasi database gagal!"; exit 1; }
+
             [ -f "./node_modules/.bin/pm2" ] || npm install pm2 --save-dev --quiet
             PM2="./node_modules/.bin/pm2"
             $PM2 stop mitradesa-api 2>/dev/null || true

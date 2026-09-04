@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../../services/prisma.js';
-import { authenticateInternal } from '../../middleware/index.js';
-import { response } from '../../utils/response.js';
+import { Prisma } from '@prisma/client';
+import { authenticateInternal, authorize, publicSaranRateLimiter } from '../../middleware/index.js';
+import { asyncHandler, response, ApiError } from '../../utils/response.js';
+import { getInstanceContext } from '../../config/instance.js';
 
 const router = Router();
-router.use(authenticateInternal());
 
 // ============================================
 // Validation Schemas
@@ -20,6 +21,37 @@ const createSchema = z.object({
   teleponPengirim: z.string().max(20).optional(),
 });
 
+// ============================================
+// Public submission route (Citizens can submit complaints/suggestions freely)
+// ============================================
+
+router.post('/public', publicSaranRateLimiter, asyncHandler(async (req, res) => {
+  const { desaId } = getInstanceContext();
+  const data = createSchema.parse(req.body);
+
+  const created = await prisma.saranAduan.create({
+    data: {
+      desaId,
+      judul: data.judul,
+      isi: data.isi,
+      kategori: data.kategori,
+      namaPengirim: data.namaPengirim || 'Warga (Anonim)',
+      emailPengirim: data.emailPengirim || null,
+      teleponPengirim: data.teleponPengirim || null,
+      status: 'BARU',
+    },
+  });
+
+  return response.created(res, {
+    ...created,
+    createdAt: created.createdAt?.toISOString(),
+    updatedAt: created.updatedAt?.toISOString(),
+  }, 'Saran atau aduan Anda berhasil dikirim dan akan ditindaklanjuti');
+}));
+
+// Protect all following routes with internal staff authentication
+router.use(authenticateInternal());
+
 const updateSchema = z.object({
   judul: z.string().min(1).max(255).optional(),
   isi: z.string().min(1).optional(),
@@ -30,11 +62,6 @@ const updateSchema = z.object({
   teleponPengirim: z.string().max(20).optional(),
   jawaban: z.string().optional(),
 });
-
-// _replySchema = z.object({
-// const _replySchema = z.object({
-//   jawaban: z.string().min(1),
-// });
 
 const querySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
@@ -48,202 +75,187 @@ const querySchema = z.object({
 // List with pagination & filters
 // ============================================
 
-router.get('/', async (req, res) => {
-  try {
-    const { page, limit, search, kategori, status } = querySchema.parse(req.query);
+router.get('/', authorize('pemerintahan.view'), asyncHandler(async (req, res) => {
+  const { desaId } = getInstanceContext();
+  const { page, limit, search, kategori, status } = querySchema.parse(req.query);
 
-    const skip = (page - 1) * limit;
-    const where: any = {};
+  const skip = (page - 1) * limit;
+  const where: Prisma.SaranAduanWhereInput = { desaId };
 
-    if (kategori) where.kategori = kategori;
-    if (status) where.status = status;
-    if (search) {
-      where.OR = [
-        { judul: { contains: search, mode: 'insensitive' } },
-        { isi: { contains: search, mode: 'insensitive' } },
-        { namaPengirim: { contains: search, mode: 'insensitive' } },
-      ];
-    }
-
-    const [data, total] = await Promise.all([
-      prisma.saranAduan.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-      }),
-      prisma.saranAduan.count({ where }),
-    ]);
-
-    return response.success(res, {
-      data: data.map(k => ({
-        ...k,
-        dijawabPada: k.dijawabPada?.toISOString(),
-        createdAt: k.createdAt?.toISOString(),
-        updatedAt: k.updatedAt?.toISOString(),
-      })),
-      meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
-    });
-  } catch (err) {
-    if (err instanceof z.ZodError) {
-      return res.status(400).json({ success: false, message: 'Validasi gagal', error: err.errors });
-    }
-    console.error('SaranAduan list error:', err);
-    return res.status(500).json({ success: false, message: 'Terjadi kesalahan server' });
+  if (kategori) where.kategori = kategori;
+  if (status) where.status = status;
+  if (search) {
+    where.OR = [
+      { judul: { contains: search, mode: 'insensitive' } },
+      { isi: { contains: search, mode: 'insensitive' } },
+      { namaPengirim: { contains: search, mode: 'insensitive' } },
+    ];
   }
-});
+
+  const [data, total] = await Promise.all([
+    prisma.saranAduan.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { createdAt: 'desc' },
+    }),
+    prisma.saranAduan.count({ where }),
+  ]);
+
+  return response.success(res, {
+    data: data.map((k: any) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
+      ...k,
+      dijawabPada: k.dijawabPada?.toISOString(),
+      createdAt: k.createdAt?.toISOString(),
+      updatedAt: k.updatedAt?.toISOString(),
+    })),
+    meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+  });
+}));
 
 // ============================================
 // Statistics
 // ============================================
 
-router.get('/stats', async (_req, res) => {
-  try {
-    const [baru, diproses, selesai, ditolak, total] = await Promise.all([
-      prisma.saranAduan.count({ where: { status: 'BARU' } }),
-      prisma.saranAduan.count({ where: { status: 'DIPROSES' } }),
-      prisma.saranAduan.count({ where: { status: 'SELESAI' } }),
-      prisma.saranAduan.count({ where: { status: 'DITOLAK' } }),
-      prisma.saranAduan.count(),
-    ]);
+router.get('/stats', authorize('pemerintahan.view'), asyncHandler(async (_req, res) => {
+  const { desaId } = getInstanceContext();
 
-    return response.success(res, {
-      total,
-      baru,
-      diproses,
-      selesai,
-      ditolak,
-    });
-  } catch (err) {
-    console.error('SaranAduan stats error:', err);
-    return res.status(500).json({ success: false, message: 'Terjadi kesalahan server' });
-  }
-});
+  const whereBase: Prisma.SaranAduanWhereInput = { desaId };
+
+  const [baru, diproses, selesai, ditolak, total] = await Promise.all([
+    prisma.saranAduan.count({ where: { ...whereBase, status: 'BARU' } }),
+    prisma.saranAduan.count({ where: { ...whereBase, status: 'DIPROSES' } }),
+    prisma.saranAduan.count({ where: { ...whereBase, status: 'SELESAI' } }),
+    prisma.saranAduan.count({ where: { ...whereBase, status: 'DITOLAK' } }),
+    prisma.saranAduan.count({ where: whereBase }),
+  ]);
+
+  return response.success(res, {
+    total,
+    baru,
+    diproses,
+    selesai,
+    ditolak,
+  });
+}));
 
 // ============================================
 // Create
 // ============================================
 
-router.post('/', async (req, res) => {
-  try {
-    const data = createSchema.parse(req.body);
+router.post('/', authorize('pemerintahan.manage'), asyncHandler(async (req, res) => {
+  const { desaId } = getInstanceContext();
+  const data = createSchema.parse(req.body);
 
-    const created = await prisma.saranAduan.create({
-      data: {
-        judul: data.judul,
-        isi: data.isi,
-        kategori: data.kategori,
-        namaPengirim: data.namaPengirim || null,
-        emailPengirim: data.emailPengirim || null,
-        teleponPengirim: data.teleponPengirim || null,
-      },
-    });
+  const created = await prisma.saranAduan.create({
+    data: {
+      desaId,
+      judul: data.judul,
+      isi: data.isi,
+      kategori: data.kategori,
+      namaPengirim: data.namaPengirim || null,
+      emailPengirim: data.emailPengirim || null,
+      teleponPengirim: data.teleponPengirim || null,
+    },
+  });
 
-    return res.status(201).json({
-      success: true,
-      data: {
-        ...created,
-        createdAt: created.createdAt?.toISOString(),
-        updatedAt: created.updatedAt?.toISOString(),
-      },
-      message: 'Saran/aduan berhasil terkirim',
-    });
-  } catch (err) {
-    if (err instanceof z.ZodError) {
-      return res.status(400).json({ success: false, message: 'Validasi gagal', error: err.errors });
-    }
-    console.error('SaranAduan create error:', err);
-    return res.status(500).json({ success: false, message: 'Terjadi kesalahan server' });
-  }
-});
+  return response.created(res, {
+    ...created,
+    createdAt: created.createdAt?.toISOString(),
+    updatedAt: created.updatedAt?.toISOString(),
+  }, 'Saran/aduan berhasil terkirim');
+}));
 
 // ============================================
 // Get One
 // ============================================
 
-router.get('/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const item = await prisma.saranAduan.findUnique({ where: { id } });
+router.get('/:id', authorize('pemerintahan.view'), asyncHandler(async (req, res) => {
+  const { desaId } = getInstanceContext();
+  const { id } = req.params;
+  const item = await prisma.saranAduan.findFirst({
+    where: {
+      id,
+      desaId,
+    },
+  });
 
-    if (!item) {
-      return res.status(404).json({ success: false, message: 'Data tidak ditemukan' });
-    }
-
-    return response.success(res, {
-      ...item,
-      dijawabPada: item.dijawabPada?.toISOString(),
-      createdAt: item.createdAt?.toISOString(),
-      updatedAt: item.updatedAt?.toISOString(),
-    });
-  } catch (err) {
-    console.error('SaranAduan get error:', err);
-    return res.status(500).json({ success: false, message: 'Terjadi kesalahan server' });
+  if (!item) {
+    throw ApiError.notFound('Data tidak ditemukan');
   }
-});
+
+  return response.success(res, {
+    ...item,
+    dijawabPada: item.dijawabPada?.toISOString(),
+    createdAt: item.createdAt?.toISOString(),
+    updatedAt: item.updatedAt?.toISOString(),
+  });
+}));
 
 // ============================================
 // Update Status / Reply
 // ============================================
 
-router.patch('/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const data = updateSchema.parse(req.body);
+router.patch('/:id', authorize('pemerintahan.manage'), asyncHandler(async (req, res) => {
+  const { desaId } = getInstanceContext();
+  const { id } = req.params;
+  const data = updateSchema.parse(req.body);
 
-    const existing = await prisma.saranAduan.findUnique({ where: { id } });
-    if (!existing) {
-      return res.status(404).json({ success: false, message: 'Data tidak ditemukan' });
-    }
-
-    const updated = await prisma.saranAduan.update({
-      where: { id },
-      data: {
-        ...(data.judul !== undefined && { judul: data.judul }),
-        ...(data.isi !== undefined && { isi: data.isi }),
-        ...(data.kategori !== undefined && { kategori: data.kategori }),
-        ...(data.status !== undefined && { status: data.status }),
-        ...(data.namaPengirim !== undefined && { namaPengirim: data.namaPengirim }),
-        ...(data.emailPengirim !== undefined && { emailPengirim: data.emailPengirim }),
-        ...(data.teleponPengirim !== undefined && { teleponPengirim: data.teleponPengirim }),
-        ...(data.jawaban !== undefined && {
-          jawaban: data.jawaban,
-          dijawabPada: new Date(),
-        }),
-      },
-    });
-
-    return response.success(res, {
-      ...updated,
-      dijawabPada: updated.dijawabPada?.toISOString(),
-      createdAt: updated.createdAt?.toISOString(),
-      updatedAt: updated.updatedAt?.toISOString(),
-    }, 'Saran/aduan berhasil diperbarui');
-  } catch (err) {
-    if (err instanceof z.ZodError) {
-      return res.status(400).json({ success: false, message: 'Validasi gagal', error: err.errors });
-    }
-    console.error('SaranAduan update error:', err);
-    return res.status(500).json({ success: false, message: 'Terjadi kesalahan server' });
+  const existing = await prisma.saranAduan.findFirst({
+    where: {
+      id,
+      desaId,
+    },
+  });
+  if (!existing) {
+    throw ApiError.notFound('Data tidak ditemukan');
   }
-});
+
+  const updated = await prisma.saranAduan.update({
+    where: { id },
+    data: {
+      ...(data.judul !== undefined && { judul: data.judul }),
+      ...(data.isi !== undefined && { isi: data.isi }),
+      ...(data.kategori !== undefined && { kategori: data.kategori }),
+      ...(data.status !== undefined && { status: data.status }),
+      ...(data.namaPengirim !== undefined && { namaPengirim: data.namaPengirim }),
+      ...(data.emailPengirim !== undefined && { emailPengirim: data.emailPengirim }),
+      ...(data.teleponPengirim !== undefined && { teleponPengirim: data.teleponPengirim }),
+      ...(data.jawaban !== undefined && { 
+        jawaban: data.jawaban,
+        dijawabPada: data.jawaban ? new Date() : null 
+      }),
+    },
+  });
+
+  return response.success(res, {
+    ...updated,
+    dijawabPada: updated.dijawabPada?.toISOString(),
+    createdAt: updated.createdAt?.toISOString(),
+    updatedAt: updated.updatedAt?.toISOString(),
+  }, 'Data saran/aduan berhasil diperbarui');
+}));
 
 // ============================================
 // Delete
 // ============================================
 
-router.delete('/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    await prisma.saranAduan.delete({ where: { id } });
-    return response.success(res, null, 'Saran/aduan berhasil dihapus');
-  } catch (err: any) {
-    if (err?.code === 'P2025') {
-      return res.status(404).json({ success: false, message: 'Data tidak ditemukan' });
-    }
-    console.error('SaranAduan delete error:', err);
-    return res.status(500).json({ success: false, message: 'Terjadi kesalahan server' });
+router.delete('/:id', authorize('pemerintahan.manage'), asyncHandler(async (req, res) => {
+  const { desaId } = getInstanceContext();
+  const { id } = req.params;
+
+  const existing = await prisma.saranAduan.findFirst({
+    where: {
+      id,
+      desaId,
+    },
+  });
+  if (!existing) {
+    throw ApiError.notFound('Data tidak ditemukan');
   }
-});
+
+  await prisma.saranAduan.delete({ where: { id } });
+  return response.success(res, null, 'Data saran/aduan berhasil dihapus');
+}));
 
 export default router;

@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { AdminLayout } from '@/layouts';
 import { useAuthStore } from '@/stores/auth.store';
 import { API_URL } from '@/lib/constants';
 import { Button, Input, Modal } from '@/components/ui';
 import shared from '@/styles/AdminShared.module.css';
 import s from '@/pages/admin/layanan/LayananListPage.module.css';
+import { safeFetchJson } from '@/lib/fetch';
 
 interface Penandatangan {
   id: string;
@@ -38,7 +39,7 @@ export default function PenandatanganPage() {
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState('');
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
@@ -47,23 +48,23 @@ export default function PenandatanganPage() {
       });
       if (search) params.append('search', search);
 
-      const res = await fetch(`${API_URL}/documents/penanda-tangan?${params}`, {
+      const responseData = await safeFetchJson(`${API_URL}/documents/penanda-tangan?${params}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (!res.ok) throw new Error('Gagal memuat data penandatangan');
-      const responseData = await res.json();
+      if (!responseData.success) throw new Error('Gagal memuat data penandatangan');
       setData(responseData.data || []);
       setTotalPages(responseData.meta?.totalPages || 1);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       setError(err.message || 'Terjadi kesalahan');
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, search, token]);
 
   useEffect(() => {
     if (token) fetchData();
-  }, [token, page, search]);
+  }, [token, page, search, fetchData]);
 
   const handleOpenModal = (item?: Penandatangan) => {
     if (item) {
@@ -106,6 +107,7 @@ export default function PenandatanganPage() {
         ? `${API_URL}/documents/penanda-tangan/${editingData.id}` 
         : `${API_URL}/documents/penanda-tangan`;
         
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const payload: any = {
         nama: formData.nama,
         jabatan: formData.jabatan,
@@ -115,7 +117,7 @@ export default function PenandatanganPage() {
       if (formData.nip) payload.nip = formData.nip;
       if (formData.tandaTanganUrl) payload.tandaTanganUrl = formData.tandaTanganUrl;
 
-      const response = await fetch(url, {
+      const result = await safeFetchJson(url, {
         method: editingData?.id ? 'PATCH' : 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -124,14 +126,13 @@ export default function PenandatanganPage() {
         body: JSON.stringify(payload)
       });
 
-      const result = await response.json();
-
-      if (!response.ok) {
+      if (!result.success) {
         throw new Error(result.message || 'Terjadi kesalahan saat menyimpan data');
       }
 
       setIsModalOpen(false);
       fetchData();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       setFormError(err.message || 'Terjadi kesalahan');
     } finally {
@@ -143,19 +144,19 @@ export default function PenandatanganPage() {
     if (!token || !window.confirm('Apakah Anda yakin ingin menghapus data ini?')) return;
 
     try {
-      const response = await fetch(`${API_URL}/documents/penanda-tangan/${id}`, {
+      const result = await safeFetchJson(`${API_URL}/documents/penanda-tangan/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
 
-      if (!response.ok) {
-        const result = await response.json();
+      if (!result.success) {
         throw new Error(result.message || 'Terjadi kesalahan saat menghapus data');
       }
 
       fetchData();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       alert(err.message || 'Gagal menghapus data');
     }

@@ -4,6 +4,7 @@ import { AdminLayout } from '@/layouts';
 import { useAuthStore } from '@/stores/auth.store';
 import { API_URL } from '@/lib/constants';
 import styles from './ExecutiveDashboard.module.css';
+import { safeFetchJson } from '@/lib/fetch';
 
 interface DashboardStats {
   requests: {
@@ -132,21 +133,15 @@ export default function ExecutiveDashboard() {
     try {
       const headers = { Authorization: `Bearer ${token}` };
 
-      const [statsRes, execRes, activityRes] = await Promise.all([
-        fetch(`${API_URL}/dashboard/stats`, { headers }),
-        fetch(`${API_URL}/dashboard/executive`, { headers }),
-        fetch(`${API_URL}/dashboard/recent-activity?limit=8`, { headers }),
+      const [statsData, execData, activityData] = await Promise.all([
+        safeFetchJson(`${API_URL}/dashboard/stats`, { headers }),
+        safeFetchJson(`${API_URL}/dashboard/executive`, { headers }),
+        safeFetchJson(`${API_URL}/dashboard/recent-activity?limit=8`, { headers }).catch(() => ({ success: true, data: [] })),
       ]);
 
-      if (!statsRes.ok || !execRes.ok) {
+      if (!statsData.success || !execData.success) {
         throw new Error('Gagal memuat data dashboard');
       }
-
-      const [statsData, execData, activityData] = await Promise.all([
-        statsRes.json(),
-        execRes.json(),
-        activityRes.ok ? activityRes.json() : { data: [] },
-      ]);
 
       setStats(statsData.data);
       setExecutive(execData.data);
@@ -156,7 +151,7 @@ export default function ExecutiveDashboard() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [token]);
 
   useEffect(() => {
     fetchAll();

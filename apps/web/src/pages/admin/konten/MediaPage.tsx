@@ -94,6 +94,7 @@ export function MediaPage() {
     if (result.success) setStats(result.data);
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchData(1, search, fileTypeFilter); fetchStats(); }, []);
 
   const handleSearch = () => fetchData(1, search, fileTypeFilter);
@@ -312,4 +313,3 @@ export function MediaPage() {
   );
 }
 
-export default MediaPage;

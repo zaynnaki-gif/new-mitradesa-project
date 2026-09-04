@@ -29,6 +29,7 @@ export function initMockApi() {
 
     console.log('[Mock API] Menggunakan data buatan (placeholder) untuk:', url);
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const createResponse = (data: any) => 
       Promise.resolve(new Response(JSON.stringify({ success: true, data, meta: { total: data.length || 1, page: 1, limit: 10, totalPages: 1 } }), {
         status: 200,

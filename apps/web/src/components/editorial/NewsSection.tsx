@@ -36,6 +36,7 @@ function formatDate(dateStr: string | null | undefined): string {
   });
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getCategoryName(kategori: any): string {
   if (!kategori) return 'Berita';
   if (typeof kategori === 'string') return kategori;

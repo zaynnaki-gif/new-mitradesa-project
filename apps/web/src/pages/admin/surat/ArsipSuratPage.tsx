@@ -9,6 +9,7 @@ import { id } from 'date-fns/locale';
 import { API_URL } from '@/lib/constants';
 import { useAuthStore } from '@/stores/auth.store';
 import styles from './ArsipSuratPage.module.css';
+import { safeFetchJson } from '@/lib/fetch';
 
 interface SuratMasuk {
   id: string;
@@ -60,6 +61,8 @@ const getStatusBadge = (status: string) => {
   }
 };
 
+
+
 export default function ArsipSuratPage() {
   const { token } = useAuthStore();
   const navigate = useNavigate();
@@ -84,8 +87,7 @@ export default function ArsipSuratPage() {
     queryFn: async () => {
       const url = new URL(`${API_URL}/arsip-surat/masuk`);
       if (search) url.searchParams.append('search', search);
-      const res = await fetch(url.toString(), { headers });
-      return res.json();
+      return await safeFetchJson(url.toString(), { headers });
     },
     enabled: activeTab === 'masuk',
   });
@@ -95,8 +97,7 @@ export default function ArsipSuratPage() {
     queryFn: async () => {
       const url = new URL(`${API_URL}/arsip-surat/keluar`);
       if (search) url.searchParams.append('search', search);
-      const res = await fetch(url.toString(), { headers });
-      return res.json();
+      return await safeFetchJson(url.toString(), { headers });
     },
     enabled: activeTab === 'keluar',
   });
@@ -106,13 +107,12 @@ export default function ArsipSuratPage() {
 
   // Add mutation
   const addMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const res = await fetch(`${API_URL}/arsip-surat/masuk`, {
+    mutationFn: async (data: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+      return await safeFetchJson(`${API_URL}/arsip-surat/masuk`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(data),
       });
-      return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['surat-masuk'] });
@@ -123,13 +123,12 @@ export default function ArsipSuratPage() {
 
   // Disposisi mutation
   const disposisiMutation = useMutation({
-    mutationFn: async ({ suratId, data }: { suratId: string; data: any }) => {
-      const res = await fetch(`${API_URL}/arsip-surat/masuk/${suratId}/disposisi`, {
+    mutationFn: async ({ suratId, data }: { suratId: string; data: any }) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+      return await safeFetchJson(`${API_URL}/arsip-surat/masuk/${suratId}/disposisi`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(data),
       });
-      return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['surat-masuk'] });

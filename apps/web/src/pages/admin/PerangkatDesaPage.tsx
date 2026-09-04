@@ -5,6 +5,7 @@ import { LoadingState, ErrorState } from '@/components/states';
 import { Pagination } from '@/components/Pagination';
 import { useAuthStore } from '@/stores/auth.store';
 import { API_URL } from '@/lib/constants';
+import { safeFetchJson } from '@/lib/fetch';
 import styles from './PerangkatDesaPage.module.css';
 
 interface PerangkatDesa {
@@ -79,16 +80,16 @@ export default function PerangkatDesaPage() {
     if (status) params.set('status', status);
 
     try {
-      const res = await fetch(`${API_URL}/perangkat-desa?${params}`, {
+      const data = await safeFetchJson(`${API_URL}/perangkat-desa?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
       if (data.success) {
         setItems(data.data || []);
         setMeta(data.meta);
       } else {
         throw new Error(data.error?.message || 'Gagal memuat data');
       }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -107,11 +108,11 @@ export default function PerangkatDesaPage() {
     const timer = setTimeout(async () => {
       setPendudukLoading(true);
       try {
-        const res = await fetch(`${API_URL}/penduduk?search=${encodeURIComponent(pendudukSearch)}&limit=10`, {
+        const data = await safeFetchJson(`${API_URL}/penduduk?search=${encodeURIComponent(pendudukSearch)}&limit=10`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        const data = await res.json();
         if (data.success) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           setPendudukList(data.data.map((p: any) => ({ id: p.id, nik: p.nik, namaLengkap: p.namaLengkap })));
         }
       } catch { /* ignore */ }
@@ -160,33 +161,31 @@ export default function PerangkatDesaPage() {
       const body: Record<string, unknown> = { ...formData };
       if (!editing && selectedPenduduk) body.pendudukId = selectedPenduduk.id;
 
-      const res = await fetch(url, {
+      const data = await safeFetchJson(url, {
         method,
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(body),
       });
-      const data = await res.json();
       if (data.success) {
         setShowModal(false);
         fetchItems(meta?.page || 1);
       } else {
         alert(data.error?.message || data.message || 'Terjadi kesalahan');
       }
-    } catch { alert('Terjadi kesalahan'); }
+    } catch (err: any) { alert(err.message || 'Terjadi kesalahan'); } // eslint-disable-line @typescript-eslint/no-explicit-any
     finally { setFormLoading(false); }
   };
 
   const handleDelete = async (item: PerangkatDesa) => {
     if (!confirm(`Hapus perangkat "${item.pendudukNama}" (${item.jabatan})?`)) return;
     try {
-      const res = await fetch(`${API_URL}/perangkat-desa/${item.id}`, {
+      const data = await safeFetchJson(`${API_URL}/perangkat-desa/${item.id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
       if (data.success) fetchItems(meta?.page || 1);
       else alert(data.error?.message || 'Gagal hapus');
-    } catch { alert('Terjadi kesalahan'); }
+    } catch (err: any) { alert(err.message || 'Terjadi kesalahan'); } // eslint-disable-line @typescript-eslint/no-explicit-any
   };
 
   const formatDate = (date: string) => {

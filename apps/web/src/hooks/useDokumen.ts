@@ -52,7 +52,7 @@ export function useDokumen(options?: { page?: number; limit?: number; search?: s
       if (options?.search) queryParams.append('search', options.search);
       if (options?.layananId) queryParams.append('layananId', options.layananId);
 
-      const url = `${API_URL}/documents/definitions?${queryParams.toString()}`;
+      const url = `${API_URL}/documents?${queryParams.toString()}`;
       const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -71,6 +71,7 @@ export function useDokumen(options?: { page?: number; limit?: number; search?: s
           setMeta(result.meta);
         }
       }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       console.error('Error fetching dokumen:', err);
       setError(err.message || 'Terjadi kesalahan');

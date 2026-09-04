@@ -63,6 +63,7 @@ export default function LayananDetailPage() {
     if (token && service && step === 'nik-validation') {
       autoFillCitizenData();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, service, step]);
 
   const autoFillCitizenData = async () => {
@@ -427,10 +428,19 @@ export default function LayananDetailPage() {
                   initialValues={formValues}
                   readOnlyFields={autofilledFields}
                   onChange={values => setFormValues(values)}
+                  onSubmit={(values) => {
+                    setFormValues(values);
+                    setStep('review');
+                  }}
                 />
                 <div className={styles.formActions}>
                   <button
-                    onClick={() => setStep('review')}
+                    type="button"
+                    onClick={() => {
+                      // Trigger form submission by finding the submit button
+                      const submitBtn = document.querySelector('form input[type="submit"]') as HTMLInputElement;
+                      if (submitBtn) submitBtn.click();
+                    }}
                     className={styles.primaryButton}
                   >
                     Lanjut ke Review →

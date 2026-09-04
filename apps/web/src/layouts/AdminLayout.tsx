@@ -36,6 +36,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Persetujuan (TTE)', href: '/admin/surat/tte', icon: '📝' },
       { label: 'Jenis Surat', href: '/admin/surat/jenis', icon: '📄' },
       { label: 'Template Surat', href: '/admin/surat/templates', icon: '📋' },
+      { label: 'Blanko Surat', href: '/admin/surat/blanko', icon: '📄' },
       { label: 'Penandatangan', href: '/admin/surat/penandatangan', icon: '✍️' },
       { label: 'Penomoran Surat', href: '/admin/surat/penomoran', icon: '🔢' },
     ],

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { prisma } from './prisma.js';
 import { AuditService } from './audit.service.js';
 import { ApiError } from '../utils/response.js';
@@ -6,11 +7,25 @@ import { ApiError } from '../utils/response.js';
  * Generic Reference Service
  * Handles CRUD for all reference tables with common patterns
  */
+const ALLOWED_TABLES = [
+  'refAgama', 'refGolDarah', 'refStatusPerkawinan', 
+  'refHubunganKeluarga', 'refStatusKependudukan', 
+  'refPendidikan', 'refPekerjaan', 'refJabatanPerangkat', 
+  'refStatusPerangkat'
+] as const;
+type AllowedTable = typeof ALLOWED_TABLES[number];
+
 export class ReferenceService {
   private auditService: AuditService;
 
   constructor() {
     this.auditService = new AuditService();
+  }
+
+  private validateTable(tableName: string): asserts tableName is AllowedTable {
+    if (!ALLOWED_TABLES.includes(tableName as AllowedTable)) {
+      throw ApiError.badRequest(`Invalid table name: ${tableName}`);
+    }
   }
 
   /**
@@ -81,6 +96,7 @@ export class ReferenceService {
     actorIp?: string,
     actorAgent?: string
   ) {
+    this.validateTable(tableName);
     const result = await (prisma as any)[tableName].create({ data });
 
     await this.auditService.log({
@@ -108,11 +124,10 @@ export class ReferenceService {
     actorIp?: string,
     actorAgent?: string
   ) {
-    const existing = await (prisma as any).$queryRaw`
-      SELECT * FROM ${tableName} WHERE kode = ${kode}
-    `;
+    this.validateTable(tableName);
+    const existing = await (prisma as any)[tableName].findUnique({ where: { kode } });
 
-    if (!existing || existing.length === 0) {
+    if (!existing) {
       throw ApiError.notFound(`${tableName} tidak ditemukan`);
     }
 
@@ -129,7 +144,7 @@ export class ReferenceService {
       actorType: 'USER',
       actorIp,
       actorAgent,
-      beforeData: { kode: existing[0]?.kode },
+      beforeData: { kode: existing.kode },
       afterData: { kode: result.kode },
     });
 
@@ -147,6 +162,7 @@ export class ReferenceService {
     actorIp?: string,
     actorAgent?: string
   ) {
+    this.validateTable(tableName);
     const existing = await (prisma as any)[tableName].findUnique({ where: { kode } });
     if (!existing) {
       throw ApiError.notFound(`${tableName} tidak ditemukan`);
@@ -174,3 +190,4 @@ export class ReferenceService {
 }
 
 export const referenceService = new ReferenceService();
+

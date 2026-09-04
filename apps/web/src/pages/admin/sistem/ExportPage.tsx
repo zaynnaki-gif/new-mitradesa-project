@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { AdminLayout } from '@/layouts';
+import { safeFetchJson } from '@/lib/fetch';
 import { Button, Select } from '@/components/ui';
 import { useAuthStore } from '@/stores/auth.store';
 import { API_URL } from '@/lib/constants';
@@ -156,35 +157,24 @@ export default function ExportPage() {
 
     try {
       // Fetch all data (paginate through)
-      const allData: any[] = [];
+      const allData: any[] = []; // eslint-disable-line @typescript-eslint/no-explicit-any
       let page = 1;
       let hasMore = true;
 
       while (hasMore) {
-        const params = new URLSearchParams({
-          page: String(page),
-          limit: '1000',
+        setProgress(`Mengambil data halaman ${page}...`);
+        const data = await safeFetchJson(`${API_URL}${option.endpoint}?page=${page}&per_page=100`, {
+          headers: { Authorization: `Bearer ${token}` }
         });
-
-        const res = await fetch(`${API_URL}${option.endpoint}?${params}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (!res.ok) throw new Error('Gagal mengambil data');
-
-        const data = await res.json();
-        if (data.success && data.data?.length > 0) {
+        
+        if (!data.success) throw new Error(data.message || 'Gagal mengambil data');
+        
+        if (data.data && data.data.length > 0) {
           allData.push(...data.data);
           page++;
-          hasMore = data.data.length === 1000;
         } else {
           hasMore = false;
         }
-
-        setProgress(`Mengambil halaman ${page - 1}...`);
       }
 
       if (allData.length === 0) {
@@ -210,7 +200,7 @@ export default function ExportPage() {
     }
   };
 
-  const exportToCSV = (data: any[], option: ExportOption) => {
+  const exportToCSV = (data: any[], option: ExportOption) => { // eslint-disable-line @typescript-eslint/no-explicit-any
     // Get all keys from the first item
     const allKeys = new Set<string>();
     data.forEach(item => {
@@ -227,11 +217,12 @@ export default function ExportPage() {
         const key = option.fields.length > 0 ? option.fields[idx]?.key : Array.from(allKeys)[idx];
         let value = item[key];
 
-        // Format dates
         if (key.includes('tanggal') && value) {
           try {
-            value = new Date(value).toLocaleDateString('id-ID');
-          } catch {}
+            value = new Date(value as string | number | Date).toLocaleDateString('id-ID');
+          } catch (e) {
+            console.warn('Invalid date format in export', e);
+          }
         }
 
         // Format nested objects
@@ -252,7 +243,7 @@ export default function ExportPage() {
     downloadBlob(blob, `${option.filename}_${new Date().toISOString().split('T')[0]}.csv`);
   };
 
-  const exportToJSON = (data: any[], option: ExportOption) => {
+  const exportToJSON = (data: any[], option: ExportOption) => { // eslint-disable-line @typescript-eslint/no-explicit-any
     const jsonContent = JSON.stringify(data, null, 2);
     const blob = new Blob([jsonContent], { type: 'application/json' });
     downloadBlob(blob, `${option.filename}_${new Date().toISOString().split('T')[0]}.json`);

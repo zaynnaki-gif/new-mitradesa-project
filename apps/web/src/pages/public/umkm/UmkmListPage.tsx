@@ -10,6 +10,7 @@ import { useScrollReveal } from '@/hooks/useScrollReveal';
 import styles from './UmkmListPage.module.css';
 
 // Separate UmkmCard component to manage its own intersection observer
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function UmkmCard({ umkm, index }: { umkm: any; index: number }) {
   const { ref, isVisible } = useScrollReveal({ threshold: 0.1 });
   

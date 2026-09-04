@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import shared from '@/styles/AdminShared.module.css';
 import s from '@/pages/admin/layanan/LayananListPage.module.css';
 import { Button, Input, Modal } from '@/components/ui';
+import { safeFetchJson } from '@/lib/fetch';
 
 export function PenomoranSuratPage() {
   const { token } = useAuthStore();
@@ -22,10 +23,9 @@ export function PenomoranSuratPage() {
 
   const fetchConfig = async (serviceId: string) => {
     try {
-      const res = await fetch(`${API_URL}/services/${serviceId}/nomor-config`, {
+      const json = await safeFetchJson(`${API_URL}/services/${serviceId}/nomor-config`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      const json = await res.json();
       if (json.data) {
         setFormatTemplate(json.data.formatTemplate);
         setStartingNumber(json.data.startingNumber);
@@ -60,7 +60,7 @@ export function PenomoranSuratPage() {
         isActive
       };
       
-      const res = await fetch(`${API_URL}/services/${currentService.id}/nomor-config`, {
+      const res = await safeFetchJson(`${API_URL}/services/${currentService.id}/nomor-config`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -69,7 +69,7 @@ export function PenomoranSuratPage() {
         body: JSON.stringify(payload)
       });
       
-      if (!res.ok) throw new Error('Failed to save config');
+      if (!res.success) throw new Error('Failed to save config');
       setIsModalOpen(false);
     } catch (err) {
       console.error(err);

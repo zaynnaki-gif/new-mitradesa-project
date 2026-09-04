@@ -116,6 +116,17 @@ export class AuthService {
       throw ApiError.unauthorized('Invalid credentials');
     }
 
+    // Revoke previous active sessions to prevent session fixation and concurrent login hijack
+    await prisma.internalSession.updateMany({
+      where: {
+        accountId: account.id,
+        revokedAt: null,
+      },
+      data: {
+        revokedAt: new Date(),
+      },
+    });
+
     // Generate token
     const token = this.generateToken(account);
 

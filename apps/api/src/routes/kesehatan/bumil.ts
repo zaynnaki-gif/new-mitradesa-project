@@ -1,8 +1,9 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { prisma } from '../../services/prisma.js';
-import { authenticateInternal } from '../../middleware/index.js';
-import { response } from '../../utils/response.js';
+import { authenticateInternal, authorize } from '../../middleware/index.js';
+import { response, asyncHandler, ApiError } from '../../utils/response.js';
+import { getInstanceContext } from '../../config/instance.js';
 
 const router = Router();
 router.use(authenticateInternal());
@@ -36,204 +37,185 @@ const querySchema = z.object({
 // List with pagination & filters
 // ============================================
 
-router.get('/', async (req, res) => {
-  try {
-    const { page, limit, search, trimester } = querySchema.parse(req.query);
-    const skip = (page - 1) * limit;
+router.get('/', authorize('kesehatan.view'), asyncHandler(async (req: Request, res: Response) => {
+  const { page, limit, search, trimester } = querySchema.parse(req.query);
+  const { desaId } = getInstanceContext();
+  const skip = (page - 1) * limit;
 
-    const where: any = {};
-    if (search) {
-      where.OR = [
-        { namaLengkap: { contains: search, mode: 'insensitive' } },
-        { nik: { contains: search, mode: 'insensitive' } },
-        { telepon: { contains: search, mode: 'insensitive' } },
-      ];
-    }
-    if (trimester) {
-      where.trimester = trimester;
-    }
-
-    const [data, total] = await Promise.all([
-      prisma.bumil.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-
-      }),
-      prisma.bumil.count({ where }),
-    ]);
-
-    return response.success(res, {
-      data: data.map(b => ({
-        ...b,
-        pendudukId: b.pendudukId.toString(),
-      })),
-      meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
-    });
-  } catch (err) {
-    if (err instanceof z.ZodError) {
-      return res.status(400).json({ success: false, message: 'Validasi gagal', error: err.errors });
-    }
-    console.error('Bumil list error:', err);
-    return res.status(500).json({ success: false, message: 'Terjadi kesalahan server' });
+  const where: any = { desaId }; // eslint-disable-line @typescript-eslint/no-explicit-any
+  if (search) {
+    where.AND = [
+      {
+        OR: [
+          { namaLengkap: { contains: search, mode: 'insensitive' } },
+          { nik: { contains: search, mode: 'insensitive' } },
+          { telepon: { contains: search, mode: 'insensitive' } },
+        ],
+      },
+    ];
   }
-});
+  if (trimester) {
+    where.trimester = trimester;
+  }
+
+  const [data, total] = await Promise.all([
+    prisma.bumil.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: { createdAt: 'desc' },
+    }),
+    prisma.bumil.count({ where }),
+  ]);
+
+  return response.success(res, {
+    data: data.map(b => ({
+      ...b,
+      pendudukId: b.pendudukId.toString(),
+    })),
+    meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+  });
+}));
 
 // ============================================
 // Stats
 // ============================================
 
-router.get('/stats', async (req, res) => {
-  try {
-    const [total, byTrimester] = await Promise.all([
-      prisma.bumil.count(),
-      prisma.bumil.groupBy({
-        by: ['trimester'],
-        _count: true,
-      }),
-    ]);
+router.get('/stats', asyncHandler(async (req: Request, res: Response) => {
+  const { desaId } = getInstanceContext();
+  const [total, byTrimester] = await Promise.all([
+    prisma.bumil.count({ where: { desaId } }),
+    prisma.bumil.groupBy({
+      by: ['trimester'],
+      where: { desaId },
+      _count: true,
+    }),
+  ]);
 
-    return response.success(res, {
-      total,
-      byTrimester: byTrimester.map(t => ({
-        trimester: t.trimester,
-        count: t._count,
-      })),
-    });
-  } catch (err) {
-    console.error('Bumil stats error:', err);
-    return res.status(500).json({ success: false, message: 'Terjadi kesalahan server' });
-  }
-});
+  return response.success(res, {
+    total,
+    byTrimester: byTrimester.map(t => ({
+      trimester: t.trimester,
+      count: t._count,
+    })),
+  });
+}));
 
 // ============================================
 // Create
 // ============================================
 
-router.post('/', async (req, res) => {
-  try {
-    const data = createSchema.parse(req.body);
+router.post('/', authorize('kesehatan.manage'), asyncHandler(async (req: Request, res: Response) => {
+  const { desaId } = getInstanceContext();
+  const data = createSchema.parse(req.body);
 
-    // Check if already registered
-    const existing = await prisma.bumil.findFirst({
-      where: { OR: [
+  // Validate that penduduk belongs to this village
+  const penduduk = await prisma.penduduk.findFirst({
+    where: { id: data.pendudukId, desaId },
+  });
+  if (!penduduk) {
+    throw ApiError.badRequest('Penduduk tidak ditemukan atau bukan warga desa ini');
+  }
+
+  // Check if already registered
+  const existing = await prisma.bumil.findFirst({
+    where: {
+      desaId,
+      OR: [
         { pendudukId: data.pendudukId },
         { nik: data.nik },
-      ]},
-    });
+      ],
+    },
+  });
 
-    if (existing) {
-      return res.status(400).json({
-        success: false,
-        message: 'Ibu hamil dengan NIK atau penduduk yang sama sudah terdaftar',
-      });
-    }
-
-    const created = await prisma.bumil.create({
-      data: {
-        pendudukId: data.pendudukId,
-        namaLengkap: data.namaLengkap,
-        nik: data.nik,
-        telepon: data.telepon,
-        alamat: data.alamat,
-        trimester: data.trimester,
-        gubugId: data.gubugId ? BigInt(data.gubugId) : null,
-        rtId: data.rtId ? BigInt(data.rtId) : null,
-        rwId: data.rwId ? BigInt(data.rwId) : null,
-      } as any,
-    });
-
-    return res.status(201).json({
-      success: true,
-      data: { ...created, pendudukId: created.pendudukId.toString() },
-      message: 'Data ibu hamil berhasil ditambahkan',
-    });
-  } catch (err) {
-    if (err instanceof z.ZodError) {
-      return res.status(400).json({ success: false, message: 'Validasi gagal', error: err.errors });
-    }
-    console.error('Bumil create error:', err);
-    return res.status(500).json({ success: false, message: 'Terjadi kesalahan server' });
+  if (existing) {
+    throw ApiError.badRequest('Ibu hamil dengan NIK atau penduduk yang sama sudah terdaftar di desa ini');
   }
-});
+
+  const created = await prisma.bumil.create({
+    data: {
+      desaId,
+      pendudukId: data.pendudukId,
+      namaLengkap: data.namaLengkap,
+      nik: data.nik,
+      telepon: data.telepon,
+      alamat: data.alamat,
+      trimester: data.trimester,
+      gubugId: data.gubugId ? BigInt(data.gubugId) : null,
+      rtId: data.rtId ? BigInt(data.rtId) : null,
+      rwId: data.rwId ? BigInt(data.rwId) : null,
+    } as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+  });
+
+  return res.status(201).json({
+    success: true,
+    data: { ...created, pendudukId: created.pendudukId.toString() },
+    message: 'Data ibu hamil berhasil ditambahkan',
+  });
+}));
 
 // ============================================
 // Get One
 // ============================================
 
-router.get('/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const item = await prisma.bumil.findUnique({ where: { id } });
-    if (!item) {
-      return res.status(404).json({ success: false, message: 'Data tidak ditemukan' });
-    }
-    return response.success(res, { ...item, pendudukId: item.pendudukId.toString() });
-  } catch (err) {
-    console.error('Bumil get error:', err);
-    return res.status(500).json({ success: false, message: 'Terjadi kesalahan server' });
+router.get('/:id', authorize('kesehatan.view'), asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { desaId } = getInstanceContext();
+  const item = await prisma.bumil.findFirst({ where: { id, desaId } });
+  if (!item) {
+    throw ApiError.notFound('Data tidak ditemukan');
   }
-});
+  return response.success(res, { ...item, pendudukId: item.pendudukId.toString() });
+}));
 
 // ============================================
 // Update
 // ============================================
 
-router.patch('/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const data = updateSchema.parse(req.body);
+router.patch('/:id', authorize('kesehatan.manage'), asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { desaId } = getInstanceContext();
+  const data = updateSchema.parse(req.body);
 
-    const existing = await prisma.bumil.findUnique({ where: { id } });
-    if (!existing) {
-      return res.status(404).json({ success: false, message: 'Data tidak ditemukan' });
-    }
-
-    const updated = await prisma.bumil.update({
-      where: { id },
-      data: {
-        ...(data.namaLengkap !== undefined && { namaLengkap: data.namaLengkap }),
-        ...(data.nik !== undefined && { nik: data.nik }),
-        ...(data.telepon !== undefined && { telepon: data.telepon }),
-        ...(data.alamat !== undefined && { alamat: data.alamat }),
-        ...(data.trimester !== undefined && { trimester: data.trimester }),
-        ...(data.gubugId !== undefined && { gubugId: data.gubugId ? BigInt(data.gubugId) : null }),
-        ...(data.rtId !== undefined && { rtId: data.rtId ? BigInt(data.rtId) : null }),
-        ...(data.rwId !== undefined && { rwId: data.rwId ? BigInt(data.rwId) : null }),
-      } as any,
-    });
-
-    return response.success(res, {
-      ...updated,
-      pendudukId: updated.pendudukId.toString(),
-      message: 'Data ibu hamil berhasil diperbarui',
-    });
-  } catch (err) {
-    if (err instanceof z.ZodError) {
-      return res.status(400).json({ success: false, message: 'Validasi gagal', error: err.errors });
-    }
-    console.error('Bumil update error:', err);
-    return res.status(500).json({ success: false, message: 'Terjadi kesalahan server' });
+  const existing = await prisma.bumil.findFirst({ where: { id, desaId } });
+  if (!existing) {
+    throw ApiError.notFound('Data tidak ditemukan');
   }
-});
+
+  const updated = await prisma.bumil.update({
+    where: { id },
+    data: {
+      ...(data.namaLengkap !== undefined && { namaLengkap: data.namaLengkap }),
+      ...(data.nik !== undefined && { nik: data.nik }),
+      ...(data.telepon !== undefined && { telepon: data.telepon }),
+      ...(data.alamat !== undefined && { alamat: data.alamat }),
+      ...(data.trimester !== undefined && { trimester: data.trimester }),
+      ...(data.gubugId !== undefined && { gubugId: data.gubugId ? BigInt(data.gubugId) : null }),
+      ...(data.rtId !== undefined && { rtId: data.rtId ? BigInt(data.rtId) : null }),
+      ...(data.rwId !== undefined && { rwId: data.rwId ? BigInt(data.rwId) : null }),
+    } as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+  });
+
+  return response.success(res, {
+    ...updated,
+    pendudukId: updated.pendudukId.toString(),
+    message: 'Data ibu hamil berhasil diperbarui',
+  });
+}));
 
 // ============================================
 // Delete
 // ============================================
 
-router.delete('/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    await prisma.bumil.delete({ where: { id } });
-    return response.success(res, null, 'Data ibu hamil berhasil dihapus');
-  } catch (err: any) {
-    if (err?.code === 'P2025') {
-      return res.status(404).json({ success: false, message: 'Data tidak ditemukan' });
-    }
-    console.error('Bumil delete error:', err);
-    return res.status(500).json({ success: false, message: 'Terjadi kesalahan server' });
+router.delete('/:id', authorize('kesehatan.manage'), asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { desaId } = getInstanceContext();
+  const existing = await prisma.bumil.findFirst({ where: { id, desaId } });
+  if (!existing) {
+    throw ApiError.notFound('Data tidak ditemukan');
   }
-});
+  await prisma.bumil.delete({ where: { id } });
+  return response.success(res, null, 'Data ibu hamil berhasil dihapus');
+}));
 
 export default router;

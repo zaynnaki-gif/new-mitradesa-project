@@ -26,8 +26,9 @@ export function authorize(...permissions: string[]) {
     }
 
     // Check if user has all required permissions
+    const user = req.user;
     const hasAllPermissions = permissions.every((permission) =>
-      req.user!.permissions.includes(permission)
+      user.permissions.includes(permission)
     );
 
     if (!hasAllPermissions) {
@@ -62,8 +63,9 @@ export function authorizeAny(...permissions: string[]) {
     }
 
     // Check if user has at least one permission
+    const user = req.user;
     const hasAnyPermission = permissions.some((permission) =>
-      req.user!.permissions.includes(permission)
+      user.permissions.includes(permission)
     );
 
     if (!hasAnyPermission) {
@@ -95,7 +97,8 @@ export function authorizeRoles(...roles: string[]) {
     }
 
     // Check if user has all required roles
-    const hasAllRoles = roles.every((role) => req.user!.roles.includes(role));
+    const user = req.user;
+    const hasAllRoles = roles.every((role) => user.roles.includes(role));
 
     if (!hasAllRoles) {
       throw ApiError.forbidden('Insufficient role');
@@ -126,7 +129,8 @@ export function authorizeAnyRole(...roles: string[]) {
     }
 
     // Check if user has at least one role
-    const hasAnyRole = roles.some((role) => req.user!.roles.includes(role));
+    const user = req.user;
+    const hasAnyRole = roles.some((role) => user.roles.includes(role));
 
     if (!hasAnyRole) {
       throw ApiError.forbidden('Insufficient role');

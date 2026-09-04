@@ -5,6 +5,7 @@ import { LoadingState, ErrorState } from '@/components/states';
 import { Pagination } from '@/components/Pagination';
 import { useAuthStore } from '@/stores/auth.store';
 import { API_URL } from '@/lib/constants';
+import { safeFetchJson } from '@/lib/fetch';
 import styles from './AdminPosyanduKunjungan.module.css';
 
 // ============================================
@@ -125,17 +126,16 @@ export default function AdminPosyanduKunjunganPage() {
     if (tanggalSelesai) params.set('tanggalSelesai', tanggalSelesai);
 
     try {
-      const res = await fetch(`${API_URL}/posyandu/kunjungan?${params}`, {
+      const data = await safeFetchJson(`${API_URL}/posyandu/kunjungan?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
       if (data.success) {
         setItems(data.data || []);
         setMeta(data.meta);
       } else {
         throw new Error(data.error?.message || data.message || 'Gagal memuat data');
       }
-    } catch (e: any) {
+    } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
       setError(e.message || 'Terjadi kesalahan');
     } finally {
       setLoading(false);
@@ -145,10 +145,9 @@ export default function AdminPosyanduKunjunganPage() {
   const fetchPendudukList = useCallback(async (q = '') => {
     try {
       const params = new URLSearchParams({ search: q, limit: '50' });
-      const res = await fetch(`${API_URL}/penduduk?${params}`, {
+      const data = await safeFetchJson(`${API_URL}/penduduk?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
       if (data.success) setPendudukList(data.data || []);
     } catch { /* ignore */ }
   }, [token]);
@@ -228,12 +227,11 @@ export default function AdminPosyanduKunjunganPage() {
         : `${API_URL}/posyandu/kunjungan`;
       const method = editing ? 'PATCH' : 'POST';
 
-      const res = await fetch(url, {
+      const data = await safeFetchJson(url, {
         method,
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
 
       if (data.success) {
         setShowModal(false);
@@ -253,11 +251,10 @@ export default function AdminPosyanduKunjunganPage() {
     if (!confirm(`Hapus kunjungan "${nama}" pada ${formatDate(item.tanggalKunjungan)}?`)) return;
 
     try {
-      const res = await fetch(`${API_URL}/posyandu/kunjungan/${item.id}`, {
+      const data = await safeFetchJson(`${API_URL}/posyandu/kunjungan/${item.id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
       if (data.success) {
         fetchKunjungan(meta?.page || 1);
       } else {

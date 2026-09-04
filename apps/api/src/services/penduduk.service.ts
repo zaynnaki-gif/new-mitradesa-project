@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { prisma } from './prisma.js';
 import { AuditService } from './audit.service.js';
 import {
@@ -548,4 +549,5 @@ export class PendudukService {
 }
 
 export const pendudukService = new PendudukService();
+
 

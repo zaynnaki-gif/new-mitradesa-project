@@ -4,6 +4,7 @@ import { useAuthStore } from '../../stores/auth.store';
 import { API_URL } from '../../lib/constants';
 
 interface TransparansiFormProps {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   initialData?: any;
   onSuccess: () => void;
   onCancel: () => void;

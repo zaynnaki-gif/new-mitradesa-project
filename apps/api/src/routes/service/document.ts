@@ -1,7 +1,11 @@
+import crypto from 'node:crypto';
+import bcrypt from 'bcrypt';
+import { z } from 'zod';
 import { ApiError } from '../../utils/response.js';
-import { Router } from 'express';
+import { Router, Request } from 'express';
 import { asyncHandler, response } from '../../utils/response.js';
 import { authenticateInternal, authorize } from '../../middleware/index.js';
+import { setPinRateLimiter } from '../../middleware/rate-limiter.middleware.js';
 import {
   dokumenDefinitionService,
   templateSuratService,
@@ -10,6 +14,8 @@ import {
   penandaTanganService,
 } from '../../services/dokumen.service.js';
 import { documentEngineService } from '../../services/document-engine.service.js';
+import { notificationService } from '../../services/notification.service.js';
+import { config } from '../../config/index.js';
 import { prisma } from '../../services/prisma.js';
 import {
   createDokumenDefinitionSchema,
@@ -25,6 +31,7 @@ import {
   createPenandaTanganSchema,
   updatePenandaTanganSchema,
   queryPenandaTanganSchema,
+  createDokumenSignatureSchema,
   idParamSchema,
 } from '../../dto/service-document.dto.js';
 import { validateTemplateBindings, BindingContext } from '../../utils/binding-resolver.js';
@@ -36,7 +43,7 @@ const router = Router();
 /**
  * Get current user's account ID
  */
-function getAccountId(req: Express.Request): bigint {
+function getAccountId(req: Request): bigint {
   const accountId = req.user?.accountId;
   if (!accountId) {
     throw ApiError.unauthorized('Tidak ter-authentikasi');
@@ -367,7 +374,7 @@ router.post(
  * GET /api/signatories - List all signatories
  */
 router.get(
-  '/signatories',
+  ['/signatories', '/penanda-tangan'],
   authenticateInternal(),
   authorize('document.sign'),
   asyncHandler(async (req, res) => {
@@ -381,7 +388,7 @@ router.get(
  * GET /api/signatories/:id - Get signatory by ID
  */
 router.get(
-  '/signatories/:id',
+  ['/signatories/:id', '/penanda-tangan/:id'],
   authenticateInternal(),
   authorize('document.sign'),
   asyncHandler(async (req, res) => {
@@ -398,7 +405,7 @@ router.get(
  * POST /api/signatories - Create signatory
  */
 router.post(
-  '/signatories',
+  ['/signatories', '/penanda-tangan'],
   authenticateInternal(),
   authorize('document.sign'),
   asyncHandler(async (req, res) => {
@@ -412,7 +419,7 @@ router.post(
  * PATCH /api/signatories/:id - Update signatory
  */
 router.patch(
-  '/signatories/:id',
+  ['/signatories/:id', '/penanda-tangan/:id'],
   authenticateInternal(),
   authorize('document.sign'),
   asyncHandler(async (req, res) => {
@@ -427,10 +434,62 @@ router.patch(
 );
 
 /**
+ * POST /api/signatories/:id/set-pin - Self-service PIN setting by the authenticated official
+ */
+router.post(
+  ['/signatories/:id/set-pin', '/penanda-tangan/:id/set-pin'],
+  authenticateInternal(),
+  authorize('document.sign'),
+  setPinRateLimiter,
+  asyncHandler(async (req, res) => {
+    const { id } = idParamSchema.parse(req.params);
+    const callerAccountId = req.user?.accountId;
+    if (!callerAccountId) {
+      throw ApiError.unauthorized('Sesi pengguna tidak valid');
+    }
+
+    const { pin, oldPin } = z.object({
+      pin: z.string().min(4, 'PIN minimal 4 angka/karakter').max(32),
+      oldPin: z.string().optional(),
+    }).parse(req.body);
+
+    const signatory = await penandaTanganService.findById(BigInt(id));
+    if (!signatory) {
+      throw ApiError.notFound('Profil penanda tangan tidak ditemukan');
+    }
+
+    // Official must be authorized as this signatory or be an admin/developer
+    const isSuperAdmin = req.user?.roles?.some(r => r === 'ADMIN' || r === 'DEVELOPER');
+    if (signatory.accountId && signatory.accountId !== callerAccountId && !isSuperAdmin) {
+      throw ApiError.forbidden('Anda hanya dapat mengatur PIN untuk profil pejabat Anda sendiri');
+    }
+
+    // If signatory already has a PIN and caller is setting a new PIN (and not admin override), verify old PIN
+    if (signatory.pinHash && !isSuperAdmin) {
+      if (!oldPin) {
+        throw ApiError.badRequest('PIN lama wajib disertakan untuk perubahan PIN');
+      }
+      const isOldPinValid = await bcrypt.compare(oldPin, signatory.pinHash);
+      if (!isOldPinValid) {
+        throw ApiError.unauthorized('PIN lama tidak cocok');
+      }
+    }
+
+    // Update with new hashed PIN and link to caller's account if not linked
+    const updated = await penandaTanganService.update(BigInt(id), {
+      pin,
+      accountId: signatory.accountId || callerAccountId,
+    });
+
+    return response.success(res, { id: updated.id.toString(), nama: updated.nama, hasPin: true }, 'PIN penandatangan berhasil diatur secara mandiri');
+  })
+);
+
+/**
  * DELETE /api/signatories/:id - Delete signatory
  */
 router.delete(
-  '/signatories/:id',
+  ['/signatories/:id', '/penanda-tangan/:id'],
   authenticateInternal(),
   authorize('document.sign'),
   asyncHandler(async (req, res) => {
@@ -605,10 +664,11 @@ router.post(
   authorize('document.sign'),
   asyncHandler(async (req, res) => {
     const id = BigInt(req.params.id);
-    const { penandatanganId, tandaTanganUrl } = req.body;
+    const { penandatanganId, tandaTanganUrl, pin } = createDokumenSignatureSchema.parse(req.body);
 
-    if (!penandatanganId) {
-      throw ApiError.badRequest('penandatanganId wajib diisi');
+    const callerAccountId = req.user?.accountId;
+    if (!callerAccountId) {
+      throw ApiError.unauthorized('Sesi pengguna tidak valid');
     }
 
     const document = await instanDokumenService.findById(id);
@@ -621,12 +681,43 @@ router.post(
       throw ApiError.conflict('Dokumen sudah ditandatangani');
     }
 
+    // MIS-07 / GAP-06: Verify Signatory existence and active status
+    const penandatangan = await prisma.penandaTangan.findUnique({
+      where: { id: BigInt(penandatanganId) },
+    });
+    if (!penandatangan || !penandatangan.isActive) {
+      throw ApiError.badRequest('Pejabat penandatangan tidak valid atau tidak aktif');
+    }
+
+    // MIS-07 / GAP-06: Verify Account Association
+    if (penandatangan.accountId && penandatangan.accountId !== callerAccountId) {
+      throw ApiError.forbidden(
+        'Anda tidak memiliki otorisasi untuk menandatangani dokumen atas nama pejabat ini (akun login tidak sesuai)'
+      );
+    }
+
+    // MIS-07 / GAP-06: Verify Personal PIN if configured for this signatory
+    if (penandatangan.pinHash) {
+      if (!pin) {
+        throw ApiError.badRequest('PIN personal pejabat penandatangan wajib diisi');
+      }
+      const isPinValid = await bcrypt.compare(pin, penandatangan.pinHash);
+      if (!isPinValid) {
+        throw ApiError.unauthorized('PIN personal penandatangan salah');
+      }
+    }
+
+    const effectiveSignatureUrl = tandaTanganUrl || penandatangan.tandaTanganUrl;
+    if (!effectiveSignatureUrl) {
+      throw ApiError.badRequest('Gambar tanda tangan pejabat belum diset');
+    }
+
     // Create signature record
     await prisma.dokumenSignature.create({
       data: {
         dokumenId: id,
         penandatanganId: BigInt(penandatanganId),
-        tandaTanganUrl: tandaTanganUrl,
+        tandaTanganUrl: effectiveSignatureUrl,
         tandaTanganType: 'IMAGE',
       },
     });
@@ -634,7 +725,99 @@ router.post(
     // Update document status
     await instanDokumenService.updateStatus(id, 'SIGNED');
 
+    // Regenerate PDF with signature stamp if template and content snapshot exist
+    try {
+      const fullDoc = await prisma.instanDokumen.findUnique({
+        where: { id },
+        include: {
+          templateVersion: {
+            include: {
+              template: {
+                include: { blanko: true },
+              },
+            },
+          },
+        },
+      });
+
+      if (fullDoc && fullDoc.contentSnapshot && fullDoc.dataSnapshot) {
+        const { getStorageProvider } = await import('../../services/storage/index.js');
+        const storage = getStorageProvider();
+
+        const pdfBuffer = await documentEngineService.generatePdfFromContent(
+          fullDoc.contentSnapshot,
+          fullDoc.dataSnapshot as Record<string, unknown>,
+          fullDoc.templateVersion?.kopConfig as Record<string, unknown> | undefined,
+          fullDoc.templateVersion?.signatureConfig as Record<string, unknown> | undefined,
+          fullDoc.templateVersion?.template?.blanko,
+          {
+            signatureImageUrl: effectiveSignatureUrl || undefined,
+            verificationToken: fullDoc.verificationToken || undefined,
+            nomorDokumen: fullDoc.nomorDokumen,
+            judul: fullDoc.judul,
+          }
+        );
+
+        const randomSuffix = crypto.randomUUID();
+        const safeSlug = fullDoc.nomorDokumen.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
+        const oldFileUrl = fullDoc.fileUrl;
+
+        const storageFile = await storage.upload(pdfBuffer, {
+          folder: 'documents',
+          filename: `${safeSlug}-${randomSuffix}-signed.pdf`,
+          contentType: 'application/pdf',
+        });
+
+        try {
+          await prisma.instanDokumen.update({
+            where: { id },
+            data: { fileUrl: storageFile.url },
+          });
+        } catch (dbUpdateErr) {
+          // Rollback newly uploaded file on database failure to prevent orphaned storage
+          await storage.delete(storageFile.key).catch((delErr) => {
+            console.error('Failed to rollback orphaned signed file after DB update failure:', delErr);
+          });
+          throw dbUpdateErr;
+        }
+
+        // Clean up old draft/unsigned file from storage if present
+        if (oldFileUrl && oldFileUrl.includes('/uploads/')) {
+          const oldKey = oldFileUrl.split('/uploads/')[1];
+          if (oldKey) {
+            await storage.delete(oldKey).catch((delErr) => {
+              console.warn('Failed to cleanup old unsigned PDF:', delErr);
+            });
+          }
+        }
+      }
+    } catch (pdfErr) {
+      console.error('Failed to regenerate signed PDF:', pdfErr);
+    }
+
     const updated = await instanDokumenService.findById(id);
+
+    // MIS-03 / GAP-02: Non-blocking WhatsApp Notification
+    if (updated?.permintaan?.id) {
+      try {
+        const reqItem = await prisma.permintaanLayanan.findUnique({
+          where: { id: updated.permintaan.id },
+          include: { penduduk: true },
+        });
+        if (reqItem?.penduduk?.telepon) {
+          const baseUrl = config.apiUrl ? config.apiUrl.replace(/\/api$/, '') : 'https://mitradesa.id';
+          const verifyUrl = `${baseUrl}/verifikasi/${updated.verificationToken || ''}`;
+          void notificationService.notifyDocumentSigned(
+            reqItem.penduduk.telepon,
+            updated.nomorDokumen,
+            verifyUrl
+          ).catch((waErr) => console.error('Gagal kirim notifikasi WA dokumen ditandatangani:', waErr));
+        }
+      } catch (waErr) {
+        console.warn('Gagal memproses notifikasi WA dokumen signed:', waErr);
+      }
+    }
+
     return response.success(res, updated, 'Dokumen berhasil ditandatangani');
   })
 );

@@ -7,6 +7,7 @@ export interface User {
   username: string;
   email: string;
   roles: string[];
+  permissions?: string[];
 }
 
 export interface AuthState {
@@ -38,9 +39,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     window.location.href = '/login';
   },
 
-  hasPermission: (_permission: string) => {
+  hasPermission: (permission: string) => {
     const { user } = get();
-    return user !== null;
+    if (!user) return false;
+    // Admins or users with system.* or specific permission
+    if (user.roles.includes('ADMIN') || user.roles.includes('DEVELOPER')) return true;
+    if (user.permissions?.includes('system.*')) return true;
+    return user.permissions?.includes(permission) ?? false;
   },
 
   hasRole: (role: string) => {
@@ -65,9 +70,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       if (response.ok) {
         const result = await response.json();
-        const mappedUser = {
-          ...result.data,
-          roles: result.data.roles?.map((r: any) => typeof r === 'string' ? r : r.code) || []
+        interface RoleItem {
+          code?: string;
+          permissions?: string[];
+        }
+        const roleObjects: (RoleItem | string)[] = Array.isArray(result.data?.roles) ? result.data.roles : [];
+        const roles = roleObjects.map((r) => (typeof r === 'string' ? r : r.code || '')).filter(Boolean);
+        const permissions = Array.from(
+          new Set(
+            roleObjects.flatMap((r) => (typeof r !== 'string' && Array.isArray(r.permissions) ? r.permissions : []))
+          )
+        );
+
+        const mappedUser: User = {
+          id: result.data.id,
+          username: result.data.username,
+          email: result.data.email,
+          roles,
+          permissions,
         };
         set({ user: mappedUser, isAuthenticated: true });
       } else {

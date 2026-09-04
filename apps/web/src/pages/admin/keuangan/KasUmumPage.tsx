@@ -4,6 +4,7 @@ import { Button, Modal } from '@/components/ui';
 import { LoadingState, ErrorState } from '@/components/states';
 import { useAuthStore } from '@/stores/auth.store';
 import { API_URL } from '@/lib/constants';
+import { safeFetchJson } from '@/lib/fetch';
 import styles from './KasUmumPage.module.css';
 
 interface KasUmumEntry {
@@ -68,10 +69,9 @@ export default function KasUmumPage() {
     });
 
     try {
-      const res = await fetch(`${API_URL}/kas-umum?${params}`, {
+      const data = await safeFetchJson(`${API_URL}/kas-umum?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
       if (data.success) {
         setEntries(data.data || []);
         setMeta(data.meta);
@@ -87,10 +87,9 @@ export default function KasUmumPage() {
 
   const fetchSaldo = useCallback(async () => {
     try {
-      const res = await fetch(`${API_URL}/kas-umum/saldo`, {
+      const data = await safeFetchJson(`${API_URL}/kas-umum/saldo`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
       if (data.success) {
         setSaldo(data.data.saldo || 0);
       }
@@ -144,12 +143,11 @@ export default function KasUmumPage() {
     };
 
     try {
-      const res = await fetch(url, {
+      const data = await safeFetchJson(url, {
         method,
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(body),
       });
-      const data = await res.json();
       if (data.success) {
         setShowModal(false);
         fetchEntries(meta?.page || 1);
@@ -157,25 +155,24 @@ export default function KasUmumPage() {
       } else {
         setFormError(data.error?.message || 'Terjadi kesalahan');
       }
-    } catch { setFormError('Terjadi kesalahan'); }
+    } catch (err: any) { setFormError(err.message || 'Terjadi kesalahan'); } // eslint-disable-line @typescript-eslint/no-explicit-any
     finally { setFormLoading(false); }
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm('Hapus entri ini?')) return;
     try {
-      const res = await fetch(`${API_URL}/kas-umum/${id}`, {
+      const data = await safeFetchJson(`${API_URL}/kas-umum/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
       if (data.success) {
         fetchEntries(meta?.page || 1);
         fetchSaldo();
       } else {
         alert(data.error?.message || 'Gagal hapus');
       }
-    } catch { alert('Terjadi kesalahan'); }
+    } catch (err: any) { alert(err.message || 'Terjadi kesalahan'); } // eslint-disable-line @typescript-eslint/no-explicit-any
   };
 
   const formatRupiah = (n: number) =>

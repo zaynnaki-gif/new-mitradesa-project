@@ -1,10 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { AdminLayout } from '@/layouts';
 import { Button, Input, Select, Badge } from '@/components/ui';
 import { LoadingState, ErrorState } from '@/components/states';
 import { Pagination } from '@/components/Pagination';
 import { useAuthStore } from '@/stores/auth.store';
 import { API_URL } from '@/lib/constants';
+import { safeFetchJson } from '@/lib/fetch';
 import styles from './PendudukPage.module.css';
 
 interface Penduduk {
@@ -58,12 +59,6 @@ interface PaginationMeta {
   limit: number;
   total: number;
   totalPages: number;
-}
-
-interface ImportResult {
-  success: number;
-  failed: number;
-  errors: string[];
 }
 
 const PEKERJAAN_OPTIONS = [
@@ -169,13 +164,15 @@ const BPJS_KESEHATAN_OPTIONS = ['BPJS PBI (Pemerintah)', 'BPJS Non-PBI (Mandiri)
 const BANTUAN_SOSIAL_OPTIONS = ['PKH', 'BPNT', 'BLT Dana Desa', 'Bansos Tunai (BST)', 'Tidak Menerima', 'Lainnya'];
 const KONDISI_FISIK_OPTIONS = ['Normal', 'Tunanetra', 'Tunarungu', 'Tunawicara', 'Tunadaksa', 'Tunagrahita', 'Lainnya'];
 
+
+
+
 export default function PendudukPage() {
   const { token } = useAuthStore();
   const [penduduk, setPenduduk] = useState<Penduduk[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pagination, setPagination] = useState<PaginationMeta | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Filters
   const [search, setSearch] = useState('');
@@ -187,10 +184,6 @@ export default function PendudukPage() {
   const [editingPenduduk, setEditingPenduduk] = useState<Penduduk | null>(null);
   const [formLoading, setFormLoading] = useState(false);
 
-  // Import modal state
-  const [showImportModal, setShowImportModal] = useState(false);
-  const [importLoading, setImportLoading] = useState(false);
-  const [importResult, setImportResult] = useState<ImportResult | null>(null);
 
   const [gubugOptions, setGubugOptions] = useState<{kode: string, nama: string}[]>([]);
 
@@ -252,16 +245,13 @@ export default function PendudukPage() {
       if (jenisKelamin) params.append('jenisKelamin', jenisKelamin);
       if (isAktif) params.append('isAktif', isAktif);
 
-      const res = await fetch(`${API_URL}/penduduk?${params}`, {
+      const data = await safeFetchJson(`${API_URL}/penduduk?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
 
-      if (!res.ok) throw new Error('Gagal mengambil data');
-
-      const data = await res.json();
       if (data.success) {
         setPenduduk(data.data || []);
         setPagination(data.meta || null);
@@ -277,14 +267,14 @@ export default function PendudukPage() {
 
   useEffect(() => {
     fetchPenduduk();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   useEffect(() => {
     if (token) {
-      fetch(`${API_URL}/wilayah/dropdown`, {
+      safeFetchJson(`${API_URL}/wilayah/dropdown`, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      .then(r => r.json())
       .then(data => {
         if (data.success && data.data?.gubug) {
           setGubugOptions(data.data.gubug);
@@ -412,7 +402,7 @@ export default function PendudukPage() {
 
       const method = editingPenduduk ? 'PATCH' : 'POST';
 
-      const res = await fetch(url, {
+      const data = await safeFetchJson(url, {
         method,
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -421,14 +411,11 @@ export default function PendudukPage() {
         body: JSON.stringify(formData),
       });
 
-      const data = await res.json();
-
       if (data.success) {
         setShowModal(false);
         fetchPenduduk(pagination?.page || 1);
       } else {
-        console.error('API Error:', data.error);
-        alert(data.error?.message || data.message || 'Gagal menyimpan data');
+        alert(data.message || 'Gagal menyimpan data');
       }
     } catch (error) {
       console.error('Fetch Error:', error);
@@ -442,17 +429,17 @@ export default function PendudukPage() {
     if (!confirm('Yakin ingin menghapus data ini?')) return;
 
     try {
-      const res = await fetch(`${API_URL}/penduduk/${id}`, {
+      const data = await safeFetchJson(`${API_URL}/penduduk/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
 
-      if (res.ok) {
+      if (data.success) {
         fetchPenduduk(pagination?.page || 1);
       } else {
-        alert('Gagal menghapus data');
+        alert(data.message || 'Gagal menghapus data');
       }
     } catch {
       alert('Terjadi kesalahan');
@@ -477,80 +464,8 @@ export default function PendudukPage() {
   // ============================================
   // EXPORT DATA
   // ============================================
-  const handleExport = async (format: 'csv' | 'xlsx') => {
-    try {
-      setLoading(true);
-      const params = new URLSearchParams({ format });
-      if (search) params.append('search', search);
-      if (jenisKelamin) params.append('jenisKelamin', jenisKelamin);
-      if (isAktif) params.append('isAktif', isAktif);
-
-      const res = await fetch(`${API_URL}/penduduk/export?${params.toString()}`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-
-      if (!res.ok) throw new Error('Export failed');
-
-      const arrayBuffer = await res.arrayBuffer();
-      const contentType = format === 'xlsx' 
-        ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
-        : 'text/csv; charset=utf-8';
-      const blob = new Blob([arrayBuffer], { type: contentType });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `penduduk_${new Date().toISOString().split('T')[0]}.${format}`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      setTimeout(() => window.URL.revokeObjectURL(url), 100);
-    } catch {
-      alert('Gagal export data');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ============================================
-  // IMPORT CSV
-  // ============================================
-  
-  const handleImportCSV = async (file: File) => {
-    setImportLoading(true);
-    setImportResult(null);
-
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      try {
-        const text = e.target?.result as string;
-        const res = await fetch(`${API_URL}/penduduk/import`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ csv: text }),
-        });
-
-        const data = await res.json();
-        if (data.success) {
-          const r = data.data;
-          setImportResult({
-            success: r.success,
-            failed: r.failed,
-            errors: r.errors || [],
-          });
-          fetchPenduduk();
-        } else {
-          setImportResult({ success: 0, failed: 1, errors: [data.message || 'Gagal import'] });
-        }
-      } catch (err: any) {
-        setImportResult({ success: 0, failed: 1, errors: ['Gagal memproses file CSV: ' + err.message] });
-      } finally {
-        setImportLoading(false);
-      }
-    };
-    reader.readAsText(file);
+  const handleExport = () => {
+    window.location.href = '/admin/sistem/export';
   };
 
   return (
@@ -565,14 +480,8 @@ export default function PendudukPage() {
             </p>
           </div>
           <div className={styles.headerActions} style={{ gap: '8px', display: 'flex', flexWrap: 'wrap' }}>
-            <Button variant="outline" onClick={() => handleExport('csv')} disabled={loading}>
-              {loading ? 'Exporting...' : '📄 Export CSV'}
-            </Button>
-            <Button variant="outline" onClick={() => handleExport('xlsx')} disabled={loading}>
-              {loading ? 'Exporting...' : '📊 Export Excel'}
-            </Button>
-            <Button variant="outline" onClick={() => { setShowImportModal(true); setImportResult(null); }}>
-              📤 Import CSV
+            <Button variant="outline" onClick={handleExport}>
+              📥 Ke Halaman Export
             </Button>
             <Button variant="primary" onClick={openCreateModal}>
               + Tambah Penduduk
@@ -997,51 +906,6 @@ export default function PendudukPage() {
                   </div>
                 </div>
               </form>
-            </div>
-          </div>
-        )}
-        {/* Import Modal */}
-        {showImportModal && (
-          <div className={styles.modalOverlay} onClick={() => setShowImportModal(false)}>
-            <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-              <div className={styles.modalHeader}>
-                <h2>Import Data Penduduk dari CSV</h2>
-                <button onClick={() => setShowImportModal(false)}>&times;</button>
-              </div>
-              <div className={styles.importModal}>
-                <p className={styles.importInfo}>
-                  Sistem sekarang mendukung format data lengkap Prodeskel & SDGs (termasuk Pendidikan, Pekerjaan, dll).
-                  <br />Pastikan file CSV memiliki kolom header yang sesuai (seperti pada data ekspor SIAK/Prodeskel).
-                </p>
-                <input
-                  type="file"
-                  accept=".csv"
-                  ref={fileInputRef}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleImportCSV(file);
-                  }}
-                  style={{ marginBottom: '1rem' }}
-                />
-                {importLoading && <p>Memproses import...</p>}
-                {importResult && (
-                  <div className={styles.importResult}>
-                    <p>Berhasil: {importResult.success}</p>
-                    <p>Gagal: {importResult.failed}</p>
-                    {importResult.errors?.length > 0 && (
-                      <div className={styles.importErrors}>
-                        <p>Errors:</p>
-                        <ul>
-                          {importResult.errors.slice(0, 5).map((err: string, i: number) => (
-                            <li key={i}>{err}</li>
-                          ))}
-                          {importResult.errors.length > 5 && <li>...dan {importResult.errors.length - 5} lagi</li>}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
             </div>
           </div>
         )}

@@ -57,6 +57,8 @@ const LembagaPage = lazy(() => import('./pages/admin/lembaga/LembagaPage').then(
 // Surat Template pages
 const JenisSuratPage = lazy(() => import('./pages/admin/surat/JenisSuratPage'));
 const TemplateListPage = lazy(() => import('./pages/admin/surat/TemplateListPage'));
+const BlankoListPage = lazy(() => import('./pages/admin/surat/BlankoListPage'));
+const BlankoBuilderPage = lazy(() => import('./pages/admin/surat/BlankoBuilderPage'));
 const TemplateDesignerPage = lazy(() => import('./pages/admin/surat/TemplateDesignerPage'));
 const TemplateFieldsPage = lazy(() => import('./pages/admin/surat/TemplateFieldsPage'));
 const PenandatanganPage = lazy(() => import('./pages/admin/surat/PenandatanganPage'));
@@ -76,15 +78,28 @@ const DokumenListPage = lazy(() => import('./pages/admin/dokumen/DokumenListPage
 const DokumenDetailPage = lazy(() => import('./pages/admin/dokumen/DokumenDetailPage'));
 
 // Admin Konten pages
-const BeritaAdminPage = lazy(() => import('./pages/admin/konten/BeritaPage'));
-const HalamanAdminPage = lazy(() => import('./pages/admin/konten/HalamanPage'));
-const KategoriAdminPage = lazy(() => import('./pages/admin/konten/KategoriPage'));
-const MediaAdminPage = lazy(() => import('./pages/admin/konten/MediaPage'));
+const BeritaAdminPage = lazy(() => import('./pages/admin/konten/BeritaPage').then(m => ({ default: m.BeritaPage })));
+const HalamanAdminPage = lazy(() => import('./pages/admin/konten/HalamanPage').then(m => ({ default: m.HalamanPage })));
+const KategoriAdminPage = lazy(() => import('./pages/admin/konten/KategoriPage').then(m => ({ default: m.KategoriPage })));
+const MediaAdminPage = lazy(() => import('./pages/admin/konten/MediaPage').then(m => ({ default: m.MediaPage })));
 const AgendaAdminPage = lazy(() => import('./pages/admin/konten/AgendaPage').then(m => ({ default: m.AgendaPage })));
 const UmkmAdminPage = lazy(() => import('./pages/admin/konten/UmkmPage').then(m => ({ default: m.UmkmPage })));
 const PotensiAdminPage = lazy(() => import('./pages/admin/konten/PotensiPage').then(m => ({ default: m.PotensiPage })));
 const TransparansiAdminPage = lazy(() => import('./pages/admin/konten/TransparansiPage'));
 const ExecutiveDashboard = lazy(() => import('./pages/admin/ExecutiveDashboard'));
+
+// Admin missing pages
+const MutasiPendudukPage = lazy(() => import('./pages/admin/penduduk/MutasiPage'));
+const AdminPosyanduPage = lazy(() => import('./pages/admin/kesehatan/AdminPosyanduKunjungan'));
+const BumilAdminPage = lazy(() => import('./pages/admin/kesehatan/BumilPage'));
+const KasUmumAdminPage = lazy(() => import('./pages/admin/keuangan/KasUmumPage'));
+const ApbdesEntryAdminPage = lazy(() => import('./pages/admin/keuangan/ApbdesEntryPage'));
+const BansosAdminPage = lazy(() => import('./pages/admin/pemerintahan/BansosPage'));
+const SaranAdminPage = lazy(() => import('./pages/admin/pemerintahan/SaranPage'));
+const UserManagementAdminPage = lazy(() => import('./pages/admin/sistem/UserManagementPage'));
+const ActivityLogAdminPage = lazy(() => import('./pages/admin/sistem/ActivityLogPage'));
+const ConfigAdminPage = lazy(() => import('./pages/admin/sistem/ConfigPage'));
+const ExportAdminPage = lazy(() => import('./pages/admin/sistem/ExportPage'));
 
 // Public verification
 const VerifyPage = lazy(() => import('./pages/verification/VerifyPage'));
@@ -187,6 +202,14 @@ function App() {
               }
             />
             <Route
+              path="/admin/master/mutasi-penduduk"
+              element={
+                <AdminRoute>
+                  <MutasiPendudukPage />
+                </AdminRoute>
+              }
+            />
+            <Route
               path="/admin/master/referensi"
               element={
                 <AdminRoute>
@@ -239,6 +262,22 @@ function App() {
               element={
                 <AdminRoute>
                   <TemplateListPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/surat/blanko"
+              element={
+                <AdminRoute>
+                  <BlankoListPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/surat/blanko/:id/builder"
+              element={
+                <AdminRoute>
+                  <BlankoBuilderPage />
                 </AdminRoute>
               }
             />
@@ -414,6 +453,94 @@ function App() {
               element={
                 <AdminRoute>
                   <ExecutiveDashboard />
+                </AdminRoute>
+              }
+            />
+
+            {/* Admin Kesehatan routes */}
+            <Route
+              path="/admin/kesehatan/posyandu"
+              element={
+                <AdminRoute>
+                  <AdminPosyanduPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/kesehatan/bumil"
+              element={
+                <AdminRoute>
+                  <BumilAdminPage />
+                </AdminRoute>
+              }
+            />
+
+            {/* Admin Keuangan routes */}
+            <Route
+              path="/admin/keuangan/kas-umum"
+              element={
+                <AdminRoute>
+                  <KasUmumAdminPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/keuangan/apbdes-entry"
+              element={
+                <AdminRoute>
+                  <ApbdesEntryAdminPage />
+                </AdminRoute>
+              }
+            />
+
+            {/* Admin Pemerintahan routes */}
+            <Route
+              path="/admin/pemerintahan/bansos"
+              element={
+                <AdminRoute>
+                  <BansosAdminPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/pemerintahan/saran"
+              element={
+                <AdminRoute>
+                  <SaranAdminPage />
+                </AdminRoute>
+              }
+            />
+
+            {/* Admin Sistem routes */}
+            <Route
+              path="/admin/sistem/user-management"
+              element={
+                <AdminRoute>
+                  <UserManagementAdminPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/sistem/activity-log"
+              element={
+                <AdminRoute>
+                  <ActivityLogAdminPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/sistem/config"
+              element={
+                <AdminRoute>
+                  <ConfigAdminPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/sistem/export"
+              element={
+                <AdminRoute>
+                  <ExportAdminPage />
                 </AdminRoute>
               }
             />

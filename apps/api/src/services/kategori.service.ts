@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { prisma } from './prisma.js';
 import { ApiError } from '../utils/response.js';
 import { CreateKategoriInput, UpdateKategoriInput, QueryKategoriInput } from '../dto/cms.dto.js';
@@ -253,4 +254,5 @@ export class KategoriService {
 }
 
 export const kategoriService = new KategoriService();
+
 

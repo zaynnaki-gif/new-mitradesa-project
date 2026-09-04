@@ -54,7 +54,7 @@ router.get(
     // Extract NIK and Nama if available
     let pemohon: { nama?: string; nik?: string } = {};
     if (document.permintaan?.dataJson) {
-      const data = document.permintaan.dataJson as Record<string, any>;
+      const data = document.permintaan.dataJson as Record<string, unknown>;
       // Mask NIK
       const nikRaw = Object.values(data).find(v => typeof v === 'string' && /^\d{16}$/.test(v)) as string;
       if (nikRaw) {

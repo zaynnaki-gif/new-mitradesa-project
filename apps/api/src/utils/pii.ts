@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * PII (Personally Identifiable Information) Utilities
  *
@@ -75,3 +76,4 @@ export function maskString(
   const last = value.substring(value.length - showLast);
   return `${first}...${last}`;
 }
+

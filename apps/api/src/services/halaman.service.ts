@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { prisma } from './prisma.js';
 import { ApiError } from '../utils/response.js';
 import { CreateHalamanInput, UpdateHalamanInput, QueryHalamanInput } from '../dto/cms.dto.js';
@@ -408,3 +409,4 @@ export class HalamanService {
 }
 
 export const halamanService = new HalamanService();
+

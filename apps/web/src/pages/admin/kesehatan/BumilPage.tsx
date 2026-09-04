@@ -5,6 +5,7 @@ import { LoadingState, ErrorState } from '@/components/states';
 import { Pagination } from '@/components/Pagination';
 import { useAuthStore } from '@/stores/auth.store';
 import { API_URL } from '@/lib/constants';
+import { safeFetchJson } from '@/lib/fetch';
 import styles from './BumilPage.module.css';
 
 // ============================================
@@ -98,17 +99,16 @@ export default function BumilPage() {
     if (trimester) params.set('trimester', trimester);
 
     try {
-      const res = await fetch(`${API_URL}/bumil?${params}`, {
+      const data = await safeFetchJson(`${API_URL}/bumil?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
       if (data.success) {
         setItems(data.data || []);
         setMeta(data.meta);
       } else {
         throw new Error(data.error?.message || data.message || 'Gagal memuat data');
       }
-    } catch (e: any) {
+    } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
       setError(e.message || 'Terjadi kesalahan');
     } finally {
       setLoading(false);
@@ -117,10 +117,9 @@ export default function BumilPage() {
 
   const fetchStats = useCallback(async () => {
     try {
-      const res = await fetch(`${API_URL}/bumil/stats`, {
+      const data = await safeFetchJson(`${API_URL}/bumil/stats`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
       if (data.success) setStats(data.data);
     } catch { /* ignore */ }
   }, [token]);
@@ -128,10 +127,9 @@ export default function BumilPage() {
   const fetchPendudukList = useCallback(async (q = '') => {
     try {
       const params = new URLSearchParams({ search: q, limit: '50' });
-      const res = await fetch(`${API_URL}/penduduk?${params}`, {
+      const data = await safeFetchJson(`${API_URL}/penduduk?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
       if (data.success) setPendudukList(data.data || []);
     } catch { /* ignore */ }
   }, [token]);
@@ -190,12 +188,11 @@ export default function BumilPage() {
         : `${API_URL}/bumil`;
       const method = editing ? 'PATCH' : 'POST';
 
-      const res = await fetch(url, {
+      const data = await safeFetchJson(url, {
         method,
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
 
       if (data.success) {
         setShowModal(false);
@@ -215,11 +212,10 @@ export default function BumilPage() {
     if (!confirm(`Hapus data "${item.namaLengkap}" (NIK: ${maskNik(item.nik)})?`)) return;
 
     try {
-      const res = await fetch(`${API_URL}/bumil/${item.id}`, {
+      const data = await safeFetchJson(`${API_URL}/bumil/${item.id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
       if (data.success) {
         fetchBumil(meta?.page || 1);
         fetchStats();

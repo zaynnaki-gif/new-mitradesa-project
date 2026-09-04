@@ -1,14 +1,18 @@
+/* global PDFKit, NodeJS */
 /**
  * PDF Renderer Service
  *
  * Production-grade PDF generation for document templates.
  * Uses pdfkit for Node.js native rendering.
  */
+/// <reference types="node" />
+/// <reference types="pdfkit" />
 
 import PDFDocument from 'pdfkit';
 import { PassThrough } from 'stream';
 import fetch from 'node-fetch';
 import { generateQrCodeBuffer } from '../utils/qr-generator.js';
+import { config } from '../config/index.js';
 
 // ============================================================
 // Types
@@ -55,6 +59,9 @@ export interface FieldElement {
   value: string;
   label?: string;
   style?: TextStyle;
+  x?: number;
+  y?: number;
+  width?: number;
 }
 
 export interface ImageElement {
@@ -63,6 +70,8 @@ export interface ImageElement {
   width?: number;
   height?: number;
   alignment?: 'left' | 'center' | 'right';
+  x?: number;
+  y?: number;
 }
 
 export interface DividerElement {
@@ -70,6 +79,9 @@ export interface DividerElement {
   style?: 'solid' | 'dashed' | 'dotted';
   thickness?: number;
   color?: string;
+  x?: number;
+  y?: number;
+  width?: number;
 }
 
 export interface TableElement {
@@ -279,9 +291,9 @@ export class PdfRenderer {
   // ============================================================
 
   /**
-   * Render Kop Surat header (sync version)
+   * Render Kop Surat header (async version)
    */
-  renderKop(kop: KopConfig): void {
+  async renderKop(kop: KopConfig): Promise<void> {
     const startY = this.doc.page.margins.top;
 
     // Reset to top
@@ -291,9 +303,9 @@ export class PdfRenderer {
     const logoSize = kop.logoDesa?.size || 60;
     const logoWidth = this.mmToPoints(logoSize / 10);
 
-    // Left logo (Desa) - sync version, no image loading
+    // Left logo (Desa) - async version
     if (kop.logoDesa?.visible && kop.logoDesa.source) {
-      this.drawLogoSync(kop.logoDesa.source, this.doc.page.margins.left, startY, logoWidth);
+      await this.drawLogoAsync(kop.logoDesa.source, this.doc.page.margins.left, startY, logoWidth);
     }
 
     // Right logo (Kabupaten) - would draw here if source available
@@ -359,7 +371,7 @@ export class PdfRenderer {
   /**
    * Render a single element
    */
-  renderElement(element: Element): void {
+  async renderElement(element: Element): Promise<void> {
     switch (element.type) {
       case 'text':
         this.renderText(element);
@@ -368,7 +380,7 @@ export class PdfRenderer {
         this.renderField(element);
         break;
       case 'image':
-        this.renderImage(element);
+        await this.renderImage(element);
         break;
       case 'divider':
         this.renderDivider(element);
@@ -391,9 +403,9 @@ export class PdfRenderer {
   /**
    * Render multiple elements
    */
-  renderElements(elements: Element[]): void {
+  async renderElements(elements: Element[]): Promise<void> {
     for (const element of elements) {
-      this.renderElement(element);
+      await this.renderElement(element);
     }
   }
 
@@ -440,9 +452,7 @@ export class PdfRenderer {
           this.currentY += this.mmToPoints(imgHeight / 10) + 10;
         }
       } catch (error) {
-        console.warn('Failed to load signature image:', error);
-        // Draw signature line as fallback
-        this.currentY += 50;
+        throw new Error(`Gagal memuat gambar TTE (Tanda Tangan Elektronik): ${error instanceof Error ? error.message : String(error)}`);
       }
     } else {
       // Draw signature line
@@ -504,13 +514,90 @@ export class PdfRenderer {
       );
       this.doc.fillColor('#000000');
     } catch (error) {
-      console.warn('Failed to render QR code:', error);
+      throw new Error(`Gagal memuat QR Code verifikasi dokumen: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
   // ============================================================
   // Private Rendering Methods
   // ============================================================
+
+  /**
+   * Check if an IP address belongs to private/internal/reserved ranges
+   */
+  private isPrivateIp(ip: string): boolean {
+    let cleanIp = ip.toLowerCase().trim();
+    if (cleanIp.startsWith('::ffff:')) {
+      cleanIp = cleanIp.substring(7);
+    }
+
+    // IPv4 checks
+    const ipv4Regex = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+    const match = cleanIp.match(ipv4Regex);
+    if (match) {
+      const b1 = Number(match[1]);
+      const b2 = Number(match[2]);
+      if (b1 === 0 || b1 === 127) return true; // 0.0.0.0/8, 127.0.0.0/8 (loopback)
+      if (b1 === 10) return true; // 10.0.0.0/8
+      if (b1 === 172 && b2 >= 16 && b2 <= 31) return true; // 172.16.0.0/12
+      if (b1 === 192 && b2 === 168) return true; // 192.168.0.0/16
+      if (b1 === 169 && b2 === 254) return true; // 169.254.0.0/16 (link-local, cloud metadata)
+      if (b1 === 100 && b2 >= 64 && b2 <= 127) return true; // Carrier-grade NAT 100.64.0.0/10
+      if (b1 >= 224) return true; // Multicast & reserved 224.0.0.0+
+      return false;
+    }
+
+    // IPv6 checks
+    if (cleanIp === '::1' || cleanIp === '::' || cleanIp === '0:0:0:0:0:0:0:1' || cleanIp === '0:0:0:0:0:0:0:0') {
+      return true;
+    }
+    // Unique Local Addresses fc00::/7 (fc00: to fdff:)
+    if (/^f[cd][0-9a-f]{2}:/i.test(cleanIp)) {
+      return true;
+    }
+    // Link-Local unicast fe80::/10 (fe80: to febf:)
+    if (/^fe[89ab][0-9a-f]:/i.test(cleanIp)) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Validate if external URL is safe (anti-SSRF with DNS resolution)
+   */
+  private async isSafePublicUrl(urlString: string): Promise<boolean> {
+    try {
+      const parsed = new URL(urlString);
+      if (!['http:', 'https:'].includes(parsed.protocol)) return false;
+      const hostname = parsed.hostname.toLowerCase();
+      if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1' || hostname === '0.0.0.0') {
+        return false;
+      }
+      if (this.isPrivateIp(hostname)) {
+        return false;
+      }
+
+      // DNS lookup to prevent DNS Rebinding / nip.io tricks
+      const dns = await import('node:dns/promises');
+      try {
+        const addresses = await dns.lookup(hostname, { all: true });
+        if (!addresses || addresses.length === 0) return false;
+        for (const addr of addresses) {
+          if (this.isPrivateIp(addr.address)) {
+            return false;
+          }
+        }
+      } catch {
+        // DNS lookup failed or domain doesn't exist
+        return false;
+      }
+
+      return true;
+    } catch {
+      return false;
+    }
+  }
 
   /**
    * Load image data from URL
@@ -523,34 +610,73 @@ export class PdfRenderer {
         return Buffer.from(base64, 'base64');
       }
 
-      // Handle local/file URLs
+      // Handle local/file URLs - strictly restricted to upload directory
       if (url.startsWith('file://')) {
         const fs = await import('fs/promises');
         const path = await import('path');
         const filePath = url.replace('file://', '');
-        return await fs.readFile(path.resolve(filePath));
+        const resolvedPath = path.resolve(filePath);
+        const allowedUploadDir = path.resolve(config.uploadDir || './uploads');
+        if (!resolvedPath.startsWith(allowedUploadDir)) {
+          throw new Error('Akses file lokal di luar direktori upload diblokir');
+        }
+        return await fs.readFile(resolvedPath);
       }
 
-      // Handle HTTP/HTTPS URLs
+      // Handle HTTP/HTTPS URLs with SSRF protection & timeout
       if (url.startsWith('http://') || url.startsWith('https://')) {
-        const response = await fetch(url);
-        if (!response.ok) {
-          throw new Error(`Failed to fetch image: ${response.status}`);
+        let currentUrl = url;
+        let hops = 0;
+        const maxHops = 3;
+
+        while (hops < maxHops) {
+          if (!(await this.isSafePublicUrl(currentUrl))) {
+            throw new Error('Akses ke URL privat / internal diblokir (SSRF protection)');
+          }
+
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 6000);
+          try {
+            const response = await fetch(currentUrl, {
+              signal: controller.signal as unknown as Parameters<typeof fetch>[1] extends { signal?: infer S } ? S : never,
+              redirect: 'manual',
+            });
+
+            // Handle 3xx Redirect manually and validate target URL
+            if (response.status >= 300 && response.status < 400) {
+              const location = response.headers.get('location');
+              if (!location) {
+                throw new Error(`Redirect ${response.status} tanpa header Location`);
+              }
+              currentUrl = new URL(location, currentUrl).toString();
+              hops++;
+              continue;
+            }
+
+            if (!response.ok) {
+              throw new Error(`Failed to fetch image: ${response.status}`);
+            }
+            const arrayBuffer = await response.arrayBuffer();
+            return Buffer.from(arrayBuffer);
+          } finally {
+            clearTimeout(timeoutId);
+          }
         }
-        const arrayBuffer = await response.arrayBuffer();
-        return Buffer.from(arrayBuffer);
+        throw new Error('Terlalu banyak redirect saat memuat gambar');
       }
 
       return null;
     } catch (error) {
-      console.warn('Failed to load image from URL:', url, error);
-      return null;
+      throw new Error(`Gagal memuat gambar dari URL (${url}): ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
   private renderText(element: TextElement): void {
-    // Check for page break
-    if (this.currentY <= this.doc.page.margins.bottom + 50) {
+    const isAbsolute = element.y !== undefined;
+    const yPos = isAbsolute ? this.mmToPoints(element.y as number) : this.currentY;
+
+    // Check for page break only if it's part of the flow (not absolute)
+    if (!isAbsolute && yPos <= this.doc.page.margins.bottom + 50) {
       this.addNewPage();
     }
 
@@ -567,7 +693,7 @@ export class PdfRenderer {
     // Calculate available width
     const x = element.x !== undefined ? this.mmToPoints(element.x) : this.doc.page.margins.left;
     const width = element.width !== undefined
-      ? (typeof element.width === 'number' ? this.mmToPoints(element.width) : parseFloat(element.width))
+      ? (typeof element.width === 'number' ? this.mmToPoints(element.width) : parseFloat(element.width as unknown as string))
       : this.contentWidth - (x - this.doc.page.margins.left);
 
     // Draw text with line height
@@ -577,18 +703,23 @@ export class PdfRenderer {
       lineGap: fontSize * (lineHeight - 1),
     });
 
-    this.doc.text(element.content, x, this.currentY, {
+    this.doc.text(element.content, x, isAbsolute ? yPos : this.currentY, {
       width,
       align: textAlign,
       lineGap: fontSize * (lineHeight - 1),
     });
 
-    this.currentY += textHeight + (element.style?.margin?.bottom ? this.mmToPoints(element.style.margin.bottom) : 0);
+    if (!isAbsolute) {
+      this.currentY += textHeight + (element.style?.margin?.bottom ? this.mmToPoints(element.style.margin.bottom) : 0);
+    }
   }
 
   private renderField(element: FieldElement): void {
+    const isAbsolute = element.y !== undefined;
+    const yPos = isAbsolute ? this.mmToPoints(element.y as number) : this.currentY;
+
     // Check for page break
-    if (this.currentY <= this.doc.page.margins.bottom + 50) {
+    if (!isAbsolute && yPos <= this.doc.page.margins.bottom + 50) {
       this.addNewPage();
     }
 
@@ -600,8 +731,10 @@ export class PdfRenderer {
     this.doc.fontSize(fontSize);
     this.doc.fillColor('#000000');
 
-    const x = this.doc.page.margins.left;
-    const width = this.contentWidth;
+    const x = element.x !== undefined ? this.mmToPoints(element.x) : this.doc.page.margins.left;
+    const width = element.width !== undefined
+      ? (typeof element.width === 'number' ? this.mmToPoints(element.width) : parseFloat(element.width as unknown as string))
+      : this.contentWidth - (x - this.doc.page.margins.left);
 
     // Label if present
     let content = '';
@@ -610,31 +743,75 @@ export class PdfRenderer {
     }
     content += element.value || '';
 
-    this.doc.text(content, x, this.currentY, {
+    this.doc.text(content, x, isAbsolute ? yPos : this.currentY, {
       width,
       align: textAlign,
     });
 
-    this.currentY += fontSize * 1.5 + 5;
+    if (!isAbsolute) {
+      this.currentY += fontSize * 1.5 + 5;
+    }
   }
 
-  private renderImage(element: ImageElement): void {
+  private async renderImage(element: ImageElement): Promise<void> {
     if (!element.source) return;
 
-    const width = this.mmToPoints((element.width || 100) / 10);
-    const height = element.height ? this.mmToPoints(element.height / 10) : width;
+    const isAbsolute = element.y !== undefined;
+    const yPos = isAbsolute ? this.mmToPoints(element.y as number) : this.currentY;
 
-    // For now, just reserve space
-    // Image loading would be done here with actual image data
-    this.currentY += height;
+    // Check for page break
+    if (!isAbsolute && yPos <= this.doc.page.margins.bottom + 50) {
+      this.addNewPage();
+    }
+
+    const xPos = element.x !== undefined ? this.mmToPoints(element.x) : this.doc.page.margins.left;
+    const width = element.width !== undefined ? this.mmToPoints(element.width) : this.mmToPoints(10);
+    const height = element.height !== undefined ? this.mmToPoints(element.height) : width;
+
+    try {
+      const imageData = await this.loadImageData(element.source);
+      if (imageData) {
+        this.doc.image(imageData, xPos, isAbsolute ? yPos : this.currentY, {
+          width,
+          ...(element.height !== undefined ? { height } : {})
+        });
+      }
+    } catch (e) {
+      console.warn(`Failed to load image: ${element.source}`, e);
+    }
+
+    if (!isAbsolute) {
+      this.currentY += height + 5;
+    }
   }
 
   private renderDivider(element: DividerElement): void {
+    const isAbsolute = element.y !== undefined;
+    const yPos = isAbsolute ? this.mmToPoints(element.y as number) : this.currentY;
+
+    if (!isAbsolute && yPos <= this.doc.page.margins.bottom + 50) {
+      this.addNewPage();
+    }
+
     const thickness = element.thickness || 1;
     const color = element.color || '#000000';
+    const xPos = element.x !== undefined ? this.mmToPoints(element.x) : this.doc.page.margins.left;
+    const width = element.width !== undefined
+      ? (typeof element.width === 'number' ? this.mmToPoints(element.width) : parseFloat(element.width as unknown as string))
+      : this.contentWidth - (xPos - this.doc.page.margins.left);
 
-    this.drawDivider(thickness, color);
-    this.currentY += 10;
+    this.doc.lineWidth(thickness);
+    this.doc.strokeColor(color);
+
+    const actualY = isAbsolute ? yPos : this.currentY;
+    this.doc
+      .moveTo(xPos, actualY)
+      .lineTo(xPos + width, actualY)
+      .stroke();
+
+    if (!isAbsolute) {
+      this.currentY += 10;
+    }
   }
 
   private renderTable(element: TableElement): void {
@@ -835,10 +1012,15 @@ export class PdfRenderer {
     this.doc.moveTo(startX, y).lineTo(endX, y).stroke();
   }
 
-  private drawLogoSync(_url: string, _x: number, _y: number, width: number): void {
-    // Logo loading would be implemented here
-    // For now, just reserve space
-    this.currentY += width;
+  private async drawLogoAsync(url: string, x: number, y: number, width: number): Promise<void> {
+    try {
+      const imageData = await this.loadImageData(url);
+      if (imageData) {
+        this.doc.image(imageData, x, y, { width });
+      }
+    } catch (error) {
+      console.warn(`Failed to load logo from ${url}`, error);
+    }
   }
 
   private addPageBreak(): void {
@@ -880,6 +1062,13 @@ export function createPdfRenderer(options: RenderOptions): PdfRenderer {
  */
 export async function generatePdf(options: RenderOptions): Promise<Buffer> {
   const renderer = new PdfRenderer(options);
+  if (options.kop) {
+    await renderer.renderKop(options.kop);
+  }
+  await renderer.renderElements(options.elements);
+  if (options.signature) {
+    await renderer.renderSignatureBlock(options.signature, options.signature.qrCode?.data);
+  }
   return renderer.render();
 }
 

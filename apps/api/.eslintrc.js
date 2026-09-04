@@ -1,9 +1,13 @@
-{
+module.exports = {
   "root": true,
   "parser": "@typescript-eslint/parser",
   "parserOptions": {
     "ecmaVersion": 2022,
     "sourceType": "module"
+  },
+  "env": {
+    "node": true,
+    "jest": true
   },
   "plugins": ["@typescript-eslint"],
   "extends": [

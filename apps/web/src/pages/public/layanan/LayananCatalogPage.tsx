@@ -72,6 +72,7 @@ export default function LayananPage() {
 
   useEffect(() => {
     fetchServices();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pagination.page, filter]);
 
   const getKategoriIcon = (kategori?: string) => {

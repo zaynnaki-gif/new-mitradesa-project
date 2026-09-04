@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { asyncHandler, response } from '../utils/response.js';
 import { authenticateInternal } from '../middleware/index.js';
 import { prisma } from '../services/prisma.js';
@@ -14,7 +14,7 @@ const router = Router();
 router.get(
   '/stats',
   authenticateInternal(),
-  asyncHandler(async (_req, res) => {
+  asyncHandler(async (_req: Request, res: Response) => {
     const { desaId } = getInstanceContext();
 
     // Fetch all stats in parallel
@@ -117,7 +117,7 @@ router.get(
 router.get(
   '/recent-activity',
   authenticateInternal(),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const { desaId } = getInstanceContext();
     const limit = Math.min(parseInt(String(req.query.limit || '10')), 50);
 
@@ -144,7 +144,7 @@ router.get(
 router.get(
   '/executive',
   authenticateInternal(),
-  asyncHandler(async (_req, res) => {
+  asyncHandler(async (_req: Request, res: Response) => {
     const { desaId } = getInstanceContext();
 
     // Fetch all executive data in parallel

@@ -4,6 +4,7 @@ import { Button, Input, Modal } from '@/components/ui';
 import { LoadingState } from '@/components/states';
 import { useAuthStore } from '@/stores/auth.store';
 import { API_URL } from '@/lib/constants';
+import { safeFetchJson } from '@/lib/fetch';
 import styles from './ReferensiPage.module.css';
 
 type TabType = 'agama' | 'golongan_darah' | 'status_perkawinan' | 'hubungan_keluarga' | 'pendidikan' | 'pekerjaan' | 'status_kependudukan' | 'jabatan_perangkat' | 'status_perangkat';
@@ -58,15 +59,15 @@ export default function ReferensiPage() {
   // Fetch data
   useEffect(() => {
     fetchData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}${currentTab.apiEndpoint}`, {
+      const data = await safeFetchJson(`${API_URL}${currentTab.apiEndpoint}`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
-      const data = await res.json();
       if (data.success) {
         setItems(data.data || []);
       }
@@ -116,7 +117,7 @@ export default function ReferensiPage() {
         : `${API_URL}${currentTab.apiEndpoint}`;
       const method = editingItem ? 'PATCH' : 'POST';
 
-      const res = await fetch(url, {
+      const data = await safeFetchJson(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
@@ -125,7 +126,6 @@ export default function ReferensiPage() {
         body: JSON.stringify(formData),
       });
 
-      const data = await res.json();
       if (data.success) {
         setShowModal(false);
         fetchData();
@@ -144,11 +144,10 @@ export default function ReferensiPage() {
     if (!confirm(`Yakin ingin menghapus "${item.nama}"?`)) return;
 
     try {
-      const res = await fetch(`${API_URL}${currentTab.apiEndpoint}/${encodeURIComponent(item.kode)}`, {
+      const data = await safeFetchJson(`${API_URL}${currentTab.apiEndpoint}/${encodeURIComponent(item.kode)}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` },
       });
-      const data = await res.json();
       if (data.success) {
         fetchData();
       } else {
@@ -162,7 +161,7 @@ export default function ReferensiPage() {
   // Toggle active (PATCH with inverse isAktif)
   const handleToggle = async (item: RefItem) => {
     try {
-      const res = await fetch(`${API_URL}${currentTab.apiEndpoint}/${encodeURIComponent(item.kode)}`, {
+      const data = await safeFetchJson(`${API_URL}${currentTab.apiEndpoint}/${encodeURIComponent(item.kode)}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -170,7 +169,6 @@ export default function ReferensiPage() {
         },
         body: JSON.stringify({ isAktif: !item.isAktif }),
       });
-      const data = await res.json();
       if (data.success) {
         fetchData();
       }

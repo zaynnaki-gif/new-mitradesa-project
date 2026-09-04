@@ -87,6 +87,7 @@ export function BeritaPage() {
 
   useEffect(() => {
     fetchData(1, search, statusFilter);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSearch = () => fetchData(1, search, statusFilter);
@@ -397,4 +398,3 @@ export function BeritaPage() {
     </AdminLayout>
   );
 }
-export default BeritaPage;

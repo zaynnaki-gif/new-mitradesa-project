@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Register Export Service
  *
@@ -444,3 +445,4 @@ function escapeCsv(value: string): string {
   }
   return value;
 }
+

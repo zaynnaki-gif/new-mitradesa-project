@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { IStorageProvider } from './types.js';
 import { LocalStorageProvider } from './LocalStorageProvider.js';
 import { S3StorageProvider } from './S3StorageProvider.js';
@@ -53,3 +54,4 @@ export function getStorageProvider(): IStorageProvider {
 export function resetStorageProvider(): void {
   storageProvider = null;
 }
+

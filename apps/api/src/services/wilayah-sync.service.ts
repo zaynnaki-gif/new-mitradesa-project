@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /**
  * Wilayah Sync Service
  * Fetches wilayah data from external API and syncs to local database
@@ -256,3 +257,4 @@ export class WilayahSyncService {
 }
 
 export const wilayahSyncService = new WilayahSyncService();
+

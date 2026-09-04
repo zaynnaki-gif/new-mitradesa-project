@@ -13,12 +13,14 @@ function FeaturedArticleCard({
   article, 
   formatDate 
 }: { 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   article: any; 
   formatDate: (d: string | null) => string;
 }) {
   const { ref, isVisible } = useScrollReveal();
   
   return (
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     <article ref={ref as any} className={`${styles.featuredArticle} animate-on-scroll ${isVisible ? 'is-visible' : ''}`}>
       <Link to={`/berita/${article.slug}`} className={styles.cardLink}>
         <div className={styles.featuredImageWrapper}>
@@ -68,6 +70,7 @@ function NewsCard({
   index, 
   formatDate 
 }: { 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   item: any; 
   index: number;
   formatDate: (d: string | null) => string;
@@ -76,6 +79,7 @@ function NewsCard({
 
   return (
     <article
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ref={ref as any}
       className={`${styles.newsCard} animate-on-scroll ${isVisible ? 'is-visible' : ''}`}
       style={{ transitionDelay: `${(index % 4) * 100}ms` }}

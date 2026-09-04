@@ -56,6 +56,7 @@ export default function AppDashboard() {
 
   useEffect(() => {
     fetchDashboardData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchDashboardData = async () => {
@@ -254,7 +255,7 @@ export default function AppDashboard() {
 
           <div className={styles.statCard}>
             <div className={styles.statIcon} style={{ backgroundColor: '#f5f3ff' }}>📄</div>
-            <div className={styles.statValue}>{stats?.documents.total || 0}</div>
+            <div className={styles.statValue}>{stats?.documents?.total || 0}</div>
             <div className={styles.statLabel}>Dokumen</div>
           </div>
 

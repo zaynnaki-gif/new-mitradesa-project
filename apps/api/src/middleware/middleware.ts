@@ -12,7 +12,8 @@ export function requestLogger(req: Request, res: Response, next: NextFunction) {
   const start = Date.now();
   res.on('finish', () => {
     const duration = Date.now() - start;
-    console.log(`[${requestId}] [${new Date().toISOString()}] ${req.method} ${req.originalUrl} ${res.statusCode} ${duration}ms`);
+    // eslint-disable-next-line no-console
+    console.info(`[${requestId}] [${new Date().toISOString()}] ${req.method} ${req.originalUrl} ${res.statusCode} ${duration}ms`);
   });
   next();
 }
@@ -54,6 +55,7 @@ export function notFoundHandler(req: Request, res: Response) {
  * Global Error Handler
  */
 export function errorHandler(err: Error, _req: Request, res: Response, _next: NextFunction) {
+  // eslint-disable-next-line no-console
   console.error('[ERROR]', err);
 
   // Handle known errors
@@ -70,13 +72,14 @@ export function errorHandler(err: Error, _req: Request, res: Response, _next: Ne
 
   // Handle validation errors (Zod)
   if (err.name === 'ZodError') {
-    const firstError = (err as any).errors?.[0];
+    const zodErr = err as Error & { errors?: Array<{ message: string }> };
+    const firstError = zodErr.errors?.[0];
     return res.status(400).json({
       success: false,
       error: {
         code: 'VALIDATION_ERROR',
         message: firstError?.message || 'Invalid request data',
-        details: (err as any).errors,
+        details: zodErr.errors,
       },
     });
   }

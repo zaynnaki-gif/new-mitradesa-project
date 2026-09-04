@@ -94,6 +94,7 @@ export default function PermintaanDetailPage() {
 
   useEffect(() => {
     fetchDetail();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const fetchTemplates = async () => {
@@ -134,6 +135,7 @@ export default function PermintaanDetailPage() {
     if (request?.layananId && request.status === 'APPROVED') {
       fetchTemplates();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [request?.layananId, request?.status]);
 
   const handleAction = async (action: string) => {

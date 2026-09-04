@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button, Input, Select, Modal, Badge } from '../../../components/ui';
 import { LoadingState, ErrorState } from '../../../components/states';
 import { useAuthStore } from '../../../stores/auth.store';
 import { API_URL } from '../../../lib/constants';
+import { safeFetchJson } from '../../../lib/fetch';
 import styles from './KeluargaPage.module.css';
 
 // Types
@@ -40,15 +41,6 @@ interface PaginationMeta {
   totalPages: number;
 }
 
-interface ImportResult {
-  keluargaCreated: number;
-  keluargaUpdated: number;
-  pendudukCreated: number;
-  pendudukUpdated: number;
-  failed: number;
-  errors: string[];
-}
-
 // Form types
 interface KeluargaForm {
   noKk: string;
@@ -63,6 +55,7 @@ interface AnggotaForm {
   pendudukId: string;
   hubungan: string;
 }
+
 
 export default function KeluargaPage() {
   const { token } = useAuthStore();
@@ -99,14 +92,7 @@ export default function KeluargaPage() {
   const [anggotaForm, setAnggotaForm] = useState<AnggotaForm>({ pendudukId: '', hubungan: '' });
   const [anggotaLoading, setAnggotaLoading] = useState(false);
 
-  // Import modal
-  const [showImportModal, setShowImportModal] = useState(false);
-  const [importLoading, setImportLoading] = useState(false);
-  const [importResult, setImportResult] = useState<ImportResult | null>(null);
-
   const [gubugOptions, setGubugOptions] = useState<{kode: string, nama: string}[]>([]);
-  
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch keluarga list
   const fetchKeluarga = useCallback(async (page = 1) => {
@@ -117,16 +103,15 @@ export default function KeluargaPage() {
       const params = new URLSearchParams({ page: String(page), limit: '20' });
       if (search) params.append('search', search);
 
-      const res = await fetch(`${API_URL}/keluarga?${params}`, {
+      const data = await safeFetchJson(`${API_URL}/keluarga?${params}`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
-      const data = await res.json();
 
       if (data.success) {
         setKeluarga(data.data);
         setPagination(data.meta);
       } else {
-        throw new Error(data.error?.message || 'Failed to fetch');
+        throw new Error(data.message || 'Failed to fetch');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
@@ -141,10 +126,9 @@ export default function KeluargaPage() {
 
   useEffect(() => {
     if (token) {
-      fetch(`${API_URL}/wilayah/dropdown`, {
+      safeFetchJson(`${API_URL}/wilayah/dropdown`, {
         headers: { Authorization: `Bearer ${token}` }
       })
-      .then(r => r.json())
       .then(data => {
         if (data.success && data.data?.gubug) {
           setGubugOptions(data.data.gubug);
@@ -182,10 +166,9 @@ export default function KeluargaPage() {
     setShowListModal(true);
 
     try {
-      const res = await fetch(`${API_URL}/keluarga/${item.id}`, {
+      const data = await safeFetchJson(`${API_URL}/keluarga/${item.id}`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
-      const data = await res.json();
       if (data.success) {
         setSelectedKeluarga(data.data);
       }
@@ -207,7 +190,7 @@ export default function KeluargaPage() {
         : `${API_URL}/keluarga`;
       const method = editingKeluarga ? 'PATCH' : 'POST';
 
-      const res = await fetch(url, {
+      const data = await safeFetchJson(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
@@ -216,13 +199,11 @@ export default function KeluargaPage() {
         body: JSON.stringify(formData),
       });
 
-      const data = await res.json();
-
       if (data.success) {
         setShowFormModal(false);
         fetchKeluarga();
       } else {
-        alert(data.error?.message || 'Terjadi kesalahan');
+        alert(data.message || 'Terjadi kesalahan');
       }
     } catch {
       alert('Terjadi kesalahan');
@@ -236,15 +217,14 @@ export default function KeluargaPage() {
     if (!confirm(`Yakin ingin menghapus keluarga dengan No. KK ${item.noKk}?`)) return;
 
     try {
-      const res = await fetch(`${API_URL}/keluarga/${item.id}`, {
+      const data = await safeFetchJson(`${API_URL}/keluarga/${item.id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` },
       });
-      const data = await res.json();
       if (data.success) {
         fetchKeluarga();
       } else {
-        alert(data.error?.message || 'Gagal menghapus');
+        alert(data.message || 'Gagal menghapus');
       }
     } catch {
       alert('Terjadi kesalahan');
@@ -258,7 +238,7 @@ export default function KeluargaPage() {
 
     setAnggotaLoading(true);
     try {
-      const res = await fetch(`${API_URL}/keluarga/${selectedKeluarga.id}/anggota`, {
+      const data = await safeFetchJson(`${API_URL}/keluarga/${selectedKeluarga.id}/anggota`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -266,13 +246,12 @@ export default function KeluargaPage() {
         },
         body: JSON.stringify(anggotaForm),
       });
-      const data = await res.json();
       if (data.success) {
         setShowAnggotaModal(false);
         setAnggotaForm({ pendudukId: '', hubungan: '' });
         openListModal(selectedKeluarga);
       } else {
-        alert(data.error?.message || 'Gagal menambah anggota');
+        alert(data.message || 'Gagal menambah anggota');
       }
     } catch {
       alert('Terjadi kesalahan');
@@ -286,11 +265,10 @@ export default function KeluargaPage() {
     if (!selectedKeluarga || !confirm('Yakin ingin menghapus anggota ini?')) return;
 
     try {
-      const res = await fetch(`${API_URL}/keluarga/${selectedKeluarga.id}/anggota/${anggotaId}`, {
+      const data = await safeFetchJson(`${API_URL}/keluarga/${selectedKeluarga.id}/anggota/${anggotaId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` },
       });
-      const data = await res.json();
       if (data.success) {
         openListModal(selectedKeluarga);
       } else {
@@ -301,67 +279,9 @@ export default function KeluargaPage() {
     }
   };
 
-  // Export Data
-  const handleExport = async (format: 'csv' | 'xlsx') => {
-    try {
-      const res = await fetch(`${API_URL}/keluarga/export?format=${format}`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-
-      if (!res.ok) throw new Error('Export failed');
-
-      const arrayBuffer = await res.arrayBuffer();
-      const contentType = format === 'xlsx' 
-        ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
-        : 'text/csv; charset=utf-8';
-      const blob = new Blob([arrayBuffer], { type: contentType });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `keluarga_${new Date().toISOString().split('T')[0]}.${format}`;
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => window.URL.revokeObjectURL(url), 100);
-      a.remove();
-    } catch {
-      alert('Gagal export data');
-    }
+  const handleExport = () => {
+    window.location.href = '/admin/sistem/export';
   };
-
-  // Import CSV
-  const handleImport = async (file: File) => {
-    setImportLoading(true);
-    setImportResult(null);
-
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      try {
-        const csv = e.target?.result as string;
-
-        const res = await fetch(`${API_URL}/keluarga/import`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-          body: JSON.stringify({ csv }),
-        });
-
-        const data = await res.json();
-        setImportResult(data.data || data);
-
-        if (data.success && (data.data?.keluargaCreated > 0 || data.data?.keluargaUpdated > 0)) {
-          fetchKeluarga();
-        }
-      } catch {
-        setImportResult({ keluargaCreated: 0, keluargaUpdated: 0, pendudukCreated: 0, pendudukUpdated: 0, failed: 1, errors: ['Gagal import file'] });
-      } finally {
-        setImportLoading(false);
-      }
-    };
-    reader.readAsText(file);
-  };
-
   // Mask NIK
   const maskNik = (nik: string) => {
     if (nik.length === 16) {
@@ -381,14 +301,8 @@ export default function KeluargaPage() {
           </p>
         </div>
         <div className={styles.headerActions} style={{ gap: '8px', display: 'flex', flexWrap: 'wrap' }}>
-          <Button variant="outline" onClick={() => handleExport('csv')}>
-            📄 Export CSV
-          </Button>
-          <Button variant="outline" onClick={() => handleExport('xlsx')}>
-            📊 Export Excel
-          </Button>
-          <Button variant="outline" onClick={() => { setShowImportModal(true); setImportResult(null); }}>
-            📤 Import CSV
+          <Button variant="outline" onClick={handleExport}>
+            📥 Ke Halaman Export
           </Button>
           <Button variant="primary" onClick={openCreateModal}>
             + Tambah Keluarga
@@ -658,45 +572,7 @@ export default function KeluargaPage() {
           </div>
         </form>
       </Modal>
-
-      {/* Import Modal */}
-      <Modal isOpen={showImportModal} onClose={() => setShowImportModal(false)} title="Import Data Keluarga dari CSV">
-        <div className={styles.importModal}>
-          <p className={styles.importInfo}>
-            Upload file CSV dengan format: No_KK, Nama_Kepala, NIK_Kepala, Alamat, Daven, RW, RT, Nama_Anggota, NIK_Anggota, Hubungan
-          </p>
-          <input
-            type="file"
-            accept=".csv"
-            ref={fileInputRef}
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) handleImport(file);
-            }}
-          />
-          {importLoading && <p className={styles.importLoading}>Memproses import...</p>}
-          {importResult && (
-            <div className={styles.importResult}>
-              <p>✅ Keluarga dibuat: {importResult.keluargaCreated}</p>
-              <p>✅ Keluarga diupdate: {importResult.keluargaUpdated}</p>
-              <p>✅ Penduduk dibuat: {importResult.pendudukCreated}</p>
-              <p>✅ Penduduk diupdate: {importResult.pendudukUpdated}</p>
-              {importResult.failed > 0 && <p>❌ Gagal: {importResult.failed}</p>}
-              {importResult.errors.length > 0 && (
-                <div className={styles.importErrors}>
-                  <p>Errors:</p>
-                  <ul>
-                    {importResult.errors.slice(0, 5).map((err, i) => (
-                      <li key={i}>{err}</li>
-                    ))}
-                    {importResult.errors.length > 5 && <li>...dan {importResult.errors.length - 5} lagi</li>}
-                  </ul>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </Modal>
     </div>
   );
 }
+

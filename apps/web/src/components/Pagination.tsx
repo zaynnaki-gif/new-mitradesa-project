@@ -37,6 +37,7 @@ export function Pagination({ currentPage, totalPages, onPageChange, disabled }: 
       <button
         onClick={() => onPageChange(currentPage - 1)}
         disabled={disabled || currentPage <= 1}
+        aria-label="Halaman sebelumnya"
         style={{
           padding: '0.5rem 0.75rem',
           border: '1px solid var(--color-border)',
@@ -63,6 +64,8 @@ export function Pagination({ currentPage, totalPages, onPageChange, disabled }: 
             key={page}
             onClick={() => onPageChange(page as number)}
             disabled={disabled}
+            aria-label={`Halaman ${page}`}
+            aria-current={page === currentPage ? 'page' : undefined}
             style={{
               padding: '0.5rem 0.75rem',
               border: '1px solid var(--color-border)',
@@ -83,6 +86,7 @@ export function Pagination({ currentPage, totalPages, onPageChange, disabled }: 
       <button
         onClick={() => onPageChange(currentPage + 1)}
         disabled={disabled || currentPage >= totalPages}
+        aria-label="Halaman selanjutnya"
         style={{
           padding: '0.5rem 0.75rem',
           border: '1px solid var(--color-border)',

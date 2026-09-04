@@ -21,7 +21,7 @@ router.get(
   asyncHandler(async (req, res) => {
     const aktifOnly = req.query.aktif !== 'false';
 
-    const where: any = { deletedAt: null };
+    const where: import('@prisma/client').Prisma.PerangkatDesaWhereInput = { deletedAt: null };
     if (aktifOnly) {
       where.status = 'AKTIF';
     }

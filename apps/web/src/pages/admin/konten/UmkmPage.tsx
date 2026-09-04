@@ -69,6 +69,7 @@ export function UmkmPage() {
 
   useEffect(() => {
     fetchData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleSearch = () => fetchData(1, search);
@@ -186,4 +187,3 @@ export function UmkmPage() {
   );
 }
 
-export default UmkmPage;

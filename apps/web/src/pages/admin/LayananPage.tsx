@@ -41,6 +41,7 @@ export default function LayananPage() {
     }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [page]);
 
   const hapus = async (id: string) => {

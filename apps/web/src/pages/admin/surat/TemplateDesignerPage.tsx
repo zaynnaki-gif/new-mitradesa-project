@@ -4,6 +4,7 @@ import { AdminLayout } from '@/layouts';
 import { useAuthStore } from '@/stores/auth.store';
 import { API_URL } from '@/lib/constants';
 import styles from './TemplateDesignerPage.module.css';
+import { safeFetchJson } from '@/lib/fetch';
 
 type ElementType = 'text' | 'field' | 'divider' | 'spacer' | 'page_break';
 
@@ -47,6 +48,8 @@ interface FormatterOption {
   label: string;
 }
 
+
+
 export default function TemplateDesignerPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -78,18 +81,12 @@ export default function TemplateDesignerPage() {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`${API_URL}/template-designer/versions/${id}`, {
+      const data = await safeFetchJson(`${API_URL}/template-designer/versions/${id}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error?.message || 'Gagal memuat template');
-      }
-
-      const data = await res.json();
       setVersion(data.data);
 
       const content = data.data.content;
@@ -103,25 +100,22 @@ export default function TemplateDesignerPage() {
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, token]);
 
   const loadRegistry = useCallback(async () => {
     try {
-      const res = await fetch(`${API_URL}/template-designer/registry`, {
+      const data = await safeFetchJson(`${API_URL}/template-designer/registry`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        setBindings(data.data.bindings || []);
-        setFormatters(data.data.formatters || []);
-      }
+      setBindings(data.data?.bindings || []);
+      setFormatters(data.data?.formatters || []);
     } catch {
       console.error('Failed to load registry');
     }
-  }, []);
+  }, [token]);
 
   useEffect(() => {
     loadVersion();
@@ -206,7 +200,7 @@ export default function TemplateDesignerPage() {
         elements,
       };
 
-      const res = await fetch(`${API_URL}/template-designer/versions/${id}`, {
+      await safeFetchJson(`${API_URL}/template-designer/versions/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -217,11 +211,6 @@ export default function TemplateDesignerPage() {
           changelog: 'Update template',
         }),
       });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error?.message || 'Gagal menyimpan template');
-      }
 
       setSuccessMessage('Template berhasil disimpan');
       setTimeout(() => setSuccessMessage(''), 3000);
@@ -238,17 +227,14 @@ export default function TemplateDesignerPage() {
     if (!id) return;
 
     try {
-      const res = await fetch(`${API_URL}/template-designer/versions/${id}/validate`, {
+      const data = await safeFetchJson(`${API_URL}/template-designer/versions/${id}/validate`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        setValidationResult(data.data);
-      }
+      setValidationResult(data.data);
     } catch {
       console.error('Failed to validate');
     }
@@ -258,18 +244,16 @@ export default function TemplateDesignerPage() {
     if (!id) return;
 
     try {
-      const res = await fetch(`${API_URL}/template-designer/versions/${id}/publish`, {
+      await safeFetchJson(`${API_URL}/template-designer/versions/${id}/publish`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
-      if (res.ok) {
-        setSuccessMessage('Template berhasil dipublikasikan');
-        setTimeout(() => setSuccessMessage(''), 3000);
-        loadVersion();
-      }
+      setSuccessMessage('Template berhasil dipublikasikan');
+      setTimeout(() => setSuccessMessage(''), 3000);
+      loadVersion();
     } catch {
       setError('Failed to publish');
     }
@@ -486,7 +470,9 @@ export default function TemplateDesignerPage() {
                             className={styles.textElement}
                             style={{
                               fontSize: `${element.fontSize || 11}px`,
+                              // eslint-disable-next-line @typescript-eslint/no-explicit-any
                               fontWeight: element.fontWeight as any || 'normal',
+                              // eslint-disable-next-line @typescript-eslint/no-explicit-any
                               textAlign: element.textAlign as any || 'left',
                             }}
                           >
@@ -510,6 +496,7 @@ export default function TemplateDesignerPage() {
                             className={styles.dividerElement}
                             style={{
                               borderTopWidth: element.thickness || 1,
+                              // eslint-disable-next-line @typescript-eslint/no-explicit-any
                               borderStyle: element.style as any || 'solid',
                             }}
                           />

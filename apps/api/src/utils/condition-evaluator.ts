@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 /**
  * Condition Evaluator
  *
@@ -353,7 +354,7 @@ class Parser {
     }
 
     switch (token.type) {
-      case 'BINDING':
+      case 'BINDING': {
         this.consume();
         // For condition expressions, we accept any valid binding path format
         // The actual validation against allowed bindings happens during evaluation
@@ -367,6 +368,7 @@ class Parser {
           value: token.value,
           bindingPath: token.value,
         };
+      }
 
       case 'STRING':
         this.consume();
@@ -700,3 +702,4 @@ export function extractConditionBindings(expression: string): string[] {
 export function createTestContext(data: Record<string, unknown>): EvaluationContext {
   return data;
 }
+

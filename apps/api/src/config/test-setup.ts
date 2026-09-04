@@ -1,4 +1,5 @@
 // Test setup file for Jest
+/* eslint-disable no-console */
 import dotenv from 'dotenv';
 import { jest, beforeAll, afterAll } from '@jest/globals';
 

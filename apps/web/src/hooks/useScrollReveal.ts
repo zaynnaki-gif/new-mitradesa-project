@@ -7,6 +7,7 @@ interface UseScrollRevealOptions extends IntersectionObserverInit {
 export function useScrollReveal(options: UseScrollRevealOptions = {}) {
   const { threshold = 0.1, triggerOnce = true, rootMargin = '0px 0px -50px 0px' } = options;
   const [isVisible, setIsVisible] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ref = useRef<any>(null);
 
   useEffect(() => {

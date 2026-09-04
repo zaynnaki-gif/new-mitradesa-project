@@ -3,6 +3,7 @@ import { useAuthStore } from '../../stores/auth.store';
 import { Button, Typography } from '../ui';
 
 interface PotensiFormProps {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   initialData?: any;
   onSuccess: () => void;
   onCancel: () => void;

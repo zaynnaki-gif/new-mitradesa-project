@@ -285,7 +285,7 @@ function resolveRowValue(path: string, row: TableRow): unknown {
   }
 
   // Handle direct property
-  if (row.hasOwnProperty(path)) {
+  if (Object.prototype.hasOwnProperty.call(row, path)) {
     return row[path];
   }
 

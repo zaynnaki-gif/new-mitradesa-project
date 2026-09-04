@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { prisma } from './prisma.js';
 import { AuditService } from './audit.service.js';
 import { ApiError } from '../utils/response.js';
@@ -139,3 +140,4 @@ export class RefHubunganKeluargaService {
 }
 
 export const refHubunganKeluargaService = new RefHubunganKeluargaService();
+

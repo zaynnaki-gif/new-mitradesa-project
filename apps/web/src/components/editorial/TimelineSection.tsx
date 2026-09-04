@@ -62,7 +62,7 @@ function TimelineItemCard({ item, index }: { item: TimelineItem; index: number }
 
   return (
     <article 
-      ref={ref as any}
+      ref={ref as React.Ref<HTMLElement>}
       className={`${styles.timelineItem} animate-on-scroll ${isVisible ? 'is-visible' : ''}`}
       style={{ transitionDelay: `${(index % 3) * 150}ms` }}
     >
@@ -100,7 +100,7 @@ export function TimelineSection({
   return (
     <section className={styles.timelineSection}>
       <div className="container">
-        <div ref={headerRef as any} className={`${styles.sectionHeader} animate-on-scroll ${headerVisible ? 'is-visible' : ''}`}>
+        <div ref={headerRef as React.Ref<HTMLDivElement>} className={`${styles.sectionHeader} animate-on-scroll ${headerVisible ? 'is-visible' : ''}`}>
           {eyebrow && <span className={styles.eyebrow}>{eyebrow}</span>}
           <h2 className={`${styles.title} font-serif`}>{title}</h2>
         </div>

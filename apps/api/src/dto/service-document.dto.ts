@@ -161,12 +161,14 @@ export const queryDokumenDefinitionSchema = paginationQuerySchema.extend({
 
 export const createTemplateSuratSchema = z.object({
   dokumenId: z.number().int().positive('ID Dokumen wajib diisi'),
+  blankoId: z.number().int().positive('ID Blanko tidak valid').optional().nullable(),
   nama: z.string().min(1, 'Nama wajib diisi').max(255),
   slug: z.string().min(1, 'Slug wajib diisi').max(255).regex(/^[a-z0-9-]+$/),
   deskripsi: z.string().optional().nullable(),
 });
 
 export const updateTemplateSuratSchema = z.object({
+  blankoId: z.number().int().positive('ID Blanko tidak valid').optional().nullable(),
   nama: z.string().min(1).max(255).optional(),
   slug: z.string().min(1).max(255).regex(/^[a-z0-9-]+$/).optional(),
   deskripsi: z.string().optional().nullable(),
@@ -636,6 +638,8 @@ export const createPenandaTanganSchema = z.object({
   nip: z.string().max(50).optional().nullable(),
   tandaTanganUrl: z.string().max(500).optional().nullable(),
   isActive: z.boolean().default(true),
+  accountId: z.union([z.bigint(), z.number(), z.string().regex(/^\d+$/).transform(s => BigInt(s))]).optional().nullable(),
+  pin: z.string().min(4, 'PIN minimal 4 karakter').max(32).optional().nullable(),
 });
 
 export const updatePenandaTanganSchema = z.object({
@@ -644,6 +648,8 @@ export const updatePenandaTanganSchema = z.object({
   nip: z.string().max(50).optional().nullable(),
   tandaTanganUrl: z.string().max(500).optional().nullable(),
   isActive: z.boolean().optional(),
+  accountId: z.union([z.bigint(), z.number(), z.string().regex(/^\d+$/).transform(s => BigInt(s))]).optional().nullable(),
+  pin: z.string().min(4, 'PIN minimal 4 karakter').max(32).optional().nullable(),
 });
 
 export const queryPenandaTanganSchema = paginationQuerySchema.extend({
@@ -655,8 +661,9 @@ export const queryPenandaTanganSchema = paginationQuerySchema.extend({
 // ============================================================
 
 export const createDokumenSignatureSchema = z.object({
-  penandatanganId: z.number().int().positive('ID Penanda Tangan wajib diisi'),
+  penandatanganId: z.union([z.bigint(), z.number(), z.string().regex(/^\d+$/).transform(s => BigInt(s))]),
   tandaTanganUrl: z.string().max(500).optional().nullable(),
+  pin: z.string().min(4, 'PIN minimal 4 karakter').optional().nullable(),
   tandaTanganType: z.enum(['IMAGE']).default('IMAGE'),
 });
 

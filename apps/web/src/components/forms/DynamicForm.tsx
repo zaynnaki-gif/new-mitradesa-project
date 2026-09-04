@@ -69,6 +69,7 @@ export interface FieldError {
 // Validation
 // ============================================================
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function validateField(
   field: FieldDefinition,
   value: unknown
@@ -107,7 +108,7 @@ export function validateField(
       break;
 
     case 'PHONE':
-      if (!/^[\d\s\-\+\(\)]+$/.test(stringValue)) {
+      if (!/^[\d\s\-+()]+$/.test(stringValue)) {
         return 'Format nomor telepon tidak valid';
       }
       break;
@@ -143,6 +144,7 @@ export function validateField(
   return null;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function validateForm(
   fields: FieldDefinition[],
   values: Record<string, unknown>
@@ -304,7 +306,7 @@ function FieldInput({
           </select>
         );
 
-      case 'MULTISELECT':
+      case 'MULTISELECT': {
         const multiValue = (value as string[]) || [];
         return (
           <div className="space-y-1" role="group" aria-labelledby={`${fieldId}-label`}>
@@ -328,6 +330,7 @@ function FieldInput({
             ))}
           </div>
         );
+      }
 
       case 'RADIO':
         return (
@@ -618,6 +621,7 @@ export function DynamicForm({
 // Utility exports
 // ============================================================
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function serializeFormValues(
   values: Record<string, unknown>
 ): Record<string, string> {
@@ -637,4 +641,3 @@ export function serializeFormValues(
   return result;
 }
 
-export default DynamicForm;

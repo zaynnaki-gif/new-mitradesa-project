@@ -87,6 +87,7 @@ export function KategoriForm({ mode, initialData, onSuccess, onCancel }: Kategor
     if (!slugManual && form.nama && mode === 'create') {
       setForm(prev => ({ ...prev, slug: generateSlug(prev.nama) }));
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleChange = (field: keyof KategoriFormData, value: string | number | boolean) => {

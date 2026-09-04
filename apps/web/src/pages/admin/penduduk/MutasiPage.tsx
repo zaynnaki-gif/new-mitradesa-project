@@ -5,6 +5,7 @@ import { LoadingState, ErrorState } from '@/components/states';
 import { Pagination } from '@/components/Pagination';
 import { useAuthStore } from '@/stores/auth.store';
 import { API_URL } from '@/lib/constants';
+import { safeFetchJson } from '@/lib/fetch';
 import styles from './MutasiPage.module.css';
 
 // ============================================
@@ -59,12 +60,17 @@ const JENIS_MUTASI_OPTIONS = [
   { value: 'PINDAH_PERGI', label: 'Pindah Pergi' },
 ];
 
-const JENIS_MUTASI_LABEL: Record<string, { label: string; color: string }> = {
+type BadgeColor = 'primary' | 'secondary' | 'success' | 'error' | 'muted';
+
+const JENIS_MUTASI_LABEL: Record<string, { label: string; color: BadgeColor }> = {
   LAHIR: { label: 'Lahir', color: 'success' },
   MATI: { label: 'Mati', color: 'error' },
-  PINDAH_DATANG: { label: 'Pindah Datang', color: 'info' },
-  PINDAH_PERGI: { label: 'Pindah Pergi', color: 'warning' },
+  PINDAH_DATANG: { label: 'Pindah Datang', color: 'primary' },
+  PINDAH_PERGI: { label: 'Pindah Pergi', color: 'secondary' },
 };
+
+
+
 
 export default function MutasiPage() {
   const { token } = useAuthStore();
@@ -128,16 +134,13 @@ export default function MutasiPage() {
       if (jenisMutasi) params.append('jenisMutasi', jenisMutasi);
       if (tahun) params.append('tahun', tahun);
 
-      const res = await fetch(`${API_URL}/mutasi-penduduk?${params}`, {
+      const data = await safeFetchJson(`${API_URL}/mutasi-penduduk?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
 
-      if (!res.ok) throw new Error('Gagal mengambil data');
-
-      const data = await res.json();
       if (data.success) {
         setItems(data.data || []);
         setPagination(data.meta || null);
@@ -153,18 +156,15 @@ export default function MutasiPage() {
 
   const fetchStats = async () => {
     try {
-      const res = await fetch(`${API_URL}/mutasi-penduduk/stats`, {
+      const data = await safeFetchJson(`${API_URL}/mutasi-penduduk/stats`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success) {
-          setStats(data.data);
-        }
+      if (data.success) {
+        setStats(data.data);
       }
     } catch (err) {
       console.error('Failed to fetch stats:', err);
@@ -176,6 +176,7 @@ export default function MutasiPage() {
       fetchData();
       fetchStats();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, jenisMutasi, tahun]);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -254,7 +255,7 @@ export default function MutasiPage() {
       const method = editingItem ? 'PATCH' : 'POST';
 
       // Prepare payload - only include relevant fields based on jenis mutasi
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         jenisMutasi: formData.jenisMutasi,
         tanggalMutasi: formData.tanggalMutasi,
         nik: formData.nik,
@@ -285,7 +286,7 @@ export default function MutasiPage() {
         if (formData.kabupatenTujuan) payload.kabupatenTujuan = formData.kabupatenTujuan;
       }
 
-      const res = await fetch(url, {
+      const data = await safeFetchJson(url, {
         method,
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -293,8 +294,6 @@ export default function MutasiPage() {
         },
         body: JSON.stringify(payload),
       });
-
-      const data = await res.json();
 
       if (data.success) {
         setShowModal(false);
@@ -314,18 +313,18 @@ export default function MutasiPage() {
     if (!confirm('Yakin ingin menghapus data ini?')) return;
 
     try {
-      const res = await fetch(`${API_URL}/mutasi-penduduk/${id}`, {
+      const data = await safeFetchJson(`${API_URL}/mutasi-penduduk/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
 
-      if (res.ok) {
+      if (data.success) {
         fetchData(pagination?.page || 1);
         fetchStats();
       } else {
-        alert('Gagal menghapus data');
+        alert(data.message || 'Gagal menghapus data');
       }
     } catch {
       alert('Terjadi kesalahan');
@@ -451,7 +450,7 @@ export default function MutasiPage() {
                       <tr key={item.id}>
                         <td>{formatDate(item.tanggalMutasi)}</td>
                         <td>
-                          <Badge color={JENIS_MUTASI_LABEL[item.jenisMutasi]?.color as any}>
+                          <Badge color={JENIS_MUTASI_LABEL[item.jenisMutasi]?.color || 'muted'}>
                             {JENIS_MUTASI_LABEL[item.jenisMutasi]?.label}
                           </Badge>
                         </td>

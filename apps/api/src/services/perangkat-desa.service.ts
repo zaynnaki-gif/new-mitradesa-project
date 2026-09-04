@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { prisma } from './prisma.js';
 import { AuditService } from './audit.service.js';
 import {
@@ -453,4 +454,5 @@ export class PerangkatDesaService {
 }
 
 export const perangkatDesaService = new PerangkatDesaService();
+
 

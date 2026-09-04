@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { prisma } from './prisma.js';
 import { AuditService } from './audit.service.js';
 import { ApiError } from '../utils/response.js';
@@ -21,7 +22,7 @@ export class LembagaService {
     const pageNum = Number(query.page) || 1;
     const limitNum = Math.min(Number(query.limit) || 20, 100);
     const skip = (pageNum - 1) * limitNum;
-    const where: any = {};
+    const where: import('@prisma/client').Prisma.LembagaWhereInput = {};
     if (query.jenis) where.jenis = query.jenis;
     if (query.status) where.status = query.status;
     if (query.gubugId) where.gubugId = BigInt(query.gubugId);
@@ -156,3 +157,4 @@ export class LembagaService {
 }
 
 export const lembagaService = new LembagaService();
+

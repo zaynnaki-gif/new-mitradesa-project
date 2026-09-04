@@ -6,6 +6,7 @@ import { Pagination } from '@/components/Pagination';
 import { useAuthStore } from '@/stores/auth.store';
 import { API_URL } from '@/lib/constants';
 import styles from './UserManagementPage.module.css';
+import { safeFetchJson } from '@/lib/fetch';
 
 // ============================================
 // Types
@@ -104,16 +105,13 @@ export default function UserManagementPage() {
       if (search) params.append('search', search);
       if (status) params.append('status', status);
 
-      const res = await fetch(`${API_URL}/accounts?${params}`, {
+      const data = await safeFetchJson(`${API_URL}/accounts?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
 
-      if (!res.ok) throw new Error('Gagal mengambil data');
-
-      const data = await res.json();
       if (data.success) {
         setAccounts(data.data || []);
         setPagination(data.meta || null);
@@ -129,18 +127,15 @@ export default function UserManagementPage() {
 
   const fetchRoles = async () => {
     try {
-      const res = await fetch(`${API_URL}/accounts/roles`, {
+      const data = await safeFetchJson(`${API_URL}/accounts/roles`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success) {
-          setRoles(data.data || []);
-        }
+      if (data.success) {
+        setRoles(data.data || []);
       }
     } catch (err) {
       console.error('Failed to fetch roles:', err);
@@ -152,6 +147,7 @@ export default function UserManagementPage() {
       fetchAccounts();
       fetchRoles();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -201,7 +197,7 @@ export default function UserManagementPage() {
 
       const method = editingAccount ? 'PATCH' : 'POST';
 
-      const payload: any = {
+      const payload: any = { // eslint-disable-line @typescript-eslint/no-explicit-any
         username: formData.username,
         email: formData.email,
         roleIds: formData.roleIds,
@@ -216,7 +212,7 @@ export default function UserManagementPage() {
         payload.password = formData.password;
       }
 
-      const res = await fetch(url, {
+      const data = await safeFetchJson(url, {
         method,
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -224,8 +220,6 @@ export default function UserManagementPage() {
         },
         body: JSON.stringify(payload),
       });
-
-      const data = await res.json();
 
       if (data.success) {
         setShowModal(false);
@@ -247,7 +241,7 @@ export default function UserManagementPage() {
     if (!confirm(`Yakin ingin ${action} akun "${account.username}"?`)) return;
 
     try {
-      const res = await fetch(`${API_URL}/accounts/${account.id}/status`, {
+      await safeFetchJson(`${API_URL}/accounts/${account.id}/status`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -256,11 +250,7 @@ export default function UserManagementPage() {
         body: JSON.stringify({ status: newStatus }),
       });
 
-      if (res.ok) {
-        fetchAccounts(pagination?.page || 1);
-      } else {
-        alert('Gagal mengubah status');
-      }
+      fetchAccounts(pagination?.page || 1);
     } catch {
       alert('Terjadi kesalahan');
     }
@@ -270,14 +260,13 @@ export default function UserManagementPage() {
     if (!confirm(`Yakin ingin menghapus akun "${account.username}"? Tindakan ini tidak dapat dibatalkan.`)) return;
 
     try {
-      const res = await fetch(`${API_URL}/accounts/${account.id}`, {
+      const data = await safeFetchJson(`${API_URL}/accounts/${account.id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
 
-      const data = await res.json();
       if (data.success) {
         fetchAccounts(pagination?.page || 1);
       } else {

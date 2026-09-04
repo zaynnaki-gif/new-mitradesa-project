@@ -7,6 +7,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import shared from '@/styles/AdminShared.module.css';
 import s from '@/pages/admin/layanan/LayananListPage.module.css';
 import { Button, Input, Modal, Select } from '@/components/ui';
+import { safeFetchJson } from '@/lib/fetch';
 
 export default function JenisSuratPage() {
   const { token } = useAuthStore();
@@ -78,10 +79,10 @@ export default function JenisSuratPage() {
 
     try {
       const url = editingData?.id 
-        ? `${API_URL}/documents/definitions/${editingData.id}` 
-        : `${API_URL}/documents/definitions`;
+        ? `${API_URL}/documents/${editingData.id}` 
+        : `${API_URL}/documents`;
         
-      const response = await fetch(url, {
+      const result = await safeFetchJson(url, {
         method: editingData?.id ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -93,14 +94,13 @@ export default function JenisSuratPage() {
         })
       });
 
-      const result = await response.json();
-
-      if (!response.ok) {
+      if (!result.success) {
         throw new Error(result.message || 'Terjadi kesalahan saat menyimpan data');
       }
 
       setIsModalOpen(false);
       refetch();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       setFormError(err.message || 'Terjadi kesalahan');
     } finally {
@@ -112,20 +112,19 @@ export default function JenisSuratPage() {
     if (!token || !window.confirm('Apakah Anda yakin ingin menghapus jenis surat ini?')) return;
 
     try {
-      const response = await fetch(`${API_URL}/documents/definitions/${id}`, {
+      const result = await safeFetchJson(`${API_URL}/documents/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
 
-      const result = await response.json();
-
-      if (!response.ok) {
+      if (!result.success) {
         throw new Error(result.message || 'Terjadi kesalahan saat menghapus data');
       }
 
       refetch();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       alert(err.message || 'Gagal menghapus data');
     }

@@ -61,6 +61,7 @@ export function HalamanPage() {
     }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchData(1, search, statusFilter); }, []);
 
   const handleSearch = () => fetchData(1, search, statusFilter);
@@ -239,4 +240,3 @@ export function HalamanPage() {
   );
 }
 
-export default HalamanPage;

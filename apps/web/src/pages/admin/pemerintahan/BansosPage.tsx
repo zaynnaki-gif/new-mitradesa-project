@@ -5,6 +5,7 @@ import { LoadingState, ErrorState } from '@/components/states';
 import { Pagination } from '@/components/Pagination';
 import { useAuthStore } from '@/stores/auth.store';
 import { API_URL } from '@/lib/constants';
+import { safeFetchJson } from '@/lib/fetch';
 import styles from './BansosPage.module.css';
 
 // ============================================
@@ -112,16 +113,13 @@ export default function BansosPage() {
       if (jenis) params.append('jenis', jenis);
       if (tahun) params.append('tahun', tahun);
 
-      const res = await fetch(`${API_URL}/bansos?${params}`, {
+      const data = await safeFetchJson(`${API_URL}/bansos?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
 
-      if (!res.ok) throw new Error('Gagal mengambil data');
-
-      const data = await res.json();
       if (data.success) {
         setItems(data.data || []);
         setPagination(data.meta || null);
@@ -137,18 +135,15 @@ export default function BansosPage() {
 
   const fetchStats = async () => {
     try {
-      const res = await fetch(`${API_URL}/bansos/stats`, {
+      const data = await safeFetchJson(`${API_URL}/bansos/stats`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success) {
-          setStats(data.data);
-        }
+      if (data.success) {
+        setStats(data.data);
       }
     } catch (err) {
       console.error('Failed to fetch stats:', err);
@@ -160,6 +155,7 @@ export default function BansosPage() {
       fetchData();
       fetchStats();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -220,7 +216,7 @@ export default function BansosPage() {
         jumlahDana: formData.jumlahDana,
       };
 
-      const res = await fetch(url, {
+      const data = await safeFetchJson(url, {
         method,
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -229,8 +225,6 @@ export default function BansosPage() {
         body: JSON.stringify(payload),
       });
 
-      const data = await res.json();
-
       if (data.success) {
         setShowModal(false);
         fetchData(pagination?.page || 1);
@@ -238,8 +232,8 @@ export default function BansosPage() {
       } else {
         alert(data.message || 'Gagal menyimpan data');
       }
-    } catch {
-      alert('Terjadi kesalahan');
+    } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+      alert(err.message || 'Terjadi kesalahan');
     } finally {
       setFormLoading(false);
     }
@@ -249,21 +243,21 @@ export default function BansosPage() {
     if (!confirm('Yakin ingin menghapus data ini?')) return;
 
     try {
-      const res = await fetch(`${API_URL}/bansos/${id}`, {
+      const data = await safeFetchJson(`${API_URL}/bansos/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
 
-      if (res.ok) {
+      if (data.success) {
         fetchData(pagination?.page || 1);
         fetchStats();
       } else {
-        alert('Gagal menghapus data');
+        alert(data.message || 'Gagal menghapus data');
       }
-    } catch {
-      alert('Terjadi kesalahan');
+    } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+      alert(err.message || 'Terjadi kesalahan');
     }
   };
 

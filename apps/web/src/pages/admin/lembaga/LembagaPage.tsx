@@ -4,6 +4,7 @@ import { ErrorState, LoadingState } from '../../../components/states';
 import { AdminLayout } from '@/layouts';
 import { useAuthStore } from '../../../stores/auth.store';
 import { API_URL } from '../../../lib/constants';
+import { safeFetchJson } from '@/lib/fetch';
 import styles from './LembagaPage.module.css';
 
 interface Lembaga {
@@ -55,16 +56,16 @@ export default function LembagaPage() {
     if (status) params.set('status', status);
 
     try {
-      const res = await fetch(`${API_URL}/lembaga?${params}`, {
+      const data = await safeFetchJson(`${API_URL}/lembaga?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
       if (data.success) {
         setItems(data.data || []);
         setMeta(data.meta);
       } else {
         throw new Error(data.error?.message || 'Gagal memuat');
       }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -87,26 +88,24 @@ export default function LembagaPage() {
     const url = editing ? `${API_URL}/lembaga/${editing.id}` : `${API_URL}/lembaga`;
     const method = editing ? 'PATCH' : 'POST';
     try {
-      const res = await fetch(url, {
+      const data = await safeFetchJson(url, {
         method,
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(formData),
       });
-      const data = await res.json();
       if (data.success) { setShowModal(false); fetchItems(meta?.page || 1); }
       else alert(data.error?.message || 'Terjadi kesalahan');
-    } catch { alert('Terjadi kesalahan'); }
+    } catch (err: any) { alert(err.message || 'Terjadi kesalahan'); } // eslint-disable-line @typescript-eslint/no-explicit-any
     finally { setFormLoading(false); }
   };
 
   const handleDelete = async (item: Lembaga) => {
     if (!confirm(`Hapus "${item.nama}"?`)) return;
     try {
-      const res = await fetch(`${API_URL}/lembaga/${item.id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
-      const data = await res.json();
+      const data = await safeFetchJson(`${API_URL}/lembaga/${item.id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
       if (data.success) fetchItems(meta?.page || 1);
       else alert(data.error?.message || 'Gagal hapus');
-    } catch { alert('Terjadi kesalahan'); }
+    } catch (err: any) { alert(err.message || 'Terjadi kesalahan'); } // eslint-disable-line @typescript-eslint/no-explicit-any
   };
 
   return (

@@ -5,6 +5,7 @@ import { LoadingState, ErrorState } from '@/components/states';
 import { Pagination } from '@/components/Pagination';
 import { useAuthStore } from '@/stores/auth.store';
 import { API_URL } from '@/lib/constants';
+import { safeFetchJson } from '@/lib/fetch';
 import styles from './SaranPage.module.css';
 
 // ============================================
@@ -57,9 +58,11 @@ const STATUS_OPTIONS = [
   { value: 'DITOLAK', label: 'Ditolak' },
 ];
 
-const STATUS_COLOR: Record<string, string> = {
-  BARU: 'warning',
-  DIPROSES: 'info',
+type BadgeColor = 'primary' | 'secondary' | 'success' | 'error' | 'muted';
+
+const STATUS_COLOR: Record<string, BadgeColor> = {
+  BARU: 'secondary',
+  DIPROSES: 'primary',
   SELESAI: 'success',
   DITOLAK: 'error',
 };
@@ -108,16 +111,13 @@ export default function SaranPage() {
       if (kategori) params.append('kategori', kategori);
       if (status) params.append('status', status);
 
-      const res = await fetch(`${API_URL}/saran-aduan?${params}`, {
+      const data = await safeFetchJson(`${API_URL}/saran-aduan?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
 
-      if (!res.ok) throw new Error('Gagal mengambil data');
-
-      const data = await res.json();
       if (data.success) {
         setItems(data.data || []);
         setPagination(data.meta || null);
@@ -133,18 +133,15 @@ export default function SaranPage() {
 
   const fetchStats = async () => {
     try {
-      const res = await fetch(`${API_URL}/saran-aduan/stats`, {
+      const data = await safeFetchJson(`${API_URL}/saran-aduan/stats`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success) {
-          setStats(data.data);
-        }
+      if (data.success) {
+        setStats(data.data);
       }
     } catch (err) {
       console.error('Failed to fetch stats:', err);
@@ -156,6 +153,7 @@ export default function SaranPage() {
       fetchData();
       fetchStats();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -184,7 +182,7 @@ export default function SaranPage() {
     if (!selectedItem) return;
 
     try {
-      const res = await fetch(`${API_URL}/saran-aduan/${selectedItem.id}`, {
+      const data = await safeFetchJson(`${API_URL}/saran-aduan/${selectedItem.id}`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -196,8 +194,6 @@ export default function SaranPage() {
         }),
       });
 
-      const data = await res.json();
-
       if (data.success) {
         closeDetail();
         fetchData(pagination?.page || 1);
@@ -205,8 +201,8 @@ export default function SaranPage() {
       } else {
         alert(data.message || 'Gagal menyimpan');
       }
-    } catch {
-      alert('Terjadi kesalahan');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Terjadi kesalahan');
     }
   };
 
@@ -214,21 +210,21 @@ export default function SaranPage() {
     if (!confirm('Yakin ingin menghapus saran/aduan ini?')) return;
 
     try {
-      const res = await fetch(`${API_URL}/saran-aduan/${id}`, {
+      const data = await safeFetchJson(`${API_URL}/saran-aduan/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
 
-      if (res.ok) {
+      if (data.success) {
         fetchData(pagination?.page || 1);
         fetchStats();
       } else {
-        alert('Gagal menghapus');
+        alert(data.message || 'Gagal menghapus');
       }
-    } catch {
-      alert('Terjadi kesalahan');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Terjadi kesalahan');
     }
   };
 
@@ -348,7 +344,7 @@ export default function SaranPage() {
                           {item.emailPengirim && <small>{item.emailPengirim}</small>}
                         </td>
                         <td>
-                          <Badge color={STATUS_COLOR[item.status] as any}>
+                          <Badge color={STATUS_COLOR[item.status] || 'muted'}>
                             {item.status}
                           </Badge>
                         </td>
@@ -394,7 +390,7 @@ export default function SaranPage() {
               <div className={styles.modalBody}>
                 <div className={styles.detailMeta}>
                   <span><Badge>{KATEGORI_LABEL[selectedItem.kategori] || selectedItem.kategori}</Badge></span>
-                  <span><Badge color={STATUS_COLOR[selectedItem.status] as any}>{selectedItem.status}</Badge></span>
+                  <span><Badge color={STATUS_COLOR[selectedItem.status] || 'muted'}>{selectedItem.status}</Badge></span>
                   <span>{formatDate(selectedItem.createdAt)}</span>
                 </div>
 

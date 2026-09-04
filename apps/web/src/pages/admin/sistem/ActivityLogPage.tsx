@@ -5,6 +5,7 @@ import { LoadingState, ErrorState } from '@/components/states';
 import { Pagination } from '@/components/Pagination';
 import { useAuthStore } from '@/stores/auth.store';
 import { API_URL } from '@/lib/constants';
+import { safeFetchJson } from '@/lib/fetch';
 import styles from './ActivityLogPage.module.css';
 
 // ============================================
@@ -80,11 +81,13 @@ const getActionLabel = (action: string) => {
   return action.split('_').map(w => w.charAt(0) + w.slice(1).toLowerCase()).join(' ');
 };
 
-const getActionColor = (action: string) => {
+type BadgeColor = 'primary' | 'secondary' | 'success' | 'error' | 'muted';
+
+const getActionColor = (action: string): BadgeColor => {
   if (action.includes('CREATE') || action.includes('SUCCESS') || action.includes('VERIFIED') || action.includes('ENABLED')) return 'success';
   if (action.includes('DELETE') || action.includes('FAILED') || action.includes('DISABLED')) return 'error';
   if (action.includes('LOGIN')) return action.includes('FAILED') ? 'error' : 'success';
-  return 'info';
+  return 'primary';
 };
 
 export default function ActivityLogPage() {
@@ -126,16 +129,13 @@ export default function ActivityLogPage() {
       if (fromDate) params.append('from_date', fromDate);
       if (toDate) params.append('to_date', toDate);
 
-      const res = await fetch(`${API_URL}/audit-log?${params}`, {
+      const data = await safeFetchJson(`${API_URL}/audit-log?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
 
-      if (!res.ok) throw new Error('Gagal mengambil data');
-
-      const data = await res.json();
       if (data.success) {
         setLogs(data.logs || []);
         setPagination({
@@ -158,6 +158,7 @@ export default function ActivityLogPage() {
     if (token) {
       fetchLogs();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -195,7 +196,7 @@ export default function ActivityLogPage() {
     setSelectedLog(log);
   };
 
-  const renderJson = (data: any) => {
+  const renderJson = (data: unknown) => {
     if (!data) return <span className={styles.emptyJson}>Tidak ada data</span>;
     return (
       <pre className={styles.jsonPre}>
@@ -282,7 +283,7 @@ export default function ActivityLogPage() {
                       <tr key={log.id} className={styles.logRow} onClick={() => openDetail(log)}>
                         <td className={styles.waktu}>{formatDate(log.createdAt)}</td>
                         <td>
-                          <Badge color={getActionColor(log.action) as any}>
+                          <Badge color={getActionColor(log.action)}>
                             {getActionLabel(log.action)}
                           </Badge>
                         </td>
@@ -322,7 +323,7 @@ export default function ActivityLogPage() {
               </div>
               <div className={styles.modalBody}>
                 <div className={styles.detailMeta}>
-                  <span><Badge color={getActionColor(selectedLog.action) as any}>{getActionLabel(selectedLog.action)}</Badge></span>
+                  <span><Badge color={getActionColor(selectedLog.action)}>{getActionLabel(selectedLog.action)}</Badge></span>
                   <span>{formatDate(selectedLog.createdAt)}</span>
                 </div>
 

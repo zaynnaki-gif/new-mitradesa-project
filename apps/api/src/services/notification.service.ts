@@ -1,16 +1,21 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable no-console */
 import { prisma } from './prisma.js';
+import { config } from '../config/index.js';
 
 /**
- * Service to handle sending WhatsApp notifications via Fonnte API
+ * Service to handle sending WhatsApp notifications via Fonnte or configured WA Gateway API
  */
 export class NotificationService {
-  private readonly fonnteApiUrl = 'https://api.fonnte.com/send';
+  private get fonnteApiUrl(): string {
+    return config.waApiUrl || 'https://api.fonnte.com/send';
+  }
   
   /**
-   * Get the Fonnte API token from environment variables
+   * Get the WhatsApp API token from central config or fallback environment variable
    */
   private get token(): string {
-    return process.env.FONNTE_API_TOKEN || '';
+    return config.waApiKey || process.env.FONNTE_API_TOKEN || '';
   }
 
   /**
@@ -26,11 +31,12 @@ export class NotificationService {
   }
 
   /**
-   * Send a WhatsApp message using Fonnte
+   * Send a WhatsApp message using Fonnte with exponential backoff retry policy
    * @param target Phone number(s) comma separated
    * @param message Message to send
+   * @param maxRetries Maximum number of attempts (default 3)
    */
-  async sendWhatsApp(target: string, message: string): Promise<boolean> {
+  async sendWhatsApp(target: string, message: string, maxRetries = 3): Promise<boolean> {
     if (!this.token) {
       console.warn('FONNTE_API_TOKEN is not set. Skipping WhatsApp notification.');
       return false;
@@ -42,34 +48,114 @@ export class NotificationService {
     }
 
     const formattedTarget = this.formatPhoneNumber(target);
-    
-    try {
-      const response = await fetch(this.fonnteApiUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': this.token,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          target: formattedTarget,
-          message: message,
-          delay: '2', // Optional delay to prevent rate limit issues
-        })
-      });
 
-      const responseData: any = await response.json();
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await fetch(this.fonnteApiUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': this.token,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            target: formattedTarget,
+            message: message,
+            delay: '2',
+          })
+        });
 
-      if (!response.ok || !responseData.status) {
-        console.error('Failed to send WhatsApp message via Fonnte:', responseData);
-        return false;
+        const responseData: any = await response.json();
+
+        if (response.ok && responseData.status) {
+          console.info(`[WA Gateway] Notification delivered/queued for ${formattedTarget} on attempt ${attempt}`);
+          return true;
+        }
+
+        console.warn(`[WA Gateway] Attempt ${attempt}/${maxRetries} rejected for ${formattedTarget}:`, responseData?.reason || responseData?.message || responseData);
+      } catch (error) {
+        console.warn(`[WA Gateway] Attempt ${attempt}/${maxRetries} failed for ${formattedTarget}:`, error instanceof Error ? error.message : error);
       }
 
-      console.info(`WhatsApp notification queued via Fonnte for ${formattedTarget}`);
-      return true;
-    } catch (error) {
-      console.error('Error sending WhatsApp message via Fonnte:', error);
-      return false;
+      // Exponential backoff before next attempt (1s, 2s, 4s)
+      if (attempt < maxRetries) {
+        await new Promise((res) => setTimeout(res, 1000 * Math.pow(2, attempt - 1)));
+      }
     }
+
+    // Dead-letter log & persistent storage: all retries exhausted
+    console.error(`[WA Gateway Dead-Letter] Failed to send WhatsApp notification to ${formattedTarget} after ${maxRetries} attempts. Message snippet: "${message.slice(0, 80)}..."`);
+    
+    try {
+      await prisma.auditLog.create({
+        data: {
+          entityType: 'wa_dead_letter',
+          entityId: BigInt(Math.floor(Date.now() / 1000)),
+          action: 'CREATE',
+          actorType: 'SYSTEM',
+          reason: `Notifikasi WhatsApp gagal terkirim setelah ${maxRetries} kali percobaan`,
+          metadata: {
+            target: formattedTarget,
+            message,
+            attempts: maxRetries,
+            failedAt: new Date().toISOString(),
+            status: 'FAILED',
+          },
+        },
+      });
+    } catch (dbErr) {
+      console.error('[WA Gateway Dead-Letter] Gagal menyimpan antrian dead-letter:', dbErr);
+    }
+
+    return false;
+  }
+
+  /**
+   * Retrieve all failed notifications from Dead-Letter Queue
+   */
+  async getFailedNotifications(limit = 50) {
+    return prisma.auditLog.findMany({
+      where: { entityType: 'wa_dead_letter' },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
+  }
+
+  /**
+   * Resend / retry a failed notification from Dead-Letter Queue
+   */
+  async retryFailedNotification(auditLogId: bigint): Promise<boolean> {
+    const entry = await prisma.auditLog.findUnique({
+      where: { id: auditLogId },
+    });
+    if (!entry || entry.entityType !== 'wa_dead_letter') {
+      throw new Error('Catatan notifikasi dead-letter tidak ditemukan');
+    }
+
+    const meta = entry.metadata as Record<string, any>;
+    if (!meta?.target || !meta?.message) {
+      throw new Error('Format metadata notifikasi tidak valid');
+    }
+
+    const success = await this.sendWhatsApp(meta.target, meta.message, 3);
+    if (success) {
+      // Audit log is strictly append-only: create a resolution event instead of mutating past records
+      await prisma.auditLog.create({
+        data: {
+          entityType: 'wa_dead_letter_resolved',
+          entityId: auditLogId,
+          action: 'CREATE',
+          actorType: 'SYSTEM',
+          reason: 'Notifikasi berhasil dikirim ulang secara manual oleh admin',
+          metadata: {
+            originalAuditLogId: auditLogId.toString(),
+            target: meta.target,
+            status: 'RESOLVED_RETRY_SUCCESS',
+            resolvedAt: new Date().toISOString(),
+          },
+        },
+      });
+    }
+    return success;
   }
 
   /**
@@ -284,3 +370,4 @@ export class NotificationService {
 }
 
 export const notificationService = new NotificationService();
+

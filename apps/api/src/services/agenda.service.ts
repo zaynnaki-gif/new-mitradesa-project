@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { prisma } from './prisma.js';
 import { ApiError } from '../utils/response.js';
 import { CreateAgendaInput, UpdateAgendaInput, QueryAgendaInput } from '../dto/agenda.dto.js';
@@ -128,3 +129,4 @@ export class AgendaService {
 }
 
 export const agendaService = new AgendaService();
+

@@ -10,9 +10,11 @@
  * 6. Create document record
  */
 
+import crypto from 'node:crypto';
 import { Prisma, PrismaClient, DocumentStatus, VersionStatus } from '@prisma/client';
 import { prisma } from './prisma.js';
 import { generatePdf, RenderOptions, Element } from './pdf-renderer.service.js';
+import { notificationService } from './notification.service.js';
 import {
   resolveBinding,
   BindingContext,
@@ -89,6 +91,7 @@ export class DocumentEngineService {
         template: {
           include: {
             dokumen: { include: { layanan: true } },
+            blanko: true,
           },
         },
       },
@@ -126,13 +129,26 @@ export class DocumentEngineService {
       signatureImageUrl = defaultSignatory.tandaTanganUrl;
     }
 
-    // 6. Process template content
+    // 6. Validate context bindings
+    const { validateContextBindings } = await import('../utils/binding-resolver.js');
+    const bindingValidation = validateContextBindings(
+      version.content as Record<string, unknown>,
+      context as unknown as Record<string, unknown>
+    );
+
+    if (!bindingValidation.valid) {
+      throw ApiError.badRequest(
+        `Template gagal di-generate karena ada data yang kosong atau belum diisi: ${bindingValidation.missingBindings.join(', ')}`
+      );
+    }
+
+    // 7. Process template content
     const processedContent = this.processContent(
       version.content as Record<string, unknown>,
       context as unknown as Record<string, unknown>
     );
 
-    // 7. Create document record with snapshot
+    // 8. Create document record with snapshot
     const document = await this.db.instanDokumen.create({
       data: {
         dokumenId: version.template.dokumen.id,
@@ -155,6 +171,7 @@ export class DocumentEngineService {
           context,
           version.kopConfig as Record<string, unknown> | undefined,
           version.signatureConfig as Record<string, unknown> | undefined,
+          version.template.blanko,
           {
             signatureImageUrl,
             verificationToken,
@@ -163,27 +180,72 @@ export class DocumentEngineService {
           }
         );
 
-        // Store PDF
-        const storageFile = await this.storage.upload(pdfBuffer, {
-          filename: `${nomorDokumen.replace(/[\/\\]/g, '-')}.pdf`,
-          contentType: 'application/pdf',
-        });
+        // Store PDF with randomized UUID name in documents folder
+        let storageKey: string | null = null;
+        try {
+          const randomSuffix = crypto.randomUUID();
+          const safeSlug = nomorDokumen.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
+          const storageFile = await this.storage.upload(pdfBuffer, {
+            folder: 'documents',
+            filename: `${safeSlug}-${randomSuffix}.pdf`,
+            contentType: 'application/pdf',
+          });
+          storageKey = storageFile.key;
 
-        // Update document with PDF URL
-        await this.db.instanDokumen.update({
-          where: { id: document.id },
-          data: { fileUrl: storageFile.url },
-        });
+          // Update document with PDF URL
+          await this.db.instanDokumen.update({
+            where: { id: document.id },
+            data: { fileUrl: storageFile.url },
+          });
 
-        return {
-          documentId: document.id,
-          nomorDokumen,
-          verificationToken,
-          pdfUrl: storageFile.url,
-          status: document.status,
-        };
+          // If linked to a service request, notify citizen via WhatsApp (non-blocking)
+          if (permintaanId) {
+            this.db.permintaanLayanan
+              .findUnique({
+                where: { id: permintaanId },
+                include: { penduduk: true, layanan: true },
+              })
+              .then((req) => {
+                const targetPhone = req?.penduduk?.telepon;
+                if (targetPhone && req) {
+                  notificationService
+                    .notifyDocumentReady(
+                      targetPhone,
+                      req.nomorPermintaan,
+                      req.layanan.nama,
+                      nomorDokumen,
+                      storageFile.url
+                    )
+                    .catch((waErr) => {
+                      console.error(`Failed to send WhatsApp document ready notification for ${nomorDokumen}:`, waErr);
+                    });
+                }
+              })
+              .catch((fetchErr) => {
+                console.error(`Failed to fetch request for document ready notification:`, fetchErr);
+              });
+          }
+
+          return {
+            documentId: document.id,
+            nomorDokumen,
+            verificationToken,
+            pdfUrl: storageFile.url,
+            status: document.status,
+          };
+        } catch (innerErr) {
+          if (storageKey) {
+            await this.storage.delete(storageKey).catch((delStorageErr) => {
+              console.error('Failed to cleanup orphan storage file after PDF generation/DB failure:', delStorageErr);
+            });
+          }
+          throw innerErr;
+        }
       } catch (error) {
-        console.error('PDF generation failed:', error);
+        console.error('PDF generation failed, cleaning up created document record:', error);
+        await this.db.instanDokumen.delete({ where: { id: document.id } }).catch((delErr) => {
+          console.error('Failed to cleanup orphan document after PDF generation failure:', delErr);
+        });
         throw ApiError.internal('Gagal menghasilkan PDF');
       }
     }
@@ -204,6 +266,7 @@ export class DocumentEngineService {
     context: BindingContext,
     kopConfig?: Record<string, unknown>,
     signatureConfig?: Record<string, unknown>,
+    blanko?: import('@prisma/client').Blanko | null,
     options?: {
       signatureImageUrl?: string;
       verificationToken?: string;
@@ -213,18 +276,45 @@ export class DocumentEngineService {
   ): Promise<Buffer> {
     const contentObj = content as Record<string, unknown>;
 
-    // Extract layout
-    const layout = (contentObj.layout || {
-      pageSize: 'A4',
-      orientation: 'portrait',
-      margins: { top: 20, right: 20, bottom: 20, left: 20 },
-    }) as Record<string, unknown>;
+    // Handle margin from Blanko or use default (1 inch / ~25.4mm)
+    const marginConfig = blanko?.margin && typeof blanko.margin === 'object' ? (blanko.margin as Record<string, unknown>) : undefined;
+    let margins = { top: 25.4, right: 25.4, bottom: 25.4, left: 25.4 };
+    
+    if (marginConfig) {
+      margins = {
+        top: Number(marginConfig.top) || 25.4,
+        right: Number(marginConfig.right) || 25.4,
+        bottom: Number(marginConfig.bottom) || 25.4,
+        left: Number(marginConfig.left) || 25.4,
+      };
+    }
 
-    // Extract and process elements
+    // Determine orientation based on Blanko layout or default to portrait
+    let orientation = 'portrait';
+    const layoutObj = blanko?.layout && typeof blanko.layout === 'object' ? (blanko.layout as Record<string, unknown>) : undefined;
+    if (layoutObj && typeof layoutObj.orientation === 'string') {
+      orientation = layoutObj.orientation;
+    }
+
+    // Setup PDF rendering context
+    const pdfOptions = {
+      size: blanko?.paperSize || 'F4',
+      margin: margins,
+      layout: orientation as 'portrait' | 'landscape',
+    };
+    
+    // Add Blanko's elements (usually absolute positioned layout elements)
+    const blankoElements = layoutObj?.elements && Array.isArray(layoutObj.elements) ? this.extractAndProcessElements(
+      layoutObj.elements as Element[],
+      context as unknown as Record<string, unknown>
+    ) : [];
+
+    // Extract and process main content elements
     const elements = this.extractAndProcessElements(
       contentObj.elements as Element[] || [],
       context as unknown as Record<string, unknown>
     );
+    const combinedElements = [...blankoElements, ...elements];
 
     // Merge signature config with TTE image
     const mergedSignatureConfig = this.mergeSignatureConfig(
@@ -235,9 +325,9 @@ export class DocumentEngineService {
     // Build render options
     const renderOptions: RenderOptions = {
       layout: {
-        pageSize: (layout.pageSize as 'A4' | 'FOLIO' | 'LETTER' | 'LEGAL') || 'A4',
-        orientation: (layout.orientation as 'portrait' | 'landscape') || 'portrait',
-        margins: (layout.margins as { top: number; right: number; bottom: number; left: number }) || {
+        pageSize: (pdfOptions.size as 'A4' | 'FOLIO' | 'LETTER' | 'LEGAL') || 'A4',
+        orientation: (pdfOptions.layout as 'portrait' | 'landscape') || 'portrait',
+        margins: (pdfOptions.margin as { top: number; right: number; bottom: number; left: number }) || {
           top: 20,
           right: 20,
           bottom: 20,
@@ -245,7 +335,7 @@ export class DocumentEngineService {
         },
       },
       kop: kopConfig as RenderOptions['kop'],
-      elements,
+      elements: combinedElements,
       signature: mergedSignatureConfig,
       pageNumber: {
         enabled: true,
@@ -495,7 +585,8 @@ export class DocumentEngineService {
             // Convert data to row strings for each column
             const rows: Array<Record<string, string>> = data.map((row) => {
               const rowData: Record<string, string> = {};
-              for (const col of tableElement.columns!) {
+              const columns = tableElement.columns ?? [];
+              for (const col of columns) {
                 if (col.binding) {
                   // Resolve binding in row context
                   const value = this.resolveInContext(col.binding, { ...context, item: row, row });
@@ -608,3 +699,4 @@ export class DocumentEngineService {
 // ============================================================
 
 export const documentEngineService = new DocumentEngineService();
+

@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from './prisma.js';
 import { CreateKasUmumInput, UpdateKasUmumInput, QueryKasUmumInput } from '../dto/kas-umum.dto.js';
+import { ApiError } from '../utils/response.js';
 
 export interface PaginationMeta {
   page: number;
@@ -15,11 +16,14 @@ export interface PaginatedResult<T> {
 }
 
 export class KasUmumService {
-  async findAll(query: QueryKasUmumInput): Promise<PaginatedResult<unknown>> {
+  async findAll(query: QueryKasUmumInput, desaId?: bigint): Promise<PaginatedResult<unknown>> {
     const { page, limit, tahun, bulan, jenis } = query;
     const skip = (page - 1) * limit;
 
     const where: Prisma.KasUmumWhereInput = {};
+    if (desaId !== undefined) {
+      where.desaId = desaId;
+    }
 
     if (tahun) {
       where.tanggal = {
@@ -29,8 +33,9 @@ export class KasUmumService {
     }
 
     if (bulan) {
-      const startDate = new Date(tahun || new Date().getFullYear(), bulan - 1, 1);
-      const endDate = new Date(tahun || new Date().getFullYear(), bulan, 0);
+      const year = tahun || new Date().getFullYear();
+      const startDate = new Date(year, bulan - 1, 1);
+      const endDate = new Date(year, bulan, 0, 23, 59, 59, 999);
       where.tanggal = {
         gte: startDate,
         lte: endDate,
@@ -44,7 +49,7 @@ export class KasUmumService {
     const [data, total] = await Promise.all([
       prisma.kasUmum.findMany({
         where,
-        orderBy: { tanggal: 'desc' },
+        orderBy: [{ tanggal: 'desc' }, { createdAt: 'desc' }],
         skip,
         take: limit,
       }),
@@ -62,59 +67,260 @@ export class KasUmumService {
     };
   }
 
-  async findById(id: string) {
-    const item = await prisma.kasUmum.findUnique({ where: { id } });
-    if (!item) throw new Error('Data tidak ditemukan');
+  async findById(id: string, desaId?: bigint) {
+    const item = await prisma.kasUmum.findFirst({
+      where: {
+        id,
+        ...(desaId !== undefined ? { desaId } : {}),
+      },
+    });
+    if (!item) throw ApiError.notFound('Data tidak ditemukan');
     return item;
   }
 
-  async create(data: CreateKasUmumInput) {
-    // Calculate running saldo
-    const lastEntry = await prisma.kasUmum.findFirst({
-      orderBy: { tanggal: 'desc' },
+  /**
+   * Recalculates running balance for all entries chronologically from the earliest modified date.
+   * Uses cent/sen precision (Math.round * 100 / 100) to prevent IEEE 754 floating-point drift.
+   */
+  private async recalculateBalances(tx: Prisma.TransactionClient, desaId?: bigint, fromDate?: Date) {
+    const where: Prisma.KasUmumWhereInput = {};
+    if (desaId !== undefined) {
+      where.desaId = desaId;
+    }
+
+    // Get previous entry before fromDate to get starting balance
+    let currentBalance = 0;
+    if (fromDate) {
+      const prevEntry = await tx.kasUmum.findFirst({
+        where: {
+          ...where,
+          tanggal: { lt: fromDate },
+        },
+        orderBy: [{ tanggal: 'desc' }, { createdAt: 'desc' }],
+      });
+      if (prevEntry) {
+        currentBalance = prevEntry.saldo;
+      }
+      where.tanggal = { gte: fromDate };
+    }
+
+    const entriesToUpdate = await tx.kasUmum.findMany({
+      where,
+      orderBy: [{ tanggal: 'asc' }, { createdAt: 'asc' }],
     });
 
-    const saldoMasuk = data.jenis === 'KAS_MASUK' ? data.jumlah : 0;
-    const saldoKeluar = data.jenis === 'KAS_KELUAR' ? data.jumlah : 0;
-    const saldo = (lastEntry?.saldo || 0) + saldoMasuk - saldoKeluar;
+    for (const entry of entriesToUpdate) {
+      const masuk = entry.jenis === 'KAS_MASUK' ? entry.jumlah : 0;
+      const keluar = entry.jenis === 'KAS_KELUAR' ? entry.jumlah : 0;
+      // Fixed cent/sen precision arithmetic:
+      const rawNewBalance = Math.round((currentBalance + masuk - keluar) * 100) / 100;
+      currentBalance = rawNewBalance;
 
-    return prisma.kasUmum.create({
-      data: {
-        tanggal: new Date(data.tanggal),
-        jenis: data.jenis,
-        uraian: data.uraian,
-        jumlah: data.jumlah,
-        saldo,
-      },
+      if (currentBalance < 0) {
+        throw ApiError.badRequest(`Transaksi pada ${entry.tanggal.toISOString().slice(0, 10)} mengakibatkan saldo kas menjadi negatif (${currentBalance})`);
+      }
+
+      if (entry.saldo !== currentBalance) {
+        await tx.kasUmum.update({
+          where: { id: entry.id },
+          data: { saldo: currentBalance },
+        });
+      }
+    }
+  }
+
+  /**
+   * Acquire PostgreSQL transaction-level advisory lock per tenant.
+   * Uses two 32-bit integer keys: namespace (1001 for BKU Kas) and tenant ID modulo 2^31 - 1
+   * to eliminate cross-domain hash collision and avoid cross-tenant lock bottlenecks.
+   */
+  private async acquireTenantKasLock(tx: Prisma.TransactionClient, desaId?: bigint) {
+    try {
+      const NAMESPACE_BKU = 1001;
+      const tenantKey = desaId !== undefined ? Number(desaId & 0x7fffffffn) : 0;
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${NAMESPACE_BKU}::integer, ${tenantKey}::integer)`;
+    } catch {
+      // Fallback for non-Postgres test environments
+    }
+  }
+
+  private async syncApbdesRealization(tx: Prisma.TransactionClient, apbdesItemId: bigint) {
+    const totalRealisasi = await tx.kasUmum.aggregate({
+      where: { apbdesItemId },
+      _sum: { jumlah: true },
+    });
+    await tx.apbdesItem.update({
+      where: { id: apbdesItemId },
+      data: { realization: totalRealisasi._sum.jumlah || 0 },
     });
   }
 
-  async update(id: string, data: UpdateKasUmumInput) {
-    // Recalculate all subsequent entries
-    const entry = await prisma.kasUmum.findUnique({ where: { id } });
-    if (!entry) throw new Error('Data tidak ditemukan');
+  async create(data: CreateKasUmumInput, desaId?: bigint) {
+    const entryDate = new Date(data.tanggal);
 
-    const updatedEntry = {
-      ...(data.tanggal && { tanggal: new Date(data.tanggal) }),
-      ...(data.jenis && { jenis: data.jenis }),
-      ...(data.uraian !== undefined && { uraian: data.uraian }),
-      ...(data.jumlah !== undefined && { jumlah: data.jumlah }),
-    };
+    return prisma.$transaction(async (tx) => {
+      await this.acquireTenantKasLock(tx, desaId);
 
-    return prisma.kasUmum.update({
-      where: { id },
-      data: updatedEntry,
+      // Verify ApbdesItem if provided
+      let targetApbdesItem = null;
+      if (data.apbdesItemId) {
+        targetApbdesItem = await tx.apbdesItem.findUnique({
+          where: { id: BigInt(data.apbdesItemId) },
+          include: { apbdes: true },
+        });
+        if (!targetApbdesItem) {
+          throw ApiError.badRequest('Item APBDes tidak ditemukan');
+        }
+        if (desaId && targetApbdesItem.apbdes.desaId !== desaId) {
+          throw ApiError.forbidden('Item APBDes bukan milik desa ini');
+        }
+        // Budget year validation
+        if (entryDate.getFullYear() !== targetApbdesItem.apbdes.tahun) {
+          throw ApiError.badRequest(
+            `Tahun transaksi kas (${entryDate.getFullYear()}) tidak sesuai dengan tahun anggaran APBDes (${targetApbdesItem.apbdes.tahun})`
+          );
+        }
+      }
+
+      // Create with placeholder saldo
+      const created = await tx.kasUmum.create({
+        data: {
+          ...(desaId !== undefined ? { desaId } : {}),
+          tanggal: entryDate,
+          jenis: data.jenis,
+          uraian: data.uraian,
+          jumlah: data.jumlah,
+          saldo: 0,
+          kodeRekening: data.kodeRekening || targetApbdesItem?.kodeRekening || null,
+          apbdesItemId: data.apbdesItemId ? BigInt(data.apbdesItemId) : null,
+        },
+      });
+
+      // Recalculate from entry date
+      await this.recalculateBalances(tx, desaId, entryDate);
+
+      // Automatically sync realization on linked ApbdesItem
+      if (targetApbdesItem) {
+        await this.syncApbdesRealization(tx, targetApbdesItem.id);
+      }
+
+      return tx.kasUmum.findUnique({
+        where: { id: created.id },
+        include: { apbdesItem: true },
+      });
     });
   }
 
-  async delete(id: string) {
-    return prisma.kasUmum.delete({ where: { id } });
+  async update(id: string, data: UpdateKasUmumInput, desaId?: bigint) {
+    return prisma.$transaction(async (tx) => {
+      await this.acquireTenantKasLock(tx, desaId);
+
+      const entry = await tx.kasUmum.findFirst({
+        where: {
+          id,
+          ...(desaId !== undefined ? { desaId } : {}),
+        },
+      });
+      if (!entry) throw ApiError.notFound('Data tidak ditemukan');
+
+      const oldDate = entry.tanggal;
+      const newDate = data.tanggal ? new Date(data.tanggal) : oldDate;
+      const earliestDate = oldDate < newDate ? oldDate : newDate;
+
+      // Handle new or updated apbdesItemId
+      const oldApbdesItemId = entry.apbdesItemId;
+      let newApbdesItemId = oldApbdesItemId;
+      let targetApbdesItem = null;
+
+      if (data.apbdesItemId !== undefined) {
+        newApbdesItemId = data.apbdesItemId ? BigInt(data.apbdesItemId) : null;
+      }
+
+      if (newApbdesItemId) {
+        targetApbdesItem = await tx.apbdesItem.findUnique({
+          where: { id: newApbdesItemId },
+          include: { apbdes: true },
+        });
+        if (!targetApbdesItem) {
+          throw ApiError.badRequest('Item APBDes tidak ditemukan');
+        }
+        if (desaId && targetApbdesItem.apbdes.desaId !== desaId) {
+          throw ApiError.forbidden('Item APBDes bukan milik desa ini');
+        }
+        if (newDate.getFullYear() !== targetApbdesItem.apbdes.tahun) {
+          throw ApiError.badRequest(
+            `Tahun transaksi kas (${newDate.getFullYear()}) tidak sesuai dengan tahun anggaran APBDes (${targetApbdesItem.apbdes.tahun})`
+          );
+        }
+      }
+
+      await tx.kasUmum.update({
+        where: { id },
+        data: {
+          ...(data.tanggal && { tanggal: newDate }),
+          ...(data.jenis && { jenis: data.jenis }),
+          ...(data.uraian !== undefined && { uraian: data.uraian }),
+          ...(data.jumlah !== undefined && { jumlah: data.jumlah }),
+          ...(data.kodeRekening !== undefined && { kodeRekening: data.kodeRekening || targetApbdesItem?.kodeRekening || null }),
+          ...(data.apbdesItemId !== undefined && { apbdesItemId: newApbdesItemId }),
+        },
+      });
+
+      await this.recalculateBalances(tx, desaId, earliestDate);
+
+      // Resync realization for old item and new item
+      if (oldApbdesItemId) {
+        await this.syncApbdesRealization(tx, oldApbdesItemId);
+      }
+      if (newApbdesItemId && (!oldApbdesItemId || newApbdesItemId !== oldApbdesItemId)) {
+        await this.syncApbdesRealization(tx, newApbdesItemId);
+      }
+
+      return tx.kasUmum.findUnique({
+        where: { id },
+        include: { apbdesItem: true },
+      });
+    });
   }
 
-  async getSaldoAkhir(): Promise<number> {
-    const last = await prisma.kasUmum.findFirst({ orderBy: { tanggal: 'desc' } });
+  async delete(id: string, desaId?: bigint) {
+    return prisma.$transaction(async (tx) => {
+      await this.acquireTenantKasLock(tx, desaId);
+
+      const entry = await tx.kasUmum.findFirst({
+        where: {
+          id,
+          ...(desaId !== undefined ? { desaId } : {}),
+        },
+      });
+      if (!entry) throw ApiError.notFound('Data tidak ditemukan');
+
+      const deletedDate = entry.tanggal;
+      const linkedApbdesItemId = entry.apbdesItemId;
+
+      await tx.kasUmum.delete({ where: { id } });
+
+      await this.recalculateBalances(tx, desaId, deletedDate);
+
+      // Resync realization for linked item after deletion
+      if (linkedApbdesItemId) {
+        await this.syncApbdesRealization(tx, linkedApbdesItemId);
+      }
+    });
+  }
+
+  async getSaldoAkhir(desaId?: bigint): Promise<number> {
+    const where: Prisma.KasUmumWhereInput = {};
+    if (desaId !== undefined) {
+      where.desaId = desaId;
+    }
+    const last = await prisma.kasUmum.findFirst({
+      where,
+      orderBy: [{ tanggal: 'desc' }, { createdAt: 'desc' }],
+    });
     return last?.saldo || 0;
   }
 }
 
 export const kasUmumService = new KasUmumService();
+

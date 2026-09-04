@@ -4,6 +4,7 @@ import { Button, Modal, Input, Select } from '@/components/ui';
 import { LoadingState, ErrorState } from '@/components/states';
 import { useAuthStore } from '@/stores/auth.store';
 import { API_URL } from '@/lib/constants';
+import { safeFetchJson } from '@/lib/fetch';
 import styles from './ApbdesEntryPage.module.css';
 
 interface ApbdesItem {
@@ -65,10 +66,9 @@ export default function ApbdesEntryPage() {
   // Load list of APBDes years
   const fetchApbdesList = useCallback(async () => {
     try {
-      const res = await fetch(`${API_URL}/transparansi?tahun=${tahun}`, {
+      const data = await safeFetchJson(`${API_URL}/transparansi?tahun=${tahun}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
       if (data.success) setApbdesList(data.data || []);
     } catch { /* ignore */ }
   }, [token, tahun]);
@@ -78,10 +78,9 @@ export default function ApbdesEntryPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_URL}/transparansi/${apbdesId}`, {
+      const data = await safeFetchJson(`${API_URL}/transparansi/${apbdesId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
       if (data.success) setApbdes(data.data);
       else setError(data.error?.message || 'Gagal memuat');
     } catch (e: unknown) {
@@ -105,11 +104,10 @@ export default function ApbdesEntryPage() {
     setApbdes(null);
     setLoading(true);
     // Trigger fetch
-    fetch(`${API_URL}/transparansi?tahun=${newTahun}`, {
+    safeFetchJson(`${API_URL}/transparansi?tahun=${newTahun}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then(r => r.json())
-      .then(data => {
+      .then((data: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
         if (data.success && data.data?.length > 0) {
           fetchDetail(data.data[0].id);
         } else {
@@ -158,19 +156,18 @@ export default function ApbdesEntryPage() {
         : `${API_URL}/transparansi/${apbdes.id}/items`;
       const method = editingItem ? 'PATCH' : 'POST';
 
-      const res = await fetch(url, {
+      const data = await safeFetchJson(url, {
         method,
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(body),
       });
-      const data = await res.json();
       if (data.success) {
         setShowItemModal(false);
         fetchDetail(apbdes.id);
       } else {
         setItemError(data.error?.message || 'Gagal menyimpan');
       }
-    } catch { setItemError('Terjadi kesalahan'); }
+    } catch (err: any) { setItemError(err.message || 'Terjadi kesalahan'); } // eslint-disable-line @typescript-eslint/no-explicit-any
     finally { setItemLoading(false); }
   };
 
@@ -178,14 +175,13 @@ export default function ApbdesEntryPage() {
     if (!confirm('Hapus rincian ini?')) return;
     if (!apbdes) return;
     try {
-      const res = await fetch(
+      const data = await safeFetchJson(
         `${API_URL}/transparansi/${apbdes.id}/items/${item.id}`,
         { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }
       );
-      const data = await res.json();
       if (data.success) fetchDetail(apbdes.id);
       else alert(data.error?.message || 'Gagal hapus');
-    } catch { alert('Terjadi kesalahan'); }
+    } catch (err: any) { alert(err.message || 'Terjadi kesalahan'); } // eslint-disable-line @typescript-eslint/no-explicit-any
   };
 
   const getItemsByKategori = (kat: string) =>

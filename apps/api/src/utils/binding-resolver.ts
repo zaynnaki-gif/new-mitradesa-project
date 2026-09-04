@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Binding Resolver Utility
  *
@@ -162,8 +163,8 @@ export function validateBinding(binding: string): { valid: boolean; error?: stri
     return { valid: false, error: 'Format binding tidak valid' };
   }
 
-  // Must be in whitelist
-  if (!ALLOWED_BINDINGS.has(path)) {
+  // Must be in whitelist or start with custom.
+  if (!ALLOWED_BINDINGS.has(path) && !path.startsWith('custom.')) {
     return { valid: false, error: `Binding '${path}' tidak diizinkan` };
   }
 
@@ -223,6 +224,33 @@ export function validateTemplateBindings(obj: unknown): {
   return {
     valid: errors.length === 0,
     errors,
+  };
+}
+
+/**
+ * Validate that a context object contains all required bindings for a template
+ */
+export function validateContextBindings(
+  template: unknown,
+  context: Record<string, unknown>
+): {
+  valid: boolean;
+  missingBindings: string[];
+} {
+  const bindings = extractBindings(template);
+  const missingBindings: string[] = [];
+
+  for (const binding of bindings) {
+    const { path } = parseBindingWithFormatter(binding);
+    const value = resolvePath(path, context);
+    if (value === undefined || value === null || value === '') {
+      missingBindings.push(path);
+    }
+  }
+
+  return {
+    valid: missingBindings.length === 0,
+    missingBindings,
   };
 }
 
@@ -333,11 +361,16 @@ export function resolveBinding(
         const { path, formatter } = parseBindingWithFormatter(trimmed);
 
         // Validate binding path
-        if (!ALLOWED_BINDINGS.has(path)) {
+        if (!ALLOWED_BINDINGS.has(path) && !path.startsWith('custom.')) {
           return `[Invalid: ${path}]`;
         }
 
         const result = resolvePath(path, context);
+        
+        if (result === undefined || result === null || result === '') {
+          return `[KOSONG: ${path}]`;
+        }
+
         const formatted = formatter
           ? applyFormatter(result, formatter)
           : formatByFieldType(result, path);
@@ -578,3 +611,4 @@ export async function getVillageContext(prisma: any, desaId: bigint): Promise<{
     },
   };
 }
+

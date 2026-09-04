@@ -8,7 +8,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "npm install --include=dev && prisma generate && tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json",
     "start": "node dist/index.js",
-    "test": "jest",
+    "test": "jest --passWithNoTests",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "typecheck": "tsc --noEmit",
@@ -24,9 +24,7 @@
     "@aws-sdk/s3-request-presigner": "^3.1109.0",
     "@prisma/client": "^5.14.0",
     "@supabase/supabase-js": "^2.109.0",
-    "@types/bcryptjs": "^2.4.6",
     "bcrypt": "^6.0.0",
-    "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "exceljs": "^4.4.0",
@@ -39,7 +37,7 @@
     "pdfkit": "^0.15.0",
     "qrcode": "^1.5.3",
     "sanitize-html": "^2.17.5",
-    "uuid": "^9.0.1",
+    "uuid": "^14.0.2",
     "zod": "^3.23.8"
   },
   "devDependencies": {

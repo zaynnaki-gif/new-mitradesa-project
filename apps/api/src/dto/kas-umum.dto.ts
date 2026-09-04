@@ -5,6 +5,8 @@ export const createKasUmumSchema = z.object({
   jenis: z.enum(['KAS_MASUK', 'KAS_KELUAR']),
   uraian: z.string().min(1, 'Uraian wajib diisi').max(500),
   jumlah: z.coerce.number().positive('Jumlah harus lebih dari 0'),
+  kodeRekening: z.string().max(50).optional().nullable(),
+  apbdesItemId: z.union([z.bigint(), z.number(), z.string().regex(/^\d+$/).transform(s => BigInt(s))]).optional().nullable(),
 });
 
 export const updateKasUmumSchema = z.object({
@@ -12,6 +14,8 @@ export const updateKasUmumSchema = z.object({
   jenis: z.enum(['KAS_MASUK', 'KAS_KELUAR']).optional(),
   uraian: z.string().min(1).max(500).optional(),
   jumlah: z.coerce.number().positive().optional(),
+  kodeRekening: z.string().max(50).optional().nullable(),
+  apbdesItemId: z.union([z.bigint(), z.number(), z.string().regex(/^\d+$/).transform(s => BigInt(s))]).optional().nullable(),
 });
 
 export const queryKasUmumSchema = z.object({

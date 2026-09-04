@@ -5,6 +5,7 @@ import styles from '../PublicLayout.module.css';
 
 interface ServicesDropdownProps {
   item: NavCategory;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   identitas: any;
 }
 

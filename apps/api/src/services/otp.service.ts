@@ -1,5 +1,9 @@
+import crypto from 'crypto';
+import { AuditAction, ActorType, Prisma } from '@prisma/client';
 import { prisma } from './prisma.js';
 import { ApiError } from '../utils/response.js';
+import { notificationService } from './notification.service.js';
+import { getInstanceContext } from '../config/instance.js';
 
 export interface CitizenInfo {
   id: bigint;
@@ -22,32 +26,35 @@ export class OtpService {
     ipAddress?: string,
     userAgent?: string
   ): Promise<{ challenge: string }> {
-    // In production, this would:
-    // 1. Search Penduduk by NIK
-    // 2. Check if phone number is available
-    // 3. Generate challenge and OTP
-    // 4. Send OTP via notification service
+    // 1. Search Penduduk by NIK in current village instance
+    const { desaId } = getInstanceContext();
+    const penduduk = await prisma.penduduk.findFirst({
+      where: {
+        nik,
+        desaId,
+        isAktif: true,
+      },
+    });
 
-    // For Phase 2, we simulate the flow
-    // The actual Penduduk lookup will be implemented when Penduduk module is built
+    if (!penduduk) {
+      throw ApiError.notFound('NIK tidak terdaftar sebagai warga aktif di desa ini');
+    }
 
-    // Generate challenge
+    // 2. Generate challenge and OTP
     const challenge = this.generateChallenge();
-
-    // Generate OTP
     const otp = this.generateOtpCode();
 
-    // Create verification record (simulated - will link to Penduduk when available)
+    // 3. Create verification record linked to actual Penduduk
     const verification = await prisma.citizenVerification.create({
       data: {
-        pendudukId: BigInt(1), // Placeholder - will be linked to Penduduk
+        pendudukId: penduduk.id,
         challenge,
         status: 'PENDING',
         expiresAt: new Date(Date.now() + this.OTP_EXPIRY_MINUTES * 60 * 1000),
       },
     });
 
-    // Create OTP challenge
+    // 4. Create OTP challenge
     const otpHash = await this.hashOtp(otp);
     await prisma.otpChallenge.create({
       data: {
@@ -58,24 +65,30 @@ export class OtpService {
       },
     });
 
-    // In production, send OTP via WhatsApp/SMS here
-    // For development/testing: log to structured logger only if NODE_ENV is not production
-    if (process.env.NODE_ENV !== 'production') {
-      // Use structured logging without exposing actual OTP
-      console.log(JSON.stringify({
-        level: 'debug',
-        event: 'OTP_GENERATED',
-        nikSuffix: nik.slice(-4),
-        challenge,
-        timestamp: new Date().toISOString(),
-      }));
+    // 5. Send OTP via WhatsApp if phone number exists
+    if (penduduk.telepon) {
+      try {
+        await notificationService.sendWhatsApp(
+          penduduk.telepon,
+          `*Kode OTP Layanan Mandiri Desa*\n\nKode verifikasi Anda: *${otp}*\n\nKode berlaku selama ${this.OTP_EXPIRY_MINUTES} menit. JANGAN berikan kode ini kepada siapapun demi keamanan data kependudukan Anda.`
+        );
+      } catch (waError) {
+        console.error('Gagal mengirim pesan WhatsApp OTP:', waError);
+      }
     }
 
-    // Audit log
+    // In development/testing environment, log OTP for convenience
+    if (process.env.NODE_ENV !== 'production') {
+      // eslint-disable-next-line no-console
+      console.log(`[DEV OTP] NIK: ${nik} | OTP: ${otp} | Challenge: ${challenge}`);
+    }
+
+    // 6. Audit log
     await this.auditLog({
       entityType: 'citizen_verification',
       entityId: verification.id,
       action: 'OTP_REQUESTED',
+      actorId: penduduk.id,
       actorIp: ipAddress,
       actorAgent: userAgent,
       metadata: { nikSuffix: nik.slice(-4) },
@@ -134,8 +147,14 @@ export class OtpService {
       throw ApiError.unauthorized('No active OTP found');
     }
 
-    // Check attempts
-    if ((otpChallenge.attempts || 0) >= this.MAX_ATTEMPTS) {
+    // Increment attempts atomically and get updated record
+    const updatedChallenge = await prisma.otpChallenge.update({
+      where: { id: otpChallenge.id },
+      data: { attempts: { increment: 1 } },
+    });
+
+    // Check attempts after incrementing to prevent race conditions
+    if ((updatedChallenge.attempts || 0) > this.MAX_ATTEMPTS) {
       await prisma.otpChallenge.update({
         where: { id: otpChallenge.id },
         data: { status: 'EXPIRED' },
@@ -151,12 +170,6 @@ export class OtpService {
       throw ApiError.unauthorized('Maximum verification attempts exceeded');
     }
 
-    // Increment attempts
-    await prisma.otpChallenge.update({
-      where: { id: otpChallenge.id },
-      data: { attempts: { increment: 1 } },
-    });
-
     // Verify OTP
     const isValid = await this.compareOtp(otp, otpChallenge.otpHash);
 
@@ -170,30 +183,34 @@ export class OtpService {
       throw ApiError.unauthorized('Invalid OTP');
     }
 
-    // Mark OTP as used
-    await prisma.otpChallenge.update({
-      where: { id: otpChallenge.id },
-      data: { status: 'USED', usedAt: new Date() },
-    });
-
-    // Mark verification as verified
-    await prisma.citizenVerification.update({
-      where: { id: verification.id },
-      data: { status: 'VERIFIED', verifiedAt: new Date() },
-    });
-
     // Create session
     const sessionToken = this.generateSessionToken();
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
-    await prisma.citizenSession.create({
-      data: {
-        pendudukId: verification.pendudukId,
-        token: sessionToken,
-        expiresAt,
-        ipAddress,
-        userAgent,
-      },
+    // Execute state changes in a single transaction
+    await prisma.$transaction(async (tx) => {
+      // Mark OTP as used
+      await tx.otpChallenge.update({
+        where: { id: otpChallenge.id },
+        data: { status: 'USED', usedAt: new Date() },
+      });
+
+      // Mark verification as verified
+      await tx.citizenVerification.update({
+        where: { id: verification.id },
+        data: { status: 'VERIFIED', verifiedAt: new Date() },
+      });
+
+      // Create session
+      await tx.citizenSession.create({
+        data: {
+          pendudukId: verification.pendudukId,
+          token: sessionToken,
+          expiresAt,
+          ipAddress,
+          userAgent,
+        },
+      });
     });
 
     // Audit
@@ -261,7 +278,6 @@ export class OtpService {
    * Generate challenge ID
    */
   private generateChallenge(): string {
-    const crypto = require('crypto');
     return crypto.randomUUID();
   }
 
@@ -269,7 +285,6 @@ export class OtpService {
    * Generate OTP code
    */
   private generateOtpCode(): string {
-    const crypto = require('crypto');
     let otp = '';
     for (let i = 0; i < this.OTP_LENGTH; i++) {
       otp += crypto.randomInt(0, 10).toString();
@@ -281,26 +296,26 @@ export class OtpService {
    * Hash OTP
    */
   private async hashOtp(otp: string): Promise<string> {
-    // Simple hash for development
-    // In production, use bcrypt or similar
-    const crypto = await import('crypto');
     return crypto.createHash('sha256').update(otp).digest('hex');
   }
 
   /**
-   * Compare OTP
+   * Compare OTP with timing attack protection
    */
   private async compareOtp(otp: string, hash: string): Promise<boolean> {
-    const crypto = await import('crypto');
     const inputHash = crypto.createHash('sha256').update(otp).digest('hex');
-    return inputHash === hash;
+    const bufA = Buffer.from(inputHash, 'utf8');
+    const bufB = Buffer.from(hash, 'utf8');
+    if (bufA.length !== bufB.length) {
+      return false;
+    }
+    return crypto.timingSafeEqual(bufA, bufB);
   }
 
   /**
    * Generate session token
    */
   private generateSessionToken(): string {
-    const crypto = require('crypto');
     return crypto.randomBytes(32).toString('hex');
   }
 
@@ -310,24 +325,24 @@ export class OtpService {
   private async auditLog(data: {
     entityType: string;
     entityId: bigint;
-    action: string;
+    action: AuditAction;
     actorId?: bigint;
-    actorType?: string;
+    actorType?: ActorType;
     actorIp?: string;
     actorAgent?: string;
-    metadata?: Record<string, unknown>;
+    metadata?: Prisma.InputJsonValue;
   }): Promise<void> {
     try {
       await prisma.auditLog.create({
         data: {
           entityType: data.entityType,
           entityId: data.entityId,
-          action: data.action as any,
+          action: data.action,
           actorId: data.actorId,
-          actorType: (data.actorType || 'USER') as any,
+          actorType: data.actorType || 'USER',
           actorIp: data.actorIp,
           actorAgent: data.actorAgent,
-          metadata: data.metadata as any,
+          metadata: data.metadata ?? undefined,
         },
       });
     } catch (error) {
@@ -337,3 +352,4 @@ export class OtpService {
 }
 
 export const otpService = new OtpService();
+

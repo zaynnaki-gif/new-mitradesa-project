@@ -9,6 +9,7 @@ import {
 import { ApiError } from '../utils/response.js';
 import { generateRequestNumber } from '../utils/numbering.js';
 import { getInstanceContext } from '../config/instance.js';
+import { notificationService } from './notification.service.js';
 
 export class PermintaanLayananService {
   constructor(private readonly prismaClient: PrismaClient = prisma) {}
@@ -45,28 +46,30 @@ export class PermintaanLayananService {
       }
     }
 
-    // Generate request number
-    const nomorPermintaan = await generateRequestNumber(
-      this.prismaClient,
-      desaId,
-      layanan.kode
-    );
-
-    return this.prismaClient.permintaanLayanan.create({
-      data: {
-        layananId: data.layananId,
-        pendudukId: data.pendudukId,
+    return this.prismaClient.$transaction(async (tx) => {
+      // Generate request number
+      const nomorPermintaan = await generateRequestNumber(
+        tx,
         desaId,
-        nomorPermintaan,
-        status: RequestStatus.DRAFT,
-        dataJson: data.dataJson as Prisma.JsonObject,
-        catatan: data.catatan,
-        createdBy,
-      },
-      include: {
-        layanan: true,
-        penduduk: true,
-      },
+        layanan.kode
+      );
+
+      return tx.permintaanLayanan.create({
+        data: {
+          layananId: data.layananId,
+          pendudukId: data.pendudukId,
+          desaId,
+          nomorPermintaan,
+          status: RequestStatus.DRAFT,
+          dataJson: data.dataJson as Prisma.JsonObject,
+          catatan: data.catatan,
+          createdBy,
+        },
+        include: {
+          layanan: true,
+          penduduk: true,
+        },
+      });
     });
   }
 
@@ -260,8 +263,8 @@ export class PermintaanLayananService {
         break;
     }
 
-    return this.prismaClient.$transaction(async (tx) => {
-      const updated = await tx.permintaanLayanan.update({
+    const updated = await this.prismaClient.$transaction(async (tx) => {
+      const res = await tx.permintaanLayanan.update({
         where: { id },
         data: updateData,
         include: {
@@ -278,14 +281,32 @@ export class PermintaanLayananService {
           actorId: _actorId,
           actorType: ActorType.USER,
           beforeData: { status: existing.status },
-          afterData: { status: updated.status },
+          afterData: { status: res.status },
           reason: data.status === RequestStatus.REJECTED ? data.catatan : null,
           metadata: { action: 'UPDATE_STATUS' },
         },
       });
 
-      return updated;
+      return res;
     });
+
+    // Notify citizen via WhatsApp (non-blocking, do not fail status transition on WA errors)
+    const targetPhone = updated.penduduk?.telepon;
+    if (targetPhone) {
+      notificationService
+        .notifyRequestStatusChanged(
+          targetPhone,
+          updated.nomorPermintaan,
+          updated.layanan.nama,
+          updated.status,
+          data.catatan || undefined
+        )
+        .catch((err) => {
+          console.error(`Failed to send WhatsApp status notification for request ${updated.nomorPermintaan}:`, err);
+        });
+    }
+
+    return updated;
   }
 
   /**
@@ -401,30 +422,30 @@ export class PermintaanLayananService {
       throw ApiError.badRequest('Layanan tidak tersedia');
     }
 
-    // Generate request number
-    const nomorPermintaan = await generateRequestNumber(
-      this.prismaClient,
-      layanan.desaId,
-      layanan.kode
-    );
+    return this.prismaClient.$transaction(async (tx) => {
+      // Generate request number
+      const nomorPermintaan = await generateRequestNumber(
+        tx,
+        layanan.desaId,
+        layanan.kode
+      );
 
-    // Create the request
-    const request = await this.prismaClient.permintaanLayanan.create({
-      data: {
-        layananId: layananId,
-        desaId: layanan.desaId,
-        nomorPermintaan,
-        status: RequestStatus.SUBMITTED,
-        dataJson: fields as Prisma.JsonObject,
-        catatan,
-        submittedAt: new Date(),
-      },
-      include: {
-        layanan: true,
-      },
+      // Create the request
+      return tx.permintaanLayanan.create({
+        data: {
+          layananId: layananId,
+          desaId: layanan.desaId,
+          nomorPermintaan,
+          status: RequestStatus.SUBMITTED,
+          dataJson: fields as Prisma.JsonObject,
+          catatan,
+          submittedAt: new Date(),
+        },
+        include: {
+          layanan: true,
+        },
+      });
     });
-
-    return request;
   }
 
   /**

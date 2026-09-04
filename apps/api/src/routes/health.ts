@@ -1,7 +1,8 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { asyncHandler, response, ApiError } from '../utils/response.js';
 import { config } from '../config/index.js';
 import { prisma } from '../services/prisma.js';
+import { isServerDraining } from '../utils/lifecycle.js';
 
 const router = Router();
 
@@ -12,7 +13,17 @@ const router = Router();
  */
 router.get(
   '/',
-  asyncHandler(async (_req, res) => {
+  asyncHandler(async (_req: Request, res: Response) => {
+    if (isServerDraining()) {
+      res.setHeader('Connection', 'close');
+      res.status(503).json({
+        status: 'draining',
+        service: config.appName,
+        message: 'Server sedang dalam proses graceful shutdown dan menolak traffic baru.',
+      });
+      return;
+    }
+
     return response.success(res, {
       status: 'healthy',
       service: config.appName,
@@ -31,7 +42,7 @@ router.get(
  */
 router.get(
   '/database',
-  asyncHandler(async (_req, res) => {
+  asyncHandler(async (_req: Request, res: Response) => {
     try {
       // Simple database query to verify connectivity
       await prisma.$queryRaw`SELECT 1 as result`;
@@ -52,7 +63,7 @@ router.get(
  */
 router.get(
   '/detailed',
-  asyncHandler(async (_req, res) => {
+  asyncHandler(async (_req: Request, res: Response) => {
     const memoryUsage = process.memoryUsage();
 
     return response.success(res, {
@@ -81,7 +92,7 @@ router.get(
  */
 router.get(
   '/ready',
-  asyncHandler(async (_req, res) => {
+  asyncHandler(async (_req: Request, res: Response) => {
     try {
       // Verify database is ready
       await prisma.$queryRaw`SELECT 1 as result`;
@@ -103,7 +114,7 @@ router.get(
  */
 router.get(
   '/live',
-  asyncHandler(async (_req, res) => {
+  asyncHandler(async (_req: Request, res: Response) => {
     return response.success(res, {
       alive: true,
       timestamp: new Date().toISOString()

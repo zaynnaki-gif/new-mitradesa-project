@@ -6,6 +6,7 @@ import { API_URL } from '@/lib/constants';
 import { Button, Input, Modal, Select } from '@/components/ui';
 import shared from '@/styles/AdminShared.module.css';
 import s from '@/pages/admin/layanan/LayananListPage.module.css';
+import { safeFetchJson } from '@/lib/fetch';
 
 interface FieldDefinition {
   id: string;
@@ -42,12 +43,12 @@ export default function TemplateFieldsPage() {
   const fetchFields = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/template-designer/templates/${id}/fields`, {
+      const data = await safeFetchJson(`${API_URL}/template-designer/templates/${id}/fields`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (!res.ok) throw new Error('Gagal memuat fields');
-      const data = await res.json();
+      if (!data.success) throw new Error('Gagal memuat fields');
       setFields(data.data || []);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       setError(err.message || 'Terjadi kesalahan');
     } finally {
@@ -57,6 +58,7 @@ export default function TemplateFieldsPage() {
 
   useEffect(() => {
     if (token && id) fetchFields();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, id]);
 
   const handleOpenModal = (item?: FieldDefinition) => {
@@ -100,7 +102,7 @@ export default function TemplateFieldsPage() {
         ? `${API_URL}/template-designer/templates/${id}/fields/${editingData.id}` 
         : `${API_URL}/template-designer/templates/${id}/fields`;
         
-      const response = await fetch(url, {
+      const result = await safeFetchJson(url, {
         method: editingData?.id ? 'PATCH' : 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -112,14 +114,13 @@ export default function TemplateFieldsPage() {
         })
       });
 
-      const result = await response.json();
-
-      if (!response.ok) {
+      if (!result.success) {
         throw new Error(result.message || 'Terjadi kesalahan saat menyimpan data');
       }
 
       setIsModalOpen(false);
       fetchFields();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       setFormError(err.message || 'Terjadi kesalahan');
     } finally {
@@ -131,19 +132,19 @@ export default function TemplateFieldsPage() {
     if (!token || !window.confirm('Apakah Anda yakin ingin menghapus field ini?')) return;
 
     try {
-      const response = await fetch(`${API_URL}/template-designer/templates/${id}/fields/${fieldId}`, {
+      const result = await safeFetchJson(`${API_URL}/template-designer/templates/${id}/fields/${fieldId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
 
-      if (!response.ok) {
-        const result = await response.json();
+      if (!result.success) {
         throw new Error(result.message || 'Terjadi kesalahan saat menghapus data');
       }
 
       fetchFields();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       alert(err.message || 'Gagal menghapus data');
     }

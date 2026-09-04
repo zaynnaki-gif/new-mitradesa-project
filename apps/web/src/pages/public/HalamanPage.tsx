@@ -70,6 +70,7 @@ export default function HalamanPage() {
       return;
     }
     fetchHalaman();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug]);
 
   if (loading) {

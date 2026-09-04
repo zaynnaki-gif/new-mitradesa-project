@@ -20,17 +20,23 @@ declare global {
 }
 
 /**
- * Extract token from Authorization header
+ * Extract token from Authorization header or query param
  */
-function extractToken(authHeader?: string): string | null {
-  if (!authHeader) return null;
-
-  const parts = authHeader.split(' ');
-  if (parts.length !== 2 || parts[0].toLowerCase() !== 'bearer') {
-    return null;
+function extractToken(req: Request): string | null {
+  const authHeader = req.headers.authorization;
+  if (authHeader) {
+    const parts = authHeader.split(' ');
+    if (parts.length === 2 && parts[0].toLowerCase() === 'bearer') {
+      return parts[1];
+    }
   }
 
-  return parts[1];
+  // Also allow token from query parameter for direct browser downloads / view in tab
+  if (typeof req.query?.token === 'string' && req.query.token.trim()) {
+    return req.query.token.trim();
+  }
+
+  return null;
 }
 
 /**
@@ -39,7 +45,7 @@ function extractToken(authHeader?: string): string | null {
 export function authenticateInternal() {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const token = extractToken(req.headers.authorization);
+      const token = extractToken(req);
 
       if (!token) {
         throw ApiError.unauthorized('No authentication token provided');
@@ -82,7 +88,7 @@ export function authenticateInternal() {
 export function authenticateCitizen() {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const token = extractToken(req.headers.authorization);
+      const token = extractToken(req);
 
       if (!token) {
         throw ApiError.unauthorized('No authentication token provided');
@@ -123,7 +129,7 @@ export function authenticateCitizen() {
 export function authenticateAny() {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const token = extractToken(req.headers.authorization);
+      const token = extractToken(req);
 
       if (!token) {
         throw ApiError.unauthorized('No authentication token provided');
@@ -180,7 +186,7 @@ export function optionalAuth() {
   return async (req: Request, _res: Response, next: NextFunction) => {
     void _res;
     try {
-      const token = extractToken(req.headers.authorization);
+      const token = extractToken(req);
 
       if (!token) {
         return next();

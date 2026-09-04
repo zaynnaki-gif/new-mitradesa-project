@@ -1,9 +1,11 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useCallback } from 'react';
 import { AdminLayout } from '@/layouts';
 import { Button, Input, Typography } from '@/components/ui';
 import { LoadingState, ErrorState } from '@/components/states';
 import { useAuthStore } from '@/stores/auth.store';
 import { API_URL } from '@/lib/constants';
+import { safeFetchJson } from '@/lib/fetch';
 import { WilayahSelector } from '@/components/WilayahSelector';
 import { Provinsi, Kabupaten, Kecamatan, Desa } from '@/types';
 import styles from './IdentitasDesaPage.module.css';
@@ -98,10 +100,9 @@ export default function IdentitasDesaPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_URL}/identitas-desa`, {
+      const data = await safeFetchJson(`${API_URL}/identitas`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
       if (data.success) {
         setIdentitas(data.data);
       } else {
@@ -191,25 +192,25 @@ export default function IdentitasDesaPage() {
       newErrors.singkatanDesa = 'Singkatan maksimal 20 karakter';
     }
 
-    if (form.kodeDesa && !/^\d+$/.test(form.kodeDesa)) {
+    if (form.kodeDesa && form.kodeDesa !== '' && !/^\d+$/.test(form.kodeDesa)) {
       newErrors.kodeDesa = 'Kode desa harus berupa angka';
-    } else if (form.kodeDesa && form.kodeDesa.length !== 10) {
+    } else if (form.kodeDesa && form.kodeDesa !== '' && form.kodeDesa.length !== 10) {
       newErrors.kodeDesa = 'Kode desa harus 10 digit';
     }
 
-    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
+    if (form.email && form.email !== '' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
       newErrors.email = 'Format email tidak valid';
     }
 
-    if (form.website && !/^https?:\/\/.+/.test(form.website)) {
+    if (form.website && form.website !== '' && !/^https?:\/\/.+/.test(form.website)) {
       newErrors.website = 'Website harus dimulai dengan http:// atau https://';
     }
 
-    if (form.telepon && !/^[\d\s\-()+]+$/.test(form.telepon)) {
+    if (form.telepon && form.telepon !== '' && !/^[\d\s\-()+]+$/.test(form.telepon)) {
       newErrors.telepon = 'Format telepon tidak valid';
     }
 
-    if (form.whatsapp && !/^[\d\s\-()+]+$/.test(form.whatsapp)) {
+    if (form.whatsapp && form.whatsapp !== '' && !/^[\d\s\-()+]+$/.test(form.whatsapp)) {
       newErrors.whatsapp = 'Format WhatsApp tidak valid';
     }
 
@@ -227,7 +228,7 @@ export default function IdentitasDesaPage() {
     setSaveSuccess(false);
 
     try {
-      const res = await fetch(`${API_URL}/identitas-desa`, {
+      const data = await safeFetchJson(`${API_URL}/identitas`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -235,7 +236,6 @@ export default function IdentitasDesaPage() {
         },
         body: JSON.stringify(form),
       });
-      const data = await res.json();
       if (data.success) {
         setOriginalForm(form);
         setSaveSuccess(true);
@@ -270,9 +270,13 @@ export default function IdentitasDesaPage() {
       setErrors(prev => ({ ...prev, desaId: undefined }));
     }
 
-    // Auto-fill namaDesa from API if empty and coming from API
-    if (fullData?.desa && !form.namaDesa) {
-      setForm(prev => ({ ...prev, namaDesa: fullData.desa.nama }));
+    // Auto-fill namaDesa and kodeDesa from API unconditionally
+    if (fullData?.desa) {
+      setForm(prev => ({ 
+        ...prev, 
+        namaDesa: fullData.desa.nama,
+        kodeDesa: fullData.desa.kode || ''
+      }));
     }
   };
 
@@ -375,21 +379,23 @@ export default function IdentitasDesaPage() {
                 onChange={e => handleChange('namaDesa', e.target.value)}
                 error={errors.namaDesa}
                 required
-                placeholder="Nama lengkap desa"
+                readOnly
+                placeholder="Otomatis dari pilihan wilayah"
+                style={{ backgroundColor: 'var(--surface-color-dim)' }}
               />
               <Input
                 label="Singkatan Desa"
                 value={form.singkatanDesa}
                 onChange={e => handleChange('singkatanDesa', e.target.value)}
-                
                 placeholder="Contoh: SRG"
               />
               <Input
                 label="Kode Desa"
                 value={form.kodeDesa}
                 onChange={e => handleChange('kodeDesa', e.target.value)}
-                
-                placeholder="10 digit kode desa"
+                readOnly
+                placeholder="Otomatis dari pilihan wilayah"
+                style={{ backgroundColor: 'var(--surface-color-dim)' }}
               />
             </div>
           </div>
@@ -487,3 +493,4 @@ export default function IdentitasDesaPage() {
     </AdminLayout>
   );
 }
+

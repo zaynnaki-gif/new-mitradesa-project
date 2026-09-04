@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { prisma } from './prisma.js';
 import { ApiError } from '../utils/response.js';
 import { CreatePotensiInput, UpdatePotensiInput, QueryPotensiInput } from '../dto/potensi.dto.js';
@@ -9,8 +10,8 @@ function slugify(text: string): string {
     .toLowerCase()
     .trim()
     .replace(/\s+/g, '-')
-    .replace(/[^\w\-]+/g, '')
-    .replace(/\-\-+/g, '-');
+    .replace(/[^\w-]+/g, '')
+    .replace(/--+/g, '-');
 }
 
 export class PotensiService {
@@ -133,3 +134,4 @@ export class PotensiService {
 }
 
 export const potensiService = new PotensiService();
+

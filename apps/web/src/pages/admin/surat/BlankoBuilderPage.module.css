@@ -1,0 +1,107 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 80px);
+  padding-bottom: 20px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-color, #eaeaea);
+  margin-bottom: 20px;
+}
+
+.builderContainer {
+  display: flex;
+  flex: 1;
+  gap: 24px;
+  overflow: hidden;
+}
+
+.canvasWrapper {
+  flex: 1;
+  background-color: #f0f0f0;
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 40px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  position: relative;
+}
+
+/* F4 is roughly 215mm x 330mm. Let's scale it so 1mm = 3px for screen viewing */
+.canvas {
+  background-color: white;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  position: relative;
+  /* background grid for mm feeling */
+  background-image: 
+    linear-gradient(to right, #f0f0f0 1px, transparent 1px),
+    linear-gradient(to bottom, #f0f0f0 1px, transparent 1px);
+  background-size: 15px 15px; /* 5mm grid at 3px/mm */
+}
+
+.canvasElement {
+  position: absolute;
+  cursor: grab;
+  border: 1px dashed transparent;
+  user-select: none;
+}
+
+.canvasElement:active {
+  cursor: grabbing;
+}
+
+.canvasElement.selected {
+  border: 1px dashed #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.2);
+}
+
+.sidebar {
+  width: 320px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow-y: auto;
+}
+
+.propertyGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.propertyRow {
+  display: flex;
+  gap: 8px;
+}
+
+.toolbox {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.toolBtn {
+  flex: 1 0 45%;
+  padding: 8px;
+  border: 1px solid #ccc;
+  background: #fafafa;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: center;
+  font-size: 14px;
+}
+
+.toolBtn:hover {
+  background: #eee;
+}

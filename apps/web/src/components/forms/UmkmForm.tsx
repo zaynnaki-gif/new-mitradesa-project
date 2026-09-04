@@ -3,6 +3,7 @@ import { Button } from '../ui';
 import { useAuthStore } from '../../stores/auth.store';
 
 interface UmkmFormProps {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   initialData?: any;
   onSuccess: () => void;
   onCancel: () => void;

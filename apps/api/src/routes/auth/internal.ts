@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { asyncHandler, response, ApiError } from '../../utils/response.js';
 import { authService } from '../../services/index.js';
@@ -23,7 +23,7 @@ const loginSchema = z.object({
 router.post(
   '/login',
   loginRateLimiter,
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const { username, password } = loginSchema.parse(req.body);
 
     const result = await authService.loginInternal(
@@ -55,7 +55,7 @@ router.post(
 router.post(
   '/logout',
   authenticateInternal(),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const token = req.headers.authorization?.replace('Bearer ', '');
 
     if (token) {
@@ -74,7 +74,7 @@ router.post(
 router.get(
   '/me',
   authenticateInternal(),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     if (!req.user || !req.user.accountId) {
       throw ApiError.unauthorized('Not authenticated');
     }
@@ -108,7 +108,7 @@ router.get(
 router.get(
   '/permissions',
   authenticateInternal(),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     if (!req.user) {
       throw ApiError.unauthorized('Not authenticated');
     }

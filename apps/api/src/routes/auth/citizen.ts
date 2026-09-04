@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { asyncHandler, response, ApiError } from '../../utils/response.js';
 import { otpService } from '../../services/index.js';
@@ -28,7 +28,7 @@ const verifyOtpSchema = z.object({
 router.post(
   '/request-otp',
   otpRequestRateLimiter,
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const { nik } = requestOtpSchema.parse(req.body);
 
     // In production, this would:
@@ -64,7 +64,7 @@ router.post(
 router.post(
   '/verify-otp',
   otpVerifyRateLimiter,
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const { challenge, otp } = verifyOtpSchema.parse(req.body);
 
     const result = await otpService.verifyOtp(
@@ -91,7 +91,7 @@ router.post(
 router.post(
   '/logout',
   authenticateCitizen(),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     const token = req.headers.authorization?.replace('Bearer ', '');
 
     if (token) {
@@ -110,7 +110,7 @@ router.post(
 router.get(
   '/me',
   authenticateCitizen(),
-  asyncHandler(async (req, res) => {
+  asyncHandler(async (req: Request, res: Response) => {
     if (!req.user || !req.user.pendudukId) {
       throw ApiError.unauthorized('Not authenticated');
     }

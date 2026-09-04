@@ -17,6 +17,7 @@ export function EditorialCard({ title, description, imageUrl, meta, href, action
 
   return (
     <article
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       ref={ref as any}
       className={`animate-on-scroll ${isVisible ? 'is-visible' : ''}`}
       style={{ transitionDelay: `${(index % 4) * 100}ms` }}

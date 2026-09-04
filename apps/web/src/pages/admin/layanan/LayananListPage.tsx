@@ -93,6 +93,7 @@ export default function LayananListPage() {
     } finally {
       setLoading(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pagination.page, pagination.limit, filter]);
 
   useEffect(() => {

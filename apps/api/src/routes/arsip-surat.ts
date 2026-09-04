@@ -1,32 +1,73 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import { prisma } from '../services/prisma.js';
-import { authenticateInternal } from '../middleware/auth.middleware.js';
+import { authenticateInternal, authorize } from '../middleware/index.js';
 import { response } from '../utils/response.js';
 import { getInstanceContext } from '../config/instance.js';
+import { SuratMasukStatus, DisposisiStatus, DocumentStatus, Prisma } from '@prisma/client';
 
 const router = Router();
 router.use(authenticateInternal());
 
+// Validation schemas
+const GetSuratMasukSchema = z.object({
+  status: z.nativeEnum(SuratMasukStatus).optional(),
+  search: z.string().optional(),
+  page: z.string().regex(/^\d+$/).optional().transform(v => v ? parseInt(v) : 1),
+  limit: z.string().regex(/^\d+$/).optional().transform(v => v ? parseInt(v) : 10),
+});
+
+const CreateSuratMasukSchema = z.object({
+  nomorSurat: z.string().min(1),
+  tanggalSurat: z.string().datetime(),
+  tanggalDiterima: z.string().datetime(),
+  pengirim: z.string().min(1),
+  perihal: z.string().min(1),
+  lampiran: z.string().optional().nullable(),
+  fileScanUrl: z.string().url().optional().or(z.literal('')).nullable(),
+});
+
+const UpdateSuratMasukStatusSchema = z.object({
+  status: z.nativeEnum(SuratMasukStatus),
+});
+
+const CreateDisposisiSchema = z.object({
+  tujuan: z.string().min(1),
+  instruksi: z.string().min(1),
+  tanggalSelesai: z.string().datetime().optional().nullable(),
+});
+
+const UpdateDisposisiStatusSchema = z.object({
+  status: z.nativeEnum(DisposisiStatus),
+});
+
+const GetSuratKeluarSchema = z.object({
+  status: z.nativeEnum(DocumentStatus).optional(),
+  search: z.string().optional(),
+  page: z.string().regex(/^\d+$/).optional().transform(v => v ? parseInt(v) : 1),
+  limit: z.string().regex(/^\d+$/).optional().transform(v => v ? parseInt(v) : 10),
+});
+
 // --- Surat Masuk ---
 
 // List Surat Masuk
-router.get('/masuk', async (req, res) => {
+router.get('/masuk', authorize('surat.view'), async (req, res) => {
   try {
     const { desaId } = getInstanceContext();
-    const { status, search } = req.query;
+    const query = GetSuratMasukSchema.parse(req.query);
 
-    const where: any = { desaId };
-    if (status) where.status = status;
-    if (search) {
+    const where: Prisma.SuratMasukWhereInput = { desaId };
+    if (query.status) where.status = query.status;
+    if (query.search) {
       where.OR = [
-        { nomorSurat: { contains: search as string, mode: 'insensitive' } },
-        { pengirim: { contains: search as string, mode: 'insensitive' } },
-        { perihal: { contains: search as string, mode: 'insensitive' } }
+        { nomorSurat: { contains: query.search, mode: 'insensitive' } },
+        { pengirim: { contains: query.search, mode: 'insensitive' } },
+        { perihal: { contains: query.search, mode: 'insensitive' } }
       ];
     }
 
-    const page = Math.max(parseInt(req.query.page as string) || 1, 1);
-    const limit = Math.min(Math.max(parseInt(req.query.limit as string) || 10, 1), 100);
+    const page = Math.max(query.page, 1);
+    const limit = Math.min(Math.max(query.limit, 1), 100);
     const skip = (page - 1) * limit;
 
     const [suratMasuk, total] = await Promise.all([
@@ -52,43 +93,49 @@ router.get('/masuk', async (req, res) => {
       }
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, message: 'Data tidak valid', errors: error.errors });
+    }
     console.error('List SuratMasuk Error:', error);
     return res.status(500).json({ success: false, message: 'Terjadi kesalahan internal server' });
   }
 });
 
 // Create Surat Masuk
-router.post('/masuk', async (req, res) => {
+router.post('/masuk', authorize('surat.manage'), async (req, res) => {
   try {
     const { desaId } = getInstanceContext();
-    const { nomorSurat, tanggalSurat, tanggalDiterima, pengirim, perihal, lampiran, fileScanUrl } = req.body;
+    const data = CreateSuratMasukSchema.parse(req.body);
 
     const suratMasuk = await prisma.suratMasuk.create({
       data: {
         desaId,
-        nomorSurat,
-        tanggalSurat: new Date(tanggalSurat),
-        tanggalDiterima: new Date(tanggalDiterima),
-        pengirim,
-        perihal,
-        lampiran,
-        fileScanUrl,
-        status: 'DITERIMA'
+        nomorSurat: data.nomorSurat,
+        tanggalSurat: new Date(data.tanggalSurat),
+        tanggalDiterima: new Date(data.tanggalDiterima),
+        pengirim: data.pengirim,
+        perihal: data.perihal,
+        lampiran: data.lampiran,
+        fileScanUrl: data.fileScanUrl,
+        status: SuratMasukStatus.DITERIMA
       }
     });
 
     return res.status(201).json({ success: true, data: suratMasuk, message: 'Surat masuk berhasil ditambahkan' });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, message: 'Data tidak valid', errors: error.errors });
+    }
     console.error('Create SuratMasuk Error:', error);
     return res.status(500).json({ success: false, message: 'Terjadi kesalahan internal server' });
   }
 });
 
 // Update Surat Masuk Status (Diarsipkan, etc)
-router.patch('/masuk/:id/status', async (req, res) => {
+router.patch('/masuk/:id/status', authorize('surat.manage'), async (req, res) => {
   try {
     const { desaId } = getInstanceContext();
-    const { status } = req.body;
+    const data = UpdateSuratMasukStatusSchema.parse(req.body);
 
     const suratMasuk = await prisma.suratMasuk.findFirst({
       where: { id: BigInt(req.params.id), desaId }
@@ -100,11 +147,14 @@ router.patch('/masuk/:id/status', async (req, res) => {
 
     const updated = await prisma.suratMasuk.update({
       where: { id: suratMasuk.id },
-      data: { status }
+      data: { status: data.status }
     });
 
     return res.json({ success: true, data: updated, message: 'Status surat masuk diperbarui' });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, message: 'Data tidak valid', errors: error.errors });
+    }
     console.error('Update SuratMasuk Error:', error);
     return res.status(500).json({ success: false, message: 'Terjadi kesalahan internal server' });
   }
@@ -113,10 +163,10 @@ router.patch('/masuk/:id/status', async (req, res) => {
 // --- Disposisi ---
 
 // Add Disposisi to Surat Masuk
-router.post('/masuk/:id/disposisi', async (req, res) => {
+router.post('/masuk/:id/disposisi', authorize('surat.manage'), async (req, res) => {
   try {
     const { desaId } = getInstanceContext();
-    const { tujuan, instruksi, tanggalSelesai } = req.body;
+    const data = CreateDisposisiSchema.parse(req.body);
 
     const suratMasuk = await prisma.suratMasuk.findFirst({
       where: { id: BigInt(req.params.id), desaId }
@@ -126,34 +176,42 @@ router.post('/masuk/:id/disposisi', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Surat masuk tidak ditemukan' });
     }
 
-    const disposisi = await prisma.disposisi.create({
-      data: {
-        suratMasukId: suratMasuk.id,
-        tujuan,
-        instruksi,
-        tanggalSelesai: tanggalSelesai ? new Date(tanggalSelesai) : null,
-        status: 'PENDING'
-      }
-    });
+    // Wrap in transaction to ensure consistency
+    const disposisi = await prisma.$transaction(async (tx) => {
+      const newDisposisi = await tx.disposisi.create({
+        data: {
+          suratMasukId: suratMasuk.id,
+          tujuan: data.tujuan,
+          instruksi: data.instruksi,
+          tanggalSelesai: data.tanggalSelesai ? new Date(data.tanggalSelesai) : null,
+          status: DisposisiStatus.PENDING
+        }
+      });
 
-    // Update status Surat Masuk if necessary
-    await prisma.suratMasuk.update({
-      where: { id: suratMasuk.id },
-      data: { status: 'DIPROSES' }
+      if (suratMasuk.status === SuratMasukStatus.DITERIMA) {
+        await tx.suratMasuk.update({
+          where: { id: suratMasuk.id },
+          data: { status: SuratMasukStatus.DIPROSES }
+        });
+      }
+      return newDisposisi;
     });
 
     return res.status(201).json({ success: true, data: disposisi, message: 'Disposisi berhasil ditambahkan' });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, message: 'Data tidak valid', errors: error.errors });
+    }
     console.error('Add Disposisi Error:', error);
     return res.status(500).json({ success: false, message: 'Terjadi kesalahan internal server' });
   }
 });
 
 // Update Disposisi Status
-router.patch('/disposisi/:id/status', async (req, res) => {
+router.patch('/disposisi/:id/status', authorize('surat.manage'), async (req, res) => {
   try {
     const { desaId } = getInstanceContext();
-    const { status } = req.body;
+    const data = UpdateDisposisiStatusSchema.parse(req.body);
 
     const disposisi = await prisma.disposisi.findFirst({
       where: { id: BigInt(req.params.id) },
@@ -166,11 +224,14 @@ router.patch('/disposisi/:id/status', async (req, res) => {
 
     const updated = await prisma.disposisi.update({
       where: { id: disposisi.id },
-      data: { status }
+      data: { status: data.status }
     });
 
     return res.json({ success: true, data: updated, message: 'Status disposisi diperbarui' });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, message: 'Data tidak valid', errors: error.errors });
+    }
     console.error('Update Disposisi Error:', error);
     return res.status(500).json({ success: false, message: 'Terjadi kesalahan internal server' });
   }
@@ -178,12 +239,12 @@ router.patch('/disposisi/:id/status', async (req, res) => {
 
 // --- Surat Keluar (Generated Documents) ---
 
-router.get('/keluar', async (req, res) => {
+router.get('/keluar', authorize('surat.view'), async (req, res) => {
   try {
     const { desaId } = getInstanceContext();
-    const { search, status } = req.query;
+    const query = GetSuratKeluarSchema.parse(req.query);
 
-    const where: any = {
+    const where: Prisma.InstanDokumenWhereInput = {
       dokumen: {
         layanan: {
           desaId
@@ -191,17 +252,17 @@ router.get('/keluar', async (req, res) => {
       }
     };
 
-    if (status) where.status = status;
-    if (search) {
+    if (query.status) where.status = query.status;
+    if (query.search) {
       where.OR = [
-        { nomorDokumen: { contains: search as string, mode: 'insensitive' } },
-        { judul: { contains: search as string, mode: 'insensitive' } },
-        { tujuan: { contains: search as string, mode: 'insensitive' } }
+        { nomorDokumen: { contains: query.search, mode: 'insensitive' } },
+        { judul: { contains: query.search, mode: 'insensitive' } },
+        { tujuan: { contains: query.search, mode: 'insensitive' } }
       ];
     }
 
-    const page = Math.max(parseInt(req.query.page as string) || 1, 1);
-    const limit = Math.min(Math.max(parseInt(req.query.limit as string) || 10, 1), 100);
+    const page = Math.max(query.page, 1);
+    const limit = Math.min(Math.max(query.limit, 1), 100);
     const skip = (page - 1) * limit;
 
     const [suratKeluar, total] = await Promise.all([
@@ -229,6 +290,9 @@ router.get('/keluar', async (req, res) => {
       }
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, message: 'Data tidak valid', errors: error.errors });
+    }
     console.error('List SuratKeluar Error:', error);
     return res.status(500).json({ success: false, message: 'Terjadi kesalahan internal server' });
   }

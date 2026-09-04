@@ -1,5 +1,5 @@
 import { ApiError } from '../../utils/response.js';
-import { Router } from 'express';
+import { Router, Request } from 'express';
 import { asyncHandler, response } from '../../utils/response.js';
 import { authenticateInternal, authorize } from '../../middleware/index.js';
 import { permintaanLayananService } from '../../services/permintaan-layanan.service.js';
@@ -19,7 +19,7 @@ const router = Router();
 /**
  * Get current user's account ID
  */
-function getAccountId(req: Express.Request): bigint {
+function getAccountId(req: Request): bigint {
   const accountId = req.user?.accountId;
   if (!accountId) {
     throw ApiError.unauthorized('Tidak ter-authentikasi');
@@ -169,6 +169,28 @@ router.post(
       actorId
     );
     return response.success(res, permintaan, 'Status berhasil diperbarui ke Diproses');
+  })
+);
+
+/**
+ * POST /api/service-requests/:id/approve - Approve request and generate document
+ */
+router.post(
+  '/:id/approve',
+  authenticateInternal(),
+  authorize('request.approve'),
+  asyncHandler(async (req, res) => {
+    const { id } = idParamSchema.parse(req.params);
+    const body = { ...req.body, status: RequestStatus.APPROVED };
+    const data = updatePermintaanStatusSchema.parse(body);
+    const actorId = getAccountId(req);
+
+    const permintaan = await permintaanLayananService.updateStatus(
+      BigInt(id),
+      data,
+      actorId
+    );
+    return response.success(res, permintaan, 'Permintaan berhasil disetujui');
   })
 );
 

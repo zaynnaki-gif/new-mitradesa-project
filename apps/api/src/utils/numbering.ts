@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { randomBytes } from 'crypto';
 
 /**
@@ -82,7 +82,7 @@ export function parseFormatTemplate(
  * Get village identity info for numbering
  */
 async function getVillageInfo(
-  prisma: PrismaClient,
+  prisma: PrismaClient | Prisma.TransactionClient,
   desaId: bigint
 ): Promise<{ nama: string; singkatan?: string | null }> {
   const identitasDesa = await prisma.identitasDesa.findUnique({
@@ -99,7 +99,7 @@ async function getVillageInfo(
  * Get village head (kades) info
  */
 async function getJabatanInfo(
-  prisma: PrismaClient,
+  prisma: PrismaClient | Prisma.TransactionClient,
   desaId: bigint
 ): Promise<{ inisial: string; nama: string }> {
   await prisma.perangkatDesa.findFirst({
@@ -122,7 +122,7 @@ async function getJabatanInfo(
  * Uses database transaction with pessimistic locking
  */
 export async function generateDocumentNumber(
-  db: PrismaClient,
+  db: PrismaClient | Prisma.TransactionClient,
   desaId: bigint,
   kode?: string
 ): Promise<string> {
@@ -130,43 +130,41 @@ export async function generateDocumentNumber(
   const tahun = now.getFullYear();
   const bulan = now.getMonth() + 1;
 
-  // Get or create nomor dokumen record
-  let nomorDokumen = await db.nomorDokumen.findUnique({
-    where: { desaId },
-  });
-
-  if (!nomorDokumen) {
-    // Create new record
-    nomorDokumen = await db.nomorDokumen.create({
-      data: {
-        desaId,
-        lastSequence: 0,
-        lastYear: tahun,
-      },
+  const updateLogic = async (tx: PrismaClient | Prisma.TransactionClient) => {
+    let nd = await tx.nomorDokumen.findUnique({
+      where: { desaId },
     });
-  }
 
-  // Reset sequence if year changed
-  if (nomorDokumen.lastYear !== tahun) {
-    nomorDokumen = await db.nomorDokumen.update({
-      where: { id: nomorDokumen.id },
-      data: {
-        lastSequence: 0,
-        lastYear: tahun,
-      },
-    });
-  }
+    if (!nd || nd.lastYear !== tahun) {
+      nd = await tx.nomorDokumen.upsert({
+        where: { desaId },
+        update: {
+          lastSequence: 1,
+          lastYear: tahun,
+        },
+        create: {
+          desaId,
+          lastSequence: 1,
+          lastYear: tahun,
+        },
+      });
+    } else {
+      nd = await tx.nomorDokumen.update({
+        where: { desaId },
+        data: {
+          lastSequence: { increment: 1 },
+        },
+      });
+    }
+    return nd;
+  };
 
-  // Increment sequence
-  const newSequence = Number(nomorDokumen.lastSequence) + 1;
+  // Use transaction to atomically get and update sequence if not already in one
+  const nomorDokumen = ('$transaction' in db)
+    ? await (db as PrismaClient).$transaction(updateLogic)
+    : await updateLogic(db);
 
-  // Update with new sequence (this is the atomic operation)
-  await db.nomorDokumen.update({
-    where: { id: nomorDokumen.id },
-    data: {
-      lastSequence: newSequence,
-    },
-  });
+  const newSequence = Number(nomorDokumen.lastSequence);
 
   // Get village info for replacements
   const [villageInfo, jabatanInfo] = await Promise.all([
@@ -194,7 +192,7 @@ export async function generateDocumentNumber(
  * Generate request number (service request)
  */
 export async function generateRequestNumber(
-  db: PrismaClient,
+  db: PrismaClient | Prisma.TransactionClient,
   desaId: bigint,
   layananKode: string
 ): Promise<string> {

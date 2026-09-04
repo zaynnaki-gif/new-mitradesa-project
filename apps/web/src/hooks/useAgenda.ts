@@ -33,6 +33,7 @@ export function useAgendaList(limit?: number) {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error?.message || 'Gagal memuat data Agenda');
       setData(result.data);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       setError(err.message || 'Terjadi kesalahan saat memuat data Agenda');
     } finally {

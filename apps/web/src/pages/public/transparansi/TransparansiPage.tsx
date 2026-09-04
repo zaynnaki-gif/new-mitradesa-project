@@ -22,6 +22,7 @@ function SummaryCard({ label, value, type, delay = 0 }: { label: string, value: 
   );
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function ItemCard({ item, percentage, type, delay = 0 }: { item: any, percentage: number, type: 'pendapatan' | 'belanja' | 'pembiayaan', delay?: number }) {
   const { ref, isVisible } = useScrollReveal({ threshold: 0.1 });
   const formatRupiah = (angka: number) => {

@@ -10,7 +10,7 @@ router.get(
   authenticateInternal(),
   authorize('lembaga.view'),
   asyncHandler(async (req, res) => {
-    const result = await lembagaService.findAll(req.query as any);
+    const result = await lembagaService.findAll(req.query as { page?: number; limit?: number; search?: string; jenis?: string; status?: string; gubugId?: string; });
     return response.success(res, result.data, 'Daftar lembaga', result.meta);
   })
 );

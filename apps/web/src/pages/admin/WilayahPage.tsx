@@ -5,6 +5,7 @@ import { LoadingState, ErrorState } from '@/components/states';
 import { useAuthStore } from '@/stores/auth.store';
 import { useWilayahStore } from '@/stores/wilayah.store';
 import { API_URL } from '@/lib/constants';
+import { safeFetchJson } from '@/lib/fetch';
 import { WilayahSelector } from '@/components/WilayahSelector';
 import styles from './WilayahPage.module.css';
 
@@ -86,21 +87,23 @@ export function WilayahPage() {
     setError(null);
 
     try {
-      const res = await fetch(`${API_URL}/wilayah/dropdown?desaId=${selectedDesaId}`);
-      const data = await res.json();
+      const data = await safeFetchJson(`${API_URL}/wilayah/dropdown?desaId=${selectedDesaId}`);
 
       if (data.success) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setGubugs(data.data.gubug.map((g: any) => ({
           id: g.id.toString(),
           kode: g.kode,
           nama: g.nama,
         })));
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setRws(data.data.rw.map((r: any) => ({
           id: r.id.toString(),
           gubugId: r.gubugId.toString(),
           kode: r.kode,
           nama: r.nama,
         })));
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setRts(data.data.rt.map((rt: any) => ({
           id: rt.id.toString(),
           rwId: rt.rwId.toString(),
@@ -114,6 +117,7 @@ export function WilayahPage() {
     } finally {
       setLoading(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDesaId, API_URL]);
 
   useEffect(() => {
@@ -159,6 +163,7 @@ export function WilayahPage() {
 
       let url = '';
       let method = 'POST';
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let body: any = {};
 
       // Use activeWilayah.desaId if available, otherwise use selectedDesaId
@@ -187,13 +192,11 @@ export function WilayahPage() {
         }
       }
 
-      const res = await fetch(url, {
+      const data = await safeFetchJson(url, {
         method,
         headers,
         body: JSON.stringify(body),
       });
-
-      const data = await res.json();
 
       if (data.success) {
         setShowModal(false);
@@ -201,8 +204,8 @@ export function WilayahPage() {
       } else {
         alert(data.error?.message || 'Terjadi kesalahan');
       }
-    } catch {
-      alert('Terjadi kesalahan');
+    } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+      alert(err.message || 'Terjadi kesalahan');
     } finally {
       setFormLoading(false);
     }
@@ -219,20 +222,18 @@ export function WilayahPage() {
 
     try {
       const url = `${API_URL}/wilayah/${item.level}/${item.id}`;
-      const res = await fetch(url, {
+      const data = await safeFetchJson(url, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` },
       });
-
-      const data = await res.json();
 
       if (data.success) {
         fetchWilayah();
       } else {
         alert(data.error?.message || 'Gagal menghapus');
       }
-    } catch {
-      alert('Gagal menghapus');
+    } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+      alert(err.message || 'Gagal menghapus');
     }
   };
 

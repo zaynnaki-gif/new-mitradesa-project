@@ -4,9 +4,6 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import './index.css';
 import './styles/editorial/editorial.css';
-import { initMockApi } from './mockApi';
-
-initMockApi();
 
 // Error boundary for uncaught errors
 window.onerror = (message, source, lineno, colno, error) => {

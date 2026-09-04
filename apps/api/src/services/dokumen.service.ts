@@ -1,4 +1,5 @@
 import { PrismaClient, Prisma, VersionStatus, DocumentStatus } from '@prisma/client';
+import bcrypt from 'bcrypt';
 import { prisma } from './prisma.js';
 import {
   CreateDokumenDefinitionInput,
@@ -138,9 +139,15 @@ export class TemplateSuratService {
     const dokumen = await this.db.dokumenDefinition.findUnique({ where: { id: data.dokumenId } });
     if (!dokumen) throw ApiError.notFound('Dokumen tidak ditemukan');
 
+    if (data.blankoId) {
+      const blanko = await this.db.blanko.findUnique({ where: { id: data.blankoId } });
+      if (!blanko) throw ApiError.notFound('Blanko tidak ditemukan');
+    }
+
     return this.db.templateSurat.create({
       data: {
         dokumenId: data.dokumenId,
+        blankoId: data.blankoId,
         nama: data.nama,
         slug: data.slug,
         deskripsi: data.deskripsi,
@@ -250,9 +257,15 @@ export class TemplateSuratService {
   async update(id: bigint, data: UpdateTemplateSuratInput) {
     const existing = await this.db.templateSurat.findUnique({ where: { id } });
     if (!existing) throw ApiError.notFound('Template tidak ditemukan');
+
+    if (data.blankoId !== undefined && data.blankoId !== null) {
+      const blanko = await this.db.blanko.findUnique({ where: { id: data.blankoId } });
+      if (!blanko) throw ApiError.notFound('Blanko tidak ditemukan');
+    }
+
     return this.db.templateSurat.update({
       where: { id },
-      data: { nama: data.nama, slug: data.slug, deskripsi: data.deskripsi },
+      data: { blankoId: data.blankoId, nama: data.nama, slug: data.slug, deskripsi: data.deskripsi },
     });
   }
 }
@@ -597,6 +610,7 @@ export class PenandaTanganService {
 
   async create(data: CreatePenandaTanganInput) {
     const { desaId } = getInstanceContext();
+    const pinHash = data.pin ? await bcrypt.hash(data.pin, 10) : undefined;
     return this.db.penandaTangan.create({
       data: {
         desaId,
@@ -605,6 +619,8 @@ export class PenandaTanganService {
         nip: data.nip,
         tandaTanganUrl: data.tandaTanganUrl,
         isActive: data.isActive,
+        accountId: data.accountId ?? undefined,
+        pinHash,
       },
     });
   }
@@ -638,6 +654,7 @@ export class PenandaTanganService {
     const { desaId } = getInstanceContext();
     const existing = await this.db.penandaTangan.findFirst({ where: { id, desaId } });
     if (!existing) throw ApiError.notFound('Penanda tangan tidak ditemukan');
+    const pinHash = data.pin ? await bcrypt.hash(data.pin, 10) : undefined;
     return this.db.penandaTangan.update({
       where: { id },
       data: {
@@ -646,6 +663,8 @@ export class PenandaTanganService {
         nip: data.nip,
         tandaTanganUrl: data.tandaTanganUrl,
         isActive: data.isActive,
+        ...(data.accountId !== undefined ? { accountId: data.accountId } : {}),
+        ...(pinHash !== undefined ? { pinHash } : {}),
       },
     });
   }
