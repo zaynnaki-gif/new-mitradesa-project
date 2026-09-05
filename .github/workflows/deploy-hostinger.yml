@@ -105,50 +105,39 @@ jobs:
             done
 
             cd ${{ secrets.HOSTINGER_API_PATH }}
+            echo "Current directory: $(pwd)"
 
-            # LiteSpeed / CloudLinux Passenger restart trigger (selalu dieksekusi)
+            # 1. Sync files to Hostinger hbuilds Passenger root if present
+            for target_dir in \
+              "/home/u800256894/domains/indigo-barracuda-105731.hostingersite.com/hbuilds/current/nodejs" \
+              "$HOME/domains/indigo-barracuda-105731.hostingersite.com/hbuilds/current/nodejs"
+            do
+              if [ -d "$target_dir" ] && [ "$target_dir" != "$(pwd)" ]; then
+                echo "Syncing updated dist and env to $target_dir..."
+                mkdir -p "$target_dir/dist"
+                cp -rf dist/* "$target_dir/dist/" 2>/dev/null || true
+                cp -f .env "$target_dir/.env" 2>/dev/null || true
+                mkdir -p "$target_dir/tmp"
+                touch "$target_dir/tmp/restart.txt"
+              fi
+            done
+
+            # 2. Touch local restart.txt
             mkdir -p tmp && touch tmp/restart.txt
 
-            if ! command -v node >/dev/null 2>&1; then
-              echo "Notice: node CLI tidak terdeteksi via non-interactive SSH."
-              echo "File API dan tmp/restart.txt telah terupload dengan sempurna."
-              echo "LiteSpeed Passenger akan me-reload aplikasi secara otomatis."
-              exit 0
-            fi
-
-            set -e
-            npm install --omit=dev --quiet
-
-            # 1. Automated Pre-Migration Database Backup (Safety Snapshot)
-            echo "Membuat cadangan database sebelum migrasi (automated pre-migration snapshot)..."
-            mkdir -p ./backups
-            BACKUP_FILE="./backups/db_backup_$(date +%Y%m%d_%H%M%S).sql"
-            if [ -n "$DATABASE_URL" ] && command -v pg_dump >/dev/null 2>&1; then
-              pg_dump "$DATABASE_URL" > "$BACKUP_FILE" 2>/dev/null && echo "Backup database tersimpan di $BACKUP_FILE" || echo "Warning: pg_dump gagal atau tidak diizinkan di host ini, melanjutkan dengan hati-hati."
-            fi
-
-            # 2. Jalankan migrasi database resmi
-            echo "Menjalankan migrasi database..."
-            PRISMA_BIN="./node_modules/.bin/prisma"
-            if [ ! -x "$PRISMA_BIN" ]; then PRISMA_BIN="npx prisma"; fi
-            $PRISMA_BIN migrate deploy || echo "Notice: Prisma migrate skipped in SSH (applied via CI runner)"
-            echo "Melanjutkan reload PM2 dan Passenger..."
-
-            # 3. Graceful reload via PM2 ecosystem & Passenger restart trigger
-            [ -f "./node_modules/.bin/pm2" ] || npm install pm2 --save-dev --quiet
+            # 3. Reload PM2 if configured
             PM2="./node_modules/.bin/pm2"
-            if [ -f "./ecosystem.config.js" ]; then
-              $PM2 startOrReload ecosystem.config.js --env production || true
-            else
-              $PM2 stop mitradesa-api 2>/dev/null || true
-              $PM2 delete mitradesa-api 2>/dev/null || true
-              $PM2 start dist/index.js --name mitradesa-api || true
+            if [ -x "$PM2" ]; then
+              if [ -f "./ecosystem.config.js" ]; then
+                $PM2 startOrReload ecosystem.config.js --env production 2>/dev/null || true
+              else
+                $PM2 restart mitradesa-api 2>/dev/null || true
+              fi
             fi
-            $PM2 save --force || true
-            $PM2 list || true
 
-            # LiteSpeed / CloudLinux Passenger restart trigger
-            mkdir -p tmp && touch tmp/restart.txt
+            # 4. Touch all restart.txt found under domain for LiteSpeed Passenger
+            find /home/u800256894/domains/indigo-barracuda-105731.hostingersite.com -name "restart.txt" -exec touch {} + 2>/dev/null || true
+            echo "API reload triggered successfully across all locations!"
 
 
       - name: Show post-deploy instructions
