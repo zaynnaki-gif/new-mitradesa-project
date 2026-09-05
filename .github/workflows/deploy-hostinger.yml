@@ -11,6 +11,7 @@ env:
 jobs:
   deploy-api:
     name: Deploy API
+    needs: [deploy-web]
     runs-on: ubuntu-latest
     environment: production
 
@@ -134,7 +135,6 @@ jobs:
 
   deploy-web:
     name: Deploy Web
-    needs: [deploy-api]
     runs-on: ubuntu-latest
     environment: production
 
