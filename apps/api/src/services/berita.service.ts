@@ -3,21 +3,29 @@ import { ApiError } from '../utils/response.js';
 import { Prisma } from '@prisma/client';
 import { CreateBeritaInput, UpdateBeritaInput, QueryBeritaInput } from '../dto/cms.dto.js';
 import { getInstanceContext } from '../config/instance.js';
-import sanitizeHtml from 'sanitize-html';
-
 export class BeritaService {
   /**
    * Helper to sanitize rich text
    */
   private sanitizeContent(content?: string): string | undefined {
     if (!content) return content;
-    return sanitizeHtml(content, {
-      allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img', 'h1', 'h2', 'span']),
-      allowedAttributes: {
-        ...sanitizeHtml.defaults.allowedAttributes,
-        '*': ['style', 'class'],
-      }
-    });
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const sanitizeHtml = require('sanitize-html');
+      return sanitizeHtml(content, {
+        allowedTags: (sanitizeHtml.defaults?.allowedTags || []).concat(['img', 'h1', 'h2', 'span']),
+        allowedAttributes: {
+          ...(sanitizeHtml.defaults?.allowedAttributes || {}),
+          '*': ['style', 'class'],
+        }
+      });
+    } catch {
+      return content
+        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+        .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
+        .replace(/on\w+="[^"]*"/gi, '')
+        .replace(/on\w+='[^']*'/gi, '');
+    }
   }
   /**
    * Get all berita with pagination

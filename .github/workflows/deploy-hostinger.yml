@@ -93,6 +93,8 @@ jobs:
                 cp -rf /home/u800256894/domains/indigo-barracuda-105731.hostingersite.com/nodejs/dist/* \"\$target_dir/dist/\" 2>/dev/null || true
                 cp -rf /home/u800256894/domains/indigo-barracuda-105731.hostingersite.com/nodejs/prisma/* \"\$target_dir/prisma/\" 2>/dev/null || true
                 cp -f /home/u800256894/domains/indigo-barracuda-105731.hostingersite.com/nodejs/.env \"\$target_dir/.env\" 2>/dev/null || true
+                cp -f /home/u800256894/domains/indigo-barracuda-105731.hostingersite.com/nodejs/package.json \"\$target_dir/package.json\" 2>/dev/null || true
+                (cd \"\$target_dir\" && npm install --omit=dev --no-audit --no-fund sanitize-html 2>/dev/null || true)
                 touch \"\$target_dir/tmp/restart.txt\"
                 echo \"Content of \$target_dir/dist:\"; ls -la \"\$target_dir/dist/\"
               fi
