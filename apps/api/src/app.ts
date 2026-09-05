@@ -52,6 +52,9 @@ import mutasiRoutes from './routes/penduduk/mutasi.js';
 export function createApp(): express.Express {
   const app = express();
 
+  // Trust proxy for reverse proxy headers (e.g. Hostinger LiteSpeed/Passenger)
+  app.set('trust proxy', 1);
+
   // 1. Mount centralized security, lifecycle draining, rate limiting, and static protection
   configureSecurityMiddleware(app);
 

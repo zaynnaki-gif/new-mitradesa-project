@@ -80,7 +80,10 @@ export default function ConfigPage() {
 
     try {
       const params = new URLSearchParams();
-      if (selectedGroup) params.append('groupname', selectedGroup);
+      if (selectedGroup) {
+        params.append('groupName', selectedGroup);
+        params.append('groupname', selectedGroup);
+      }
 
       const data = await safeFetchJson(`${API_URL}/config?${params}`, {
         headers: {
@@ -90,13 +93,38 @@ export default function ConfigPage() {
       });
 
       if (data.success) {
-        setGrouped(data.grouped || {});
-        // Get unique groups from data
-        const uniqueGroups = [...new Set((data.data || []).map((item: ConfigItem) => item.groupname))];
-        setGroups(uniqueGroups.map((name: any) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
-          name,
-          count: (data.data || []).filter((item: ConfigItem) => item.groupname === name).length,
-        })));
+        const payload = data.data || {};
+        const configList: ConfigItem[] = Array.isArray(payload)
+          ? payload
+          : (payload.data || []);
+        const rawGrouped = payload.grouped || data.grouped || {};
+
+        // Normalize grouped items to ensure groupname and valueType are always present
+        const normalizedGrouped: Record<string, ConfigItem[]> = {};
+        for (const [grp, items] of Object.entries(rawGrouped)) {
+          normalizedGrouped[grp] = (items as any[]).map((item) => ({
+            ...item,
+            groupname: item.groupName || item.groupname || grp,
+            valueType: item.valueType || item.value_type || 'STRING',
+          }));
+        }
+
+        setGrouped(normalizedGrouped);
+
+        // Get unique groups from grouped or list
+        const groupKeys = Object.keys(normalizedGrouped);
+        if (groupKeys.length > 0) {
+          setGroups(groupKeys.map((name) => ({
+            name,
+            count: normalizedGrouped[name]?.length || 0,
+          })));
+        } else {
+          const uniqueGroups = [...new Set(configList.map((item: any) => item.groupName || item.groupname))].filter(Boolean);
+          setGroups(uniqueGroups.map((name: any) => ({
+            name,
+            count: configList.filter((item: any) => (item.groupName || item.groupname) === name).length,
+          })));
+        }
       } else {
         throw new Error(data.message || 'Gagal mengambil data');
       }

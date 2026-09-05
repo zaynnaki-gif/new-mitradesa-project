@@ -33,7 +33,11 @@ const querySchema = z.object({
   limit: z.coerce.number().int().positive().max(100).default(50),
   search: z.string().optional(),
   groupName: z.string().optional(),
-});
+  groupname: z.string().optional(),
+}).transform((val) => ({
+  ...val,
+  groupName: val.groupName || val.groupname,
+}));
 
 // ============================================
 // List configurations with grouping

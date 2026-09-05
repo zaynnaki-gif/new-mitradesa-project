@@ -14,15 +14,15 @@ for (const envVar of requiredEnvVars) {
 }
 
 // Hard Guard: PUBLIC_WEB_URL validation in production
+const resolvedPublicWebUrl = process.env.PUBLIC_WEB_URL || process.env.WEB_URL;
 if (process.env.NODE_ENV === 'production') {
-  const publicUrl = process.env.PUBLIC_WEB_URL;
-  if (!publicUrl || !publicUrl.trim()) {
-    console.error('[FATAL CONFIG ERROR] PUBLIC_WEB_URL must be defined in production (e.g. https://serunimumbul.com)!');
-    throw new Error('FATAL CONFIG ERROR: PUBLIC_WEB_URL must be set in production!');
+  if (!resolvedPublicWebUrl || !resolvedPublicWebUrl.trim()) {
+    console.error('[FATAL CONFIG ERROR] PUBLIC_WEB_URL or WEB_URL must be defined in production (e.g. https://serunimumbul.com)!');
+    throw new Error('FATAL CONFIG ERROR: PUBLIC_WEB_URL (or WEB_URL) must be set in production!');
   }
-  if (publicUrl.includes('localhost') || publicUrl.includes('127.0.0.1')) {
-    console.error(`[FATAL CONFIG ERROR] PUBLIC_WEB_URL cannot contain localhost or 127.0.0.1 in production! Received: ${publicUrl}`);
-    throw new Error(`FATAL CONFIG ERROR: PUBLIC_WEB_URL cannot contain localhost or 127.0.0.1 in production! Received: ${publicUrl}`);
+  if (resolvedPublicWebUrl.includes('localhost') || resolvedPublicWebUrl.includes('127.0.0.1')) {
+    console.error(`[FATAL CONFIG ERROR] PUBLIC_WEB_URL cannot contain localhost or 127.0.0.1 in production! Received: ${resolvedPublicWebUrl}`);
+    throw new Error(`FATAL CONFIG ERROR] PUBLIC_WEB_URL cannot contain localhost or 127.0.0.1 in production! Received: ${resolvedPublicWebUrl}`);
   }
 }
 
@@ -36,7 +36,7 @@ export const config = {
   // Server
   apiPort: parseInt(process.env.API_PORT || '3001', 10),
   apiUrl: process.env.API_URL || 'http://localhost:3001',
-  publicWebUrl: process.env.PUBLIC_WEB_URL || (process.env.NODE_ENV === 'production' ? '' : (process.env.WEB_URL || 'http://localhost:3000')),
+  publicWebUrl: resolvedPublicWebUrl || (process.env.NODE_ENV === 'production' ? 'https://serunimumbul.com' : 'http://localhost:3000'),
 
   // Database
   databaseUrl: process.env.DATABASE_URL || '',

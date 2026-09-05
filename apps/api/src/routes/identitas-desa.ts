@@ -9,7 +9,7 @@ const router = require('express').Router();
 const updateIdentitasDesaSchema = z.object({
   namaDesa: z.string().min(1).max(100).optional(),
   singkatanDesa: z.string().max(20).optional(),
-  kodeDesa: z.string().max(10).optional(),
+  kodeDesa: z.string().max(25).optional(),
   alamat: z.string().optional(),
   kodepos: z.string().max(10).optional(),
   telepon: z.string().max(20).optional(),

@@ -192,10 +192,11 @@ export default function IdentitasDesaPage() {
       newErrors.singkatanDesa = 'Singkatan maksimal 20 karakter';
     }
 
-    if (form.kodeDesa && form.kodeDesa !== '' && !/^\d+$/.test(form.kodeDesa)) {
-      newErrors.kodeDesa = 'Kode desa harus berupa angka';
-    } else if (form.kodeDesa && form.kodeDesa !== '' && form.kodeDesa.length !== 10) {
-      newErrors.kodeDesa = 'Kode desa harus 10 digit';
+    if (form.kodeDesa && form.kodeDesa !== '') {
+      const cleanKode = form.kodeDesa.replace(/\./g, '').trim();
+      if (!/^\d+$/.test(cleanKode)) {
+        newErrors.kodeDesa = 'Kode desa harus berupa angka atau kode bertitik (contoh: 5203082001 atau 52.03.08.2014)';
+      }
     }
 
     if (form.email && form.email !== '' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {

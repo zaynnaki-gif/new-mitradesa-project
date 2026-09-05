@@ -27,7 +27,8 @@ jobs:
       - name: Create API .env file
         run: |
           mkdir -p apps/api
-          printf '%s' '${{ secrets.HOSTINGER_API_ENV }}' > apps/api/.env
+          printf '%s\n' '${{ secrets.HOSTINGER_API_ENV }}' > apps/api/.env
+          grep -q "PUBLIC_WEB_URL" apps/api/.env || echo "PUBLIC_WEB_URL=https://serunimumbul.com" >> apps/api/.env
 
       - name: Install dependencies
         run: npm ci
