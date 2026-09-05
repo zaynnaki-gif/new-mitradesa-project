@@ -66,12 +66,6 @@ jobs:
             sshpass -e rsync -avz --timeout=120 \
               -e "ssh $SSH_OPTS" \
               apps/api/prisma/ $SSH_USER@$SSH_HOST:$DEST_PATH/prisma/ && \
-            sshpass -e rsync -avz --timeout=120 \
-              -e "ssh $SSH_OPTS" \
-              node_modules/.prisma/ $SSH_USER@$SSH_HOST:$DEST_PATH/node_modules/.prisma/ && \
-            sshpass -e rsync -avz --timeout=120 \
-              -e "ssh $SSH_OPTS" \
-              node_modules/@prisma/ $SSH_USER@$SSH_HOST:$DEST_PATH/node_modules/@prisma/ && \
             sshpass -e rsync -avz --timeout=60 \
               -e "ssh $SSH_OPTS" \
               apps/api/.env apps/api/package.json ecosystem.config.js \
@@ -92,22 +86,20 @@ jobs:
             do
               if [ -d \"\$target_dir\" ]; then
                 echo \"Syncing dist, prisma, and env to \$target_dir...\"
-                mkdir -p \"\$target_dir/dist\"
+                mkdir -p \"\$target_dir/dist\" \"\$target_dir/prisma\"
                 cp -rf dist/* \"\$target_dir/dist/\" 2>/dev/null || true
+                cp -rf prisma/* \"\$target_dir/prisma/\" 2>/dev/null || true
                 cp -f .env \"\$target_dir/.env\" 2>/dev/null || true
-                mkdir -p \"\$target_dir/node_modules/.prisma\" \"\$target_dir/node_modules/@prisma\"
-                cp -rf node_modules/.prisma/* \"\$target_dir/node_modules/.prisma/\" 2>/dev/null || true
-                cp -rf node_modules/@prisma/* \"\$target_dir/node_modules/@prisma/\" 2>/dev/null || true
                 mkdir -p \"\$target_dir/tmp\"
                 touch \"\$target_dir/tmp/restart.txt\"
+                cd \"\$target_dir\" && npx prisma generate 2>/dev/null || true
+                cd - >/dev/null
               fi
             done
             mkdir -p tmp && touch tmp/restart.txt
             find /home/u800256894/domains/indigo-barracuda-105731.hostingersite.com -maxdepth 4 -name 'restart.txt' -exec touch {} + 2>/dev/null || true
             echo \"Terminating lingering Node.js Passenger workers...\"
-            pkill -u \$USER -f 'dist/index.js' 2>/dev/null || true
-            pkill -u \$USER -f 'Passenger NodeApp' 2>/dev/null || true
-            pkill -u \$USER -f 'node' 2>/dev/null || true
+            pkill -f 'dist/index.js' 2>/dev/null || true
             echo \"Remote sync and restart finished successfully!\"
           "
 
