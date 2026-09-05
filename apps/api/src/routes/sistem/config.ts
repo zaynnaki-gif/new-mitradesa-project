@@ -68,25 +68,30 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
     prisma.configuration.count({ where }),
   ]);
 
+  const formattedData = data.map((item) => ({
+    id: item.id.toString(),
+    groupName: item.groupName,
+    groupname: item.groupName,
+    key: item.key,
+    value: item.value,
+    valueType: item.value_type,
+    value_type: item.value_type,
+    description: item.description,
+    isSystem: item.isSystem ?? false,
+    createdAt: item.createdAt?.toISOString(),
+    updatedAt: item.updatedAt?.toISOString(),
+  }));
+
   // Group configurations
   const grouped: Record<string, any[]> = {};
-  data.forEach((item) => {
+  formattedData.forEach((item) => {
     const group = item.groupName;
     if (!grouped[group]) grouped[group] = [];
-    grouped[group].push({
-      id: item.id.toString(),
-      key: item.key,
-      value: item.value,
-      valueType: item.value_type,
-      description: item.description,
-      isSystem: item.isSystem,
-      createdAt: item.createdAt?.toISOString(),
-      updatedAt: item.updatedAt?.toISOString(),
-    });
+    grouped[group].push(item);
   });
 
   return response.success(res, {
-    data,
+    data: formattedData,
     grouped,
     meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
   });
