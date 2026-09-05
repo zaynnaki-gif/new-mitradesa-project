@@ -94,7 +94,8 @@ jobs:
                 cp -rf $DEST_PATH/prisma/* \"\$target_dir/prisma/\" 2>/dev/null || true
                 cp -f $DEST_PATH/.env \"\$target_dir/.env\" 2>/dev/null || true
                 cp -f $DEST_PATH/package.json \"\$target_dir/package.json\" 2>/dev/null || true
-                (cd \"\$target_dir\" && npm install --omit=dev --no-audit --no-fund sanitize-html 2>/dev/null || true)
+                (cd \"\$target_dir\" && npm install --omit=dev --no-audit --no-fund 2>&1 | tail -n 15 || true)
+                (cd \"\$target_dir\" && npx prisma generate 2>&1 | tail -n 5 || true)
                 touch \"\$target_dir/tmp/restart.txt\"
                 echo \"Content of \$target_dir/dist:\"; ls -la \"\$target_dir/dist/\"
               fi
