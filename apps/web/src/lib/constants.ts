@@ -4,7 +4,10 @@
  */
 
 // API Configuration
-export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const rawApiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+export const API_URL = rawApiUrl.includes('api.serunimumbul.com')
+  ? 'https://indigo-barracuda-105731.hostingersite.com/api'
+  : (rawApiUrl.endsWith('/api') ? rawApiUrl : `${rawApiUrl}/api`);
 export const API_BASE_URL = API_URL.replace('/api', '');
 
 // App Configuration
