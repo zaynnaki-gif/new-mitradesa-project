@@ -104,11 +104,10 @@ jobs:
               fi
             done
 
-            echo \"Terminating all passenger node processes...\"
-            pkill -f 'Passenger' || true
-            pkill -f 'node' || true
+            echo \"Terminating lsnode worker process to trigger fresh cold-start...\"
+            kill -9 $(pgrep -f '^lsnode:' 2>/dev/null) 2>/dev/null || true
             touch /home/u800256894/domains/indigo-barracuda-105731.hostingersite.com/hbuilds/current/nodejs/tmp/restart.txt 2>/dev/null || true
-            echo \"Diagnostics and sync complete.\"
+            echo \"Worker terminated. LiteSpeed will spawn fresh process on next request.\"
             exit 0
           "
 
