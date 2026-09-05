@@ -76,31 +76,40 @@ jobs:
             }
           done
 
-          echo "=== Executing remote sync & worker restart on Hostinger ==="
+          echo "=== Executing remote sync & diagnostics on Hostinger ==="
           sshpass -e ssh $SSH_OPTS $SSH_USER@$SSH_HOST "
-            cd $DEST_PATH
-            echo \"Current remote path: \$(pwd)\"
+            echo \"=== REMOTE PWD: \$(pwd) ===\"
+            echo \"=== PROCESSES ===\"
+            ps aux || ps -ef
+            echo \"=== DOMAIN ROOT ===\"
+            ls -la /home/u800256894/domains/indigo-barracuda-105731.hostingersite.com/
+            echo \"=== HBUILDS DIR ===\"
+            ls -la /home/u800256894/domains/indigo-barracuda-105731.hostingersite.com/hbuilds/ || true
+            echo \"=== HBUILDS CURRENT ===\"
+            ls -la /home/u800256894/domains/indigo-barracuda-105731.hostingersite.com/hbuilds/current/ || true
+
             for target_dir in \
               /home/u800256894/domains/indigo-barracuda-105731.hostingersite.com/hbuilds/current/nodejs \
+              /home/u800256894/domains/indigo-barracuda-105731.hostingersite.com/hbuilds/current \
               \$HOME/domains/indigo-barracuda-105731.hostingersite.com/hbuilds/current/nodejs
             do
               if [ -d \"\$target_dir\" ]; then
-                echo \"Syncing dist, prisma, and env to \$target_dir...\"
-                mkdir -p \"\$target_dir/dist\" \"\$target_dir/prisma\"
-                cp -rf dist/* \"\$target_dir/dist/\" 2>/dev/null || true
-                cp -rf prisma/* \"\$target_dir/prisma/\" 2>/dev/null || true
-                cp -f .env \"\$target_dir/.env\" 2>/dev/null || true
-                mkdir -p \"\$target_dir/tmp\"
+                echo \"Syncing to \$target_dir...\"
+                mkdir -p \"\$target_dir/dist\" \"\$target_dir/prisma\" \"\$target_dir/tmp\"
+                cp -rf $DEST_PATH/dist/* \"\$target_dir/dist/\" 2>/dev/null || true
+                cp -rf $DEST_PATH/prisma/* \"\$target_dir/prisma/\" 2>/dev/null || true
+                cp -f $DEST_PATH/.env \"\$target_dir/.env\" 2>/dev/null || true
                 touch \"\$target_dir/tmp/restart.txt\"
-                cd \"\$target_dir\" && npx prisma generate 2>/dev/null || true
-                cd - >/dev/null
+                echo \"Content of \$target_dir/dist:\"; ls -la \"\$target_dir/dist/\"
               fi
             done
-            mkdir -p tmp && touch tmp/restart.txt
-            find /home/u800256894/domains/indigo-barracuda-105731.hostingersite.com -maxdepth 4 -name 'restart.txt' -exec touch {} + 2>/dev/null || true
-            echo \"Terminating lingering Node.js Passenger workers...\"
-            pkill -f 'dist/index.js' 2>/dev/null || true
-            echo \"Remote sync and restart finished successfully!\"
+
+            echo \"Terminating all passenger node processes...\"
+            pkill -f 'Passenger' || true
+            pkill -f 'node' || true
+            touch /home/u800256894/domains/indigo-barracuda-105731.hostingersite.com/hbuilds/current/nodejs/tmp/restart.txt 2>/dev/null || true
+            echo \"Diagnostics and sync complete.\"
+            exit 0
           "
 
       - name: Show post-deploy instructions
