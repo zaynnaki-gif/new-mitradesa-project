@@ -10,7 +10,6 @@
 
 import PDFDocument from 'pdfkit';
 import { PassThrough } from 'stream';
-import fetch from 'node-fetch';
 import { generateQrCodeBuffer } from '../utils/qr-generator.js';
 import { config } from '../config/index.js';
 
