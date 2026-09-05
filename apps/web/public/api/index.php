@@ -32,11 +32,14 @@ if (strpos($path, '/api') !== 0) {
 }
 
 // Route aliases for document verification
-if (strpos($path, '/public/verify/') !== false) {
-    $path = str_replace('/public/verify/', '/documents/public/verify/', $path);
-}
-if (strpos($path, '/public/verifikasi/') !== false) {
-    $path = str_replace('/public/verifikasi/', '/documents/public/verify/', $path);
+// Only rewrite if NOT already using the full /documents/public/verify/ path
+if (strpos($path, '/documents/public/verify/') === false) {
+    if (strpos($path, '/public/verify/') !== false) {
+        $path = str_replace('/public/verify/', '/documents/public/verify/', $path);
+    }
+    if (strpos($path, '/public/verifikasi/') !== false) {
+        $path = str_replace('/public/verifikasi/', '/documents/public/verify/', $path);
+    }
 }
 
 $targetUrl = $backendBase . $path . $query;
