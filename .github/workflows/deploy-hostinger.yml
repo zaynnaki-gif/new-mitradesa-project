@@ -212,9 +212,11 @@ jobs:
 
           for attempt in 1 2 3; do
             echo "=== Attempt $attempt/3 ==="
-            sshpass -e rsync -avz --delete --timeout=300 \
+            sshpass -e rsync -avz --timeout=300 \
               -e "ssh $SSH_OPTS" \
               apps/web/dist/ $SSH_USER@$SSH_HOST:$DEST_PATH/ && \
+            (sshpass -e rsync -avz --timeout=300 -e "ssh $SSH_OPTS" apps/web/dist/ $SSH_USER@$SSH_HOST:domains/serunimumbul.com/public_html/ 2>/dev/null || true) && \
+            (sshpass -e ssh $SSH_OPTS $SSH_USER@$SSH_HOST "rm -f domains/serunimumbul.com/public_html/default.php domains/serunimumbul.com/public_html/index.php default.php" 2>/dev/null || true) && \
             echo "Web upload berhasil!" && break || {
               echo "Attempt $attempt gagal. Tunggu 15s..."
               sleep 15

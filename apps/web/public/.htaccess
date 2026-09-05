@@ -1,6 +1,9 @@
 # MITRADESA Production .htaccess for Hostinger LiteSpeed / Apache
 # Domain: serunimumbul.com
 
+# 0. DirectoryIndex: prioritize index.html for SPA
+DirectoryIndex index.html index.php
+
 # 1. Enforce UTF-8 Encoding
 AddDefaultCharset UTF-8
 
