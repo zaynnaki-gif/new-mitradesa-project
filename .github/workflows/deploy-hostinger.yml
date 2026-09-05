@@ -82,81 +82,34 @@ jobs:
             }
           done
 
-      - name: Restart API via SSH
-        continue-on-error: true
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.HOSTINGER_HOST }}
-          username: ${{ secrets.HOSTINGER_USER }}
-          password: ${{ secrets.HOSTINGER_PASSWORD }}
-          port: ${{ secrets.HOSTINGER_PORT }}
-          request_pty: true
-          command_timeout: 5m
-          script: |
-            # Source profile untuk load NVM / Node path
-            for f in ~/.bashrc ~/.bash_profile ~/.profile; do
-              [ -f "$f" ] && source "$f" 2>/dev/null && break
-            done
-            export NVM_DIR="${HOME}/.nvm"
-            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-
-            # Cari node di semua kemungkinan path (termasuk CloudLinux & Hostinger alt-nodejs)
-            for dir in \
-              "$(ls -d $NVM_DIR/versions/node/*/bin 2>/dev/null | sort -V | tail -1)" \
-              /usr/local/bin /usr/bin \
-              /opt/alt/alt-nodejs22/root/usr/bin /opt/alt/alt-nodejs20/root/usr/bin /opt/alt/alt-nodejs18/root/usr/bin \
-              /opt/alt/node22/usr/bin /opt/alt/node20/usr/bin /opt/alt/node18/usr/bin \
-              "$HOME/.local/bin"
-            do
-              [ -x "$dir/node" ] && export PATH="$dir:$PATH" && echo "Node: $(node -v)" && break
-            done
-
-            cd ${{ secrets.HOSTINGER_API_PATH }}
-            echo "Current directory: $(pwd)"
-
-            # 1. Sync files to Hostinger hbuilds Passenger root if present
+          echo "=== Executing remote sync & worker restart on Hostinger ==="
+          sshpass -e ssh $SSH_OPTS $SSH_USER@$SSH_HOST "
+            cd $DEST_PATH
+            echo \"Current remote path: \$(pwd)\"
             for target_dir in \
-              "/home/u800256894/domains/indigo-barracuda-105731.hostingersite.com/hbuilds/current/nodejs" \
-              "$HOME/domains/indigo-barracuda-105731.hostingersite.com/hbuilds/current/nodejs"
+              /home/u800256894/domains/indigo-barracuda-105731.hostingersite.com/hbuilds/current/nodejs \
+              \$HOME/domains/indigo-barracuda-105731.hostingersite.com/hbuilds/current/nodejs
             do
-              if [ -d "$target_dir" ] && [ "$target_dir" != "$(pwd)" ]; then
-                echo "Syncing updated dist, prisma, and env to $target_dir..."
-                mkdir -p "$target_dir/dist"
-                cp -rf dist/* "$target_dir/dist/" 2>/dev/null || true
-                cp -f .env "$target_dir/.env" 2>/dev/null || true
-                mkdir -p "$target_dir/node_modules/.prisma" "$target_dir/node_modules/@prisma"
-                cp -rf node_modules/.prisma/* "$target_dir/node_modules/.prisma/" 2>/dev/null || true
-                cp -rf node_modules/@prisma/* "$target_dir/node_modules/@prisma/" 2>/dev/null || true
-                mkdir -p "$target_dir/tmp"
-                touch "$target_dir/tmp/restart.txt"
+              if [ -d \"\$target_dir\" ]; then
+                echo \"Syncing dist, prisma, and env to \$target_dir...\"
+                mkdir -p \"\$target_dir/dist\"
+                cp -rf dist/* \"\$target_dir/dist/\" 2>/dev/null || true
+                cp -f .env \"\$target_dir/.env\" 2>/dev/null || true
+                mkdir -p \"\$target_dir/node_modules/.prisma\" \"\$target_dir/node_modules/@prisma\"
+                cp -rf node_modules/.prisma/* \"\$target_dir/node_modules/.prisma/\" 2>/dev/null || true
+                cp -rf node_modules/@prisma/* \"\$target_dir/node_modules/@prisma/\" 2>/dev/null || true
+                mkdir -p \"\$target_dir/tmp\"
+                touch \"\$target_dir/tmp/restart.txt\"
               fi
             done
-
-            # 2. Touch local restart.txt
             mkdir -p tmp && touch tmp/restart.txt
-
-            # 3. Reload PM2 if configured
-            PM2="./node_modules/.bin/pm2"
-            if [ -x "$PM2" ]; then
-              if [ -f "./ecosystem.config.js" ]; then
-                $PM2 startOrReload ecosystem.config.js --env production 2>/dev/null || true
-              else
-                $PM2 restart mitradesa-api 2>/dev/null || true
-              fi
-            fi
-
-            # 4. Touch all restart.txt found under domain for LiteSpeed Passenger
-            find /home/u800256894/domains/indigo-barracuda-105731.hostingersite.com -name "restart.txt" -exec touch {} + 2>/dev/null || true
-
-            # 5. Force kill lingering Passenger/Node.js worker processes so LiteSpeed spawns fresh worker
-            echo "Terminating lingering Node.js Passenger worker processes..."
-            pkill -u "$USER" -f "dist/index.js" 2>/dev/null || true
-            pkill -u "$USER" -f "Passenger NodeApp" 2>/dev/null || true
-            pkill -u "$USER" -f "node" 2>/dev/null || true
-            sleep 2
-
-            echo "API reload triggered successfully across all locations!"
-
+            find /home/u800256894/domains/indigo-barracuda-105731.hostingersite.com -maxdepth 4 -name 'restart.txt' -exec touch {} + 2>/dev/null || true
+            echo \"Terminating lingering Node.js Passenger workers...\"
+            pkill -u \$USER -f 'dist/index.js' 2>/dev/null || true
+            pkill -u \$USER -f 'Passenger NodeApp' 2>/dev/null || true
+            pkill -u \$USER -f 'node' 2>/dev/null || true
+            echo \"Remote sync and restart finished successfully!\"
+          "
 
       - name: Show post-deploy instructions
         if: always()
