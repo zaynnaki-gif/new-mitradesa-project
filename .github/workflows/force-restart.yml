@@ -1,0 +1,24 @@
+name: Force Restart API
+on:
+  workflow_dispatch:
+
+jobs:
+  restart:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install sshpass
+        run: sudo apt-get install -y sshpass
+      - name: Restart Node.js via SSH
+        env:
+          SSHPASS: ${{ secrets.HOSTINGER_PASSWORD }}
+          SSH_HOST: ${{ secrets.HOSTINGER_HOST }}
+          SSH_USER: ${{ secrets.HOSTINGER_USER }}
+          SSH_PORT: ${{ secrets.HOSTINGER_PORT }}
+        run: |
+          SSH_OPTS="-p $SSH_PORT -o StrictHostKeyChecking=no -o ConnectTimeout=60 -o ServerAliveInterval=15"
+          sshpass -e ssh $SSH_OPTS $SSH_USER@$SSH_HOST "
+            echo 'Terminating lsnode processes...'
+            pgrep -u \$(id -u) -f 'domains/indigo-barracuda' | xargs kill -9 2>/dev/null || true
+            touch /home/u800256894/domains/indigo-barracuda-105731.hostingersite.com/hbuilds/current/nodejs/tmp/restart.txt 2>/dev/null || true
+            echo 'Restart triggered.'
+          "
