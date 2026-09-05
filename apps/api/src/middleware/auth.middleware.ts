@@ -20,7 +20,8 @@ declare global {
 }
 
 /**
- * Extract token from Authorization header or query param
+ * Extract token strictly from Authorization header (Bearer scheme)
+ * Query string tokens are explicitly prohibited for user sessions to prevent credential leakage.
  */
 function extractToken(req: Request): string | null {
   const authHeader = req.headers.authorization;
@@ -29,11 +30,6 @@ function extractToken(req: Request): string | null {
     if (parts.length === 2 && parts[0].toLowerCase() === 'bearer') {
       return parts[1];
     }
-  }
-
-  // Also allow token from query parameter for direct browser downloads / view in tab
-  if (typeof req.query?.token === 'string' && req.query.token.trim()) {
-    return req.query.token.trim();
   }
 
   return null;

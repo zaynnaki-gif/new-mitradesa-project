@@ -6,6 +6,7 @@ interface LayananHistory {
   nomorPermintaan: string;
   status: string;
   layanan: { nama: string; kode: string };
+  catatan?: string | null;
   createdAt: string;
 }
 
@@ -94,23 +95,31 @@ export function RiwayatLayananPage() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {history.map((item, idx) => (
-              <Card key={idx} style={{ padding: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <Typography variant="h4" style={{ marginBottom: '0.25rem' }}>{item.layanan.nama}</Typography>
-                  <Typography variant="body2" color="secondary">Nomor: {item.nomorPermintaan}</Typography>
-                  <Typography variant="body2" color="secondary">Tanggal: {new Date(item.createdAt).toLocaleDateString('id-ID')}</Typography>
+              <Card key={idx} style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div>
+                    <Typography variant="h4" style={{ marginBottom: '0.25rem' }}>{item.layanan.nama}</Typography>
+                    <Typography variant="body2" color="secondary">Nomor: {item.nomorPermintaan}</Typography>
+                    <Typography variant="body2" color="secondary">Tanggal: {new Date(item.createdAt).toLocaleDateString('id-ID')}</Typography>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
+                    {getStatusBadge(item.status)}
+                    {item.status === 'COMPLETED' && (
+                      <a 
+                        href={`/layanan/tracking?nomor=${item.nomorPermintaan}`}
+                        style={{ fontSize: '0.875rem', color: '#2563eb', textDecoration: 'underline' }}
+                      >
+                        Lihat Dokumen
+                      </a>
+                    )}
+                  </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
-                  {getStatusBadge(item.status)}
-                  {item.status === 'COMPLETED' && (
-                    <a 
-                      href={`/layanan/tracking?nomor=${item.nomorPermintaan}`}
-                      style={{ fontSize: '0.875rem', color: '#2563eb', textDecoration: 'underline' }}
-                    >
-                      Lihat Dokumen
-                    </a>
-                  )}
-                </div>
+
+                {item.status === 'REJECTED' && item.catatan && (
+                  <div style={{ padding: '0.75rem 1rem', backgroundColor: '#fef2f2', border: '1px solid #fecaca', borderRadius: '0.375rem', color: '#991b1b', fontSize: '0.875rem' }}>
+                    <strong>Alasan Penolakan:</strong> {item.catatan}
+                  </div>
+                )}
               </Card>
             ))}
           </div>

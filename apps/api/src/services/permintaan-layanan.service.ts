@@ -226,8 +226,8 @@ export class PermintaanLayananService {
     // Validate status transition
     const validTransitions: Record<RequestStatus, RequestStatus[]> = {
       DRAFT: [RequestStatus.SUBMITTED, RequestStatus.CANCELLED],
-      SUBMITTED: [RequestStatus.VERIFICATION, RequestStatus.CANCELLED],
-      VERIFICATION: [RequestStatus.PROCESSING, RequestStatus.REJECTED, RequestStatus.CANCELLED],
+      SUBMITTED: [RequestStatus.VERIFICATION, RequestStatus.PROCESSING, RequestStatus.REJECTED, RequestStatus.CANCELLED],
+      VERIFICATION: [RequestStatus.PROCESSING, RequestStatus.APPROVED, RequestStatus.REJECTED, RequestStatus.CANCELLED],
       PROCESSING: [RequestStatus.APPROVED, RequestStatus.REJECTED, RequestStatus.CANCELLED],
       APPROVED: [RequestStatus.COMPLETED],
       REJECTED: [],

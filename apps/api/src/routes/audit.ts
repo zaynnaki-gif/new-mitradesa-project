@@ -97,4 +97,56 @@ router.get(
   })
 );
 
+/**
+ * @route   GET /api/audit-log/notifications/dead-letter
+ * @desc    Get all failed notifications from Dead-Letter Queue
+ * @access  Private (Admin)
+ */
+router.get(
+  '/notifications/dead-letter',
+  authenticateInternal(),
+  authorize('audit.view'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const limit = parseInt(req.query.limit as string) || 50;
+    const logs = await prisma.auditLog.findMany({
+      where: { entityType: 'wa_dead_letter' },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
+
+    return response.success(res, {
+      deadLetters: logs.map((log) => ({
+        ...log,
+        id: log.id.toString(),
+        entityId: log.entityId.toString(),
+        actorId: log.actorId?.toString(),
+      })),
+    });
+  })
+);
+
+/**
+ * @route   POST /api/audit-log/notifications/dead-letter/:id/retry
+ * @desc    Retry/resend a failed notification from dead-letter queue
+ * @access  Private (Admin)
+ */
+router.post(
+  '/notifications/dead-letter/:id/retry',
+  authenticateInternal(),
+  authorize('audit.view'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const id = BigInt(req.params.id);
+    const { notificationService } = await import('../services/notification.service.js');
+    const success = await notificationService.retryFailedNotification(id);
+
+    return response.success(res, {
+      success,
+      message: success
+        ? 'Notifikasi berhasil dikirim ulang'
+        : 'Pengiriman ulang gagal (gateway masih bermasalah)',
+    });
+  })
+);
+
 export default router;
+

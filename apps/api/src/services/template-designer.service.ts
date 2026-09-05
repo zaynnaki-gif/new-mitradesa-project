@@ -213,7 +213,11 @@ export class TemplateDesignerService {
     const bindings = this.extractBindings(content);
 
     // Generate HTML preview
-    const html = this.renderToHtml(resolvedContent, version.kopConfig as Record<string, unknown>);
+    const html = this.renderToHtml(
+      resolvedContent,
+      version.kopConfig as Record<string, unknown>,
+      version.signatureConfig as Record<string, unknown>
+    );
 
     return {
       html,
@@ -455,9 +459,11 @@ export class TemplateDesignerService {
     return merged;
   }
 
-  private renderToHtml(content: unknown, kopConfig?: Record<string, unknown>): string {
-    // Simple HTML renderer for preview
-    // In production, this would use a proper PDF/HTML renderer
+  private renderToHtml(
+    content: unknown,
+    kopConfig?: Record<string, unknown>,
+    signatureConfig?: Record<string, unknown>
+  ): string {
     const htmlParts: string[] = [];
 
     // Header with kop
@@ -465,44 +471,140 @@ export class TemplateDesignerService {
       htmlParts.push(this.renderKop(kopConfig));
     }
 
+    htmlParts.push('<div class="document-body" style="margin-top: 14px; font-family: \'Times New Roman\', Times, serif; font-size: 11pt; line-height: 1.5; color: #111827;">');
+
     // Content elements
     const elements = this.extractElements(content as Record<string, unknown>);
     for (const element of elements) {
       htmlParts.push(this.renderElement(element));
     }
 
+    htmlParts.push('</div>');
+
+    // Signature Block
+    if (signatureConfig) {
+      htmlParts.push(this.renderSignatureHtml(signatureConfig));
+    }
+
     return htmlParts.join('\n');
   }
 
   private renderKop(config: Record<string, unknown>, context?: { desa?: Record<string, unknown> }): string {
-    const lines: string[] = [];
     const institutionNames = (config.institutionNames as Record<string, { visible: boolean; text?: string }>) || {};
-
-    // Get dynamic village data from context if available
     const desa = context?.desa || {};
-    const namaDesa = (desa.nama as string) || 'NAMA DESA';
-    const kecamatan = (desa.kecamatan as string) || 'KECAMATAN';
-    const kabupaten = (desa.kabupaten as string) || 'KABUPATEN';
-    const alamat = (desa.alamat as string) || 'ALAMAT KANTOR DESA';
+    const namaDesa = (desa.nama as string) || 'SERUNI MUMBUL';
+    const kecamatan = (desa.kecamatan as string) || 'PRINGGABAYA';
+    const kabupaten = (desa.kabupaten as string) || 'LOMBOK TIMUR';
 
-    // Institution names - use dynamic data when available
-    if (institutionNames.pemda?.visible) {
-      lines.push(`<div class="kop-pemda">PEMERINTAH KABUPATEN ${kabupaten.toUpperCase()}</div>`);
-    }
-    if (institutionNames.kecamatan?.visible) {
-      lines.push(`<div class="kop-kecamatan">KECAMATAN ${kecamatan.toUpperCase()}</div>`);
-    }
-    if (institutionNames.desa?.visible) {
-      lines.push(`<div class="kop-desa">DESA ${namaDesa.toUpperCase()}</div>`);
+    const pemdaText = institutionNames.pemda?.text || `PEMERINTAH KABUPATEN ${kabupaten.toUpperCase()}`;
+    const kecText = institutionNames.kecamatan?.text || `KECAMATAN ${kecamatan.toUpperCase()}`;
+    const desaText = institutionNames.desa?.text || `DESA ${namaDesa.toUpperCase()}`;
+
+    // Address block — read from config
+    const addressBlock = config.addressBlock as Record<string, unknown> | undefined;
+    const addressEnabled = addressBlock?.enabled !== false;
+    const addressLines = (addressBlock?.lines as string[] | undefined) || [];
+    const addressHtml = addressEnabled && addressLines.length > 0
+      ? addressLines.filter(l => l?.trim()).map(l =>
+          `<div style="font-size: 9.5px; color: #4b5563; margin-top: 2px;">${l}</div>`
+        ).join('')
+      : '';
+
+    // Divider — read style from config
+    const dividerStyle = (config.divider as Record<string, unknown> | undefined)?.style as string | undefined;
+    let dividerHtml: string;
+    if (!dividerStyle || dividerStyle === 'double') {
+      dividerHtml = `
+        <div style="margin-top: 8px; border-bottom: 3px double #000; padding-bottom: 2px;"></div>`;
+    } else if (dividerStyle === 'single') {
+      dividerHtml = `<div style="margin-top: 8px; border-bottom: 1.5px solid #000;"></div>`;
+    } else {
+      dividerHtml = '<div style="margin-top: 8px;"></div>';
     }
 
-    // Address block
-    const addressBlock = (config.addressBlock as Record<string, unknown>) || {};
-    if (addressBlock.enabled) {
-      lines.push(`<div class="kop-address">${alamat}</div>`);
+    return `
+      <div class="kop" style="text-align: center; margin-bottom: 12px; font-family: 'Times New Roman', Times, serif; position: relative; padding: 4px 10px;">
+        <div style="font-size: 13px; font-weight: bold; letter-spacing: 0.5px; text-transform: uppercase; color: #111;">${pemdaText}</div>
+        <div style="font-size: 14px; font-weight: bold; letter-spacing: 0.5px; text-transform: uppercase; color: #111;">${kecText}</div>
+        <div style="font-size: 16px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; color: #000;">${desaText}</div>
+        ${addressHtml}
+        ${dividerHtml}
+      </div>
+    `;
+  }
+
+  private renderSignatureHtml(config: Record<string, unknown>): string {
+    const mode = config.mode || 'online_tte';
+    const isOffline = mode === 'offline_physical';
+    // Read dateLocation from config, fallback to blank template
+    const dateLocation = (config.dateLocation as string) || 'Seruni Mumbul, ......................... 20...';
+
+    if (isOffline) {
+      const applicantTitle = (config.applicantTitle as string) || 'Yang Menyatakan / Pemohon,';
+      const applicantNameRaw = (config.applicantName as string) || '';
+      const title = (config.title as Record<string, unknown>) || {};
+      const officialTitle = (title.text as string) || 'Kepala Desa Seruni Mumbul,';
+      const signatory = (config.signatory as Record<string, unknown>) || {};
+      const officialName = (signatory.name as string) || '....................................................';
+      const nip = (signatory.nip as string) || '';
+
+      // Applicant: blank = signature line, filled = wrapped in parentheses
+      const applicantHtml = applicantNameRaw.trim()
+        ? `<div style="font-weight: bold; color: #111;">( ${applicantNameRaw} )</div>`
+        : `<div style="border-bottom: 0.5px solid #000; width: 70%; margin: 0 auto; height: 14px;"></div>`;
+
+      return `
+        <div class="signature-block-offline" style="margin-top: 36px; display: flex; justify-content: space-between; font-family: sans-serif; font-size: 11px;">
+          <div style="width: 46%; text-align: center;">
+            <div style="height: 16px;"></div>
+            <div style="font-weight: bold; color: #111;">${applicantTitle}</div>
+            <div style="height: 64px;"></div>
+            ${applicantHtml}
+          </div>
+          <div style="width: 46%; text-align: center; position: relative;">
+            <div style="color: #374151;">${dateLocation}</div>
+            <div style="font-weight: bold; color: #111; margin-top: 2px;">${officialTitle}</div>
+            <div style="height: 64px; display: flex; align-items: center; justify-content: center;">
+              <div style="border: 1px dashed #9ca3af; border-radius: 50%; width: 46px; height: 46px; display: flex; align-items: center; justify-content: center; font-size: 7px; color: #6b7280; text-align: center;">
+                [ STEMPEL ]
+              </div>
+            </div>
+            <div style="font-weight: bold; color: #111; border-bottom: 0.5px solid #000; display: inline-block; min-width: 160px;">${officialName}</div>
+            ${nip ? `<div style="font-size: 9.5px; color: #4b5563; margin-top: 2px;">NIP. ${nip}</div>` : ''}
+          </div>
+        </div>
+      `;
     }
 
-    return `<div class="kop">${lines.join('')}</div>`;
+    // Online TTE
+    const title = (config.title as Record<string, unknown>) || {};
+    const officialTitle = (title.text as string) || 'Kepala Desa Seruni Mumbul';
+    const signatory = (config.signatory as Record<string, unknown>) || {};
+    const officialName = (signatory.name as string) || 'Kepala Desa';
+    const nip = (signatory.nip as string) || '';
+    const qrEnabled = (config.qrCode as Record<string, unknown> | undefined)?.enabled !== false;
+
+    return `
+      <div class="signature-block-online" style="margin-top: 36px; display: flex; justify-content: space-between; align-items: flex-end; font-family: sans-serif; font-size: 11px;">
+        <div style="width: 40%;">
+          ${qrEnabled ? `
+          <div style="display: inline-block; padding: 6px 10px; border: 1px solid #e5e7eb; border-radius: 6px; background: #f9fafb; font-size: 8px; color: #4b5563; text-align: center;">
+            <div style="width: 50px; height: 50px; margin: 0 auto; background: #e5e7eb; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 9px; color: #374151;">QR CODE</div>
+            <div style="margin-top: 4px; font-size: 7.5px;">Scan Verifikasi Keaslian</div>
+          </div>` : ''}
+        </div>
+        <div style="width: 50%; text-align: center;">
+          <div style="color: #374151;">${dateLocation}</div>
+          <div style="font-weight: bold; color: #111; margin-top: 2px;">${officialTitle}</div>
+          <div style="border: 1px solid #2563eb; border-radius: 5px; padding: 6px 10px; margin: 8px auto; width: fit-content; background: #eff6ff;">
+            <div style="font-size: 8.5px; font-weight: bold; color: #1d4ed8;">DITANDATANGANI SECARA ELEKTRONIK</div>
+            <div style="font-size: 7.5px; color: #4b5563;">Sistem Informasi Desa Mitradesa</div>
+          </div>
+          <div style="font-weight: bold; color: #111; margin-top: 4px; border-bottom: 0.5px solid #000; display: inline-block; min-width: 160px;">${officialName}</div>
+          ${nip ? `<div style="font-size: 9.5px; color: #4b5563; margin-top: 4px;">NIP. ${nip}</div>` : ''}
+        </div>
+      </div>
+    `;
   }
 
   private renderElement(element: unknown): string {
@@ -510,18 +612,31 @@ export class TemplateDesignerService {
 
     const el = element as Record<string, unknown>;
     const type = el.type as string;
+    const baseStyle = `font-family: 'Times New Roman', Times, serif; font-size: ${el.fontSize || 11}px;`;
 
     switch (type) {
       case 'text':
-        return `<p class="element-text">${el.content || ''}</p>`;
-      case 'field':
-        return `<p class="element-field"><span class="field-label">${el.label || ''}</span> <span class="field-value">${el.binding || ''}</span></p>`;
+        return `<p class="element-text" style="${baseStyle} font-weight: ${el.fontWeight || 'normal'}; text-align: ${el.textAlign || 'justify'}; margin: 4px 0; text-align: justify;">${el.content || ''}</p>`;
+      case 'field': {
+        const layout = el.layout as string | undefined;
+        const label = el.label as string | undefined;
+        const value = (el.value || el.binding || '') as string;
+        if (layout === 'column' && label) {
+          const labelWidthPct = '40%';
+          return `<div class="element-field" style="${baseStyle} display: flex; margin: 3px 0; line-height: 1.4;">
+            <span style="width: ${labelWidthPct}; flex-shrink: 0; font-weight: ${el.fontWeight || 'normal'};">${label}</span>
+            <span style="width: 24px; flex-shrink: 0; text-align: center;">:</span>
+            <span style="flex: 1;">${value}</span>
+          </div>`;
+        }
+        return `<p class="element-field" style="${baseStyle} font-weight: ${el.fontWeight || 'normal'}; text-align: ${el.textAlign || 'left'}; margin: 3px 0;"><span style="font-weight: 500;">${label ? `${label}: ` : ''}</span><span>${value}</span></p>`;
+      }
       case 'divider':
-        return '<hr class="element-divider" />';
+        return '<hr class="element-divider" style="border: none; border-top: 1px solid #000; margin: 8px 0;" />';
       case 'spacer':
         return `<div class="element-spacer" style="height: ${el.height || 20}px"></div>`;
       case 'page_break':
-        return '<div class="page-break">--- Page Break ---</div>';
+        return '<div class="page-break" style="border-top: 1px dashed #cbd5e1; margin: 16px 0; text-align: center; font-size: 9px; color: #94a3b8;">--- Page Break ---</div>';
       default:
         return `<div class="element-unknown">Unknown element: ${type}</div>`;
     }

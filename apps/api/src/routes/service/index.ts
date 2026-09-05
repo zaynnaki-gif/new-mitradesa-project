@@ -11,5 +11,6 @@ router.use('/services', layananRoutes);
 router.use('/service-requests', requestRoutes);
 router.use('/documents', documentRoutes);
 router.use('/template-designer', templateDesignerRoutes);
+router.use('/', documentRoutes);
 
 export default router;

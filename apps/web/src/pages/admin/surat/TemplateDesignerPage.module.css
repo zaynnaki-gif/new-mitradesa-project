@@ -220,6 +220,8 @@
 
 .paperContent {
   padding: var(--space-8);
+  font-family: 'Times New Roman', Times, serif;
+  color: #111827;
 }
 
 .canvasEmpty {

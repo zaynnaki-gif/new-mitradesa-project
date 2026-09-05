@@ -35,6 +35,7 @@ export const securityHeaders = helmet({
       frameAncestors: ["'none'"],
     },
   },
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
   crossOriginEmbedderPolicy: false,
 });
 

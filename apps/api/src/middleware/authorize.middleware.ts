@@ -12,7 +12,7 @@ export function authorize(...permissions: string[]) {
       throw ApiError.unauthorized('Authentication required');
     }
 
-    // Admin/Developer bypass with wildcard permission or role
+    // Admin/Developer/Pimpinan bypass with wildcard permission or role
     if (
       req.user.permissions.includes('*') || 
       req.user.permissions.includes('*.*') || 
@@ -20,7 +20,9 @@ export function authorize(...permissions: string[]) {
       req.user.roles.includes('ADMIN') ||
       req.user.roles.includes('DEVELOPER') ||
       req.user.roles.includes('SUPERADMIN') ||
-      req.user.roles.includes('superadmin')
+      req.user.roles.includes('superadmin') ||
+      req.user.roles.includes('PIMPINAN') ||
+      req.user.roles.includes('pimpinan')
     ) {
       return next();
     }
@@ -57,7 +59,9 @@ export function authorizeAny(...permissions: string[]) {
       req.user.roles.includes('ADMIN') ||
       req.user.roles.includes('DEVELOPER') ||
       req.user.roles.includes('SUPERADMIN') ||
-      req.user.roles.includes('superadmin')
+      req.user.roles.includes('superadmin') ||
+      req.user.roles.includes('PIMPINAN') ||
+      req.user.roles.includes('pimpinan')
     ) {
       return next();
     }

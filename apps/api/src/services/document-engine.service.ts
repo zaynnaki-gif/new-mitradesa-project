@@ -30,6 +30,7 @@ import {
 } from '../utils/table-resolver.js';
 import { generateDocumentNumber, generateVerificationToken } from '../utils/numbering.js';
 import { ApiError } from '../utils/response.js';
+import { config } from '../config/index.js';
 import { getStorageProvider } from './storage/index.js';
 import type { IStorageProvider } from './storage/index.js';
 import { getInstanceContext } from '../config/instance.js';
@@ -120,20 +121,44 @@ export class DocumentEngineService {
     const verificationToken = generateVerificationToken();
 
     // 5. Load default penanda tangan for the village
-    let signatureImageUrl: string | undefined;
     const defaultSignatory = await this.db.penandaTangan.findFirst({
       where: { desaId, isActive: true },
       orderBy: { createdAt: 'asc' },
     });
-    if (defaultSignatory?.tandaTanganUrl) {
-      signatureImageUrl = defaultSignatory.tandaTanganUrl;
-    }
+
+    // 5.5 Merge village & system context into context so standard village/signatory/system bindings resolve
+    const { getVillageContext } = await import('../utils/binding-resolver.js');
+    const villageCtx = await getVillageContext(this.db, desaId);
+
+    const now = new Date();
+    const fullContext: BindingContext = {
+      ...villageCtx,
+      system: {
+        tanggal: now.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
+        tanggalSurat: now.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
+        nomorSurat: nomorDokumen,
+        nomor: nomorDokumen,
+        penandatangan: defaultSignatory?.nama || (villageCtx.kepala_desa?.nama as string) || 'Kepala Desa',
+        jabatanPenandatangan: defaultSignatory?.jabatan || (villageCtx.kepala_desa?.jabatan as string) || 'Kepala Desa',
+        tahun: now.getFullYear().toString(),
+        bulan: now.getMonth() + 1,
+      },
+      ...context,
+      desa: { ...villageCtx.desa, ...((context.desa as Record<string, unknown>) || {}) },
+      kepala_desa: {
+        nama: defaultSignatory?.nama || villageCtx.kepala_desa?.nama || 'H. Tajuddin',
+        jabatan: defaultSignatory?.jabatan || villageCtx.kepala_desa?.jabatan || 'Kepala Desa',
+        nip: (villageCtx.kepala_desa?.nip as string) || '-',
+        ...((context.kepala_desa as Record<string, unknown>) || {}),
+      },
+      sekretaris_desa: { ...villageCtx.sekretaris_desa, ...((context.sekretaris_desa as Record<string, unknown>) || {}) },
+    };
 
     // 6. Validate context bindings
     const { validateContextBindings } = await import('../utils/binding-resolver.js');
     const bindingValidation = validateContextBindings(
       version.content as Record<string, unknown>,
-      context as unknown as Record<string, unknown>
+      fullContext as unknown as Record<string, unknown>
     );
 
     if (!bindingValidation.valid) {
@@ -145,7 +170,7 @@ export class DocumentEngineService {
     // 7. Process template content
     const processedContent = this.processContent(
       version.content as Record<string, unknown>,
-      context as unknown as Record<string, unknown>
+      fullContext as unknown as Record<string, unknown>
     );
 
     // 8. Create document record with snapshot
@@ -156,7 +181,7 @@ export class DocumentEngineService {
         templateVersionId,
         nomorDokumen,
         judul,
-        dataSnapshot: context as unknown as Prisma.InputJsonValue,
+        dataSnapshot: fullContext as unknown as Prisma.InputJsonValue,
         contentSnapshot: processedContent as Prisma.InputJsonValue,
         status: generatePdf ? DocumentStatus.GENERATED : DocumentStatus.PENDING_SIGNATURE,
         verificationToken,
@@ -168,13 +193,11 @@ export class DocumentEngineService {
       try {
         const pdfBuffer = await this.generatePdfFromContent(
           processedContent,
-          context,
+          fullContext,
           version.kopConfig as Record<string, unknown> | undefined,
           version.signatureConfig as Record<string, unknown> | undefined,
           version.template.blanko,
           {
-            signatureImageUrl,
-            verificationToken,
             nomorDokumen,
             judul,
           }
@@ -242,11 +265,12 @@ export class DocumentEngineService {
           throw innerErr;
         }
       } catch (error) {
-        console.error('PDF generation failed, cleaning up created document record:', error);
+        const errMsg = error instanceof Error ? error.stack || error.message : String(error);
+        console.error('PDF generation failed, cleaning up created document record:', errMsg);
         await this.db.instanDokumen.delete({ where: { id: document.id } }).catch((delErr) => {
           console.error('Failed to cleanup orphan document after PDF generation failure:', delErr);
         });
-        throw ApiError.internal('Gagal menghasilkan PDF');
+        throw ApiError.internal('Gagal menghasilkan PDF: ' + (error instanceof Error ? error.message : String(error)));
       }
     }
 
@@ -316,10 +340,11 @@ export class DocumentEngineService {
     );
     const combinedElements = [...blankoElements, ...elements];
 
-    // Merge signature config with TTE image
+    // Merge signature config with TTE image and QR verification URL
     const mergedSignatureConfig = this.mergeSignatureConfig(
       signatureConfig as Record<string, unknown>,
-      options?.signatureImageUrl
+      options?.signatureImageUrl,
+      options?.verificationToken
     );
 
     // Build render options
@@ -352,13 +377,14 @@ export class DocumentEngineService {
   }
 
   /**
-   * Merge signature config with TTE image URL
+   * Merge signature config with TTE image URL and QR verification URL
    */
   private mergeSignatureConfig(
     signatureConfig?: Record<string, unknown>,
-    signatureImageUrl?: string
+    signatureImageUrl?: string,
+    verificationToken?: string
   ): RenderOptions['signature'] {
-    if (!signatureConfig && !signatureImageUrl) {
+    if (!signatureConfig && !signatureImageUrl && !verificationToken) {
       return undefined;
     }
 
@@ -370,6 +396,15 @@ export class DocumentEngineService {
         url: signatureImageUrl,
         width: 100,
         height: 40,
+      };
+    }
+
+    if (verificationToken) {
+      const webUrl = config.publicWebUrl;
+      merged.qrCode = {
+        enabled: true,
+        data: `${webUrl.replace(/\/+$/, '')}/verifikasi/${verificationToken}`,
+        size: 22,
       };
     }
 

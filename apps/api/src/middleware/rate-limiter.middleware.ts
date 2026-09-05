@@ -33,7 +33,7 @@ export const otpRequestRateLimiter = isTest ? rateLimit({
   legacyHeaders: false,
 }) : rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 3, // 3 OTP requests per minute per identity
+  max: process.env.NODE_ENV === 'production' ? 5 : 100, // 5 per menit di produksi, 100 di development
   keyGenerator: (req: Request) => {
     const nik = typeof req.body?.nik === 'string' ? req.body.nik.trim() : '';
     const phone = typeof req.body?.phone === 'string' ? req.body.phone.trim() : '';

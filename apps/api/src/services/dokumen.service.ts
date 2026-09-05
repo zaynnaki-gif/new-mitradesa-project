@@ -583,7 +583,19 @@ export class InstanDokumenService {
       include: {
         dokumen: { include: { layanan: true } },
         templateVersion: { include: { template: true } },
-        signature: { include: { penandatangan: true } },
+        signature: {
+          include: {
+            penandatangan: {
+              include: {
+                account: {
+                  include: {
+                    perangkatDesa: true,
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     });
   }

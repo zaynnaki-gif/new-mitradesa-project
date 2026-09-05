@@ -46,3 +46,10 @@ playwright-report/
 # Misc
 *.tgz
 .cache/
+live-screenshots/
+
+# Uploads
+apps/api/uploads/documents/*
+apps/api/uploads/signatures/*
+!apps/api/uploads/documents/.gitkeep
+!apps/api/uploads/signatures/.gitkeep

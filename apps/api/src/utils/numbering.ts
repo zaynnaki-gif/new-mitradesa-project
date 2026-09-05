@@ -213,8 +213,21 @@ export async function generateRequestNumber(
   // For simplicity, use layananKode as the klasifikasi code
   const klasifikasi = layananKode;
 
+  // Get count of existing requests for this service in this year to determine next sequence
+  const count = await db.permintaanLayanan.count({
+    where: {
+      desaId,
+      createdAt: {
+        gte: new Date(tahun, 0, 1),
+        lt: new Date(tahun + 1, 0, 1),
+      },
+    },
+  });
+
+  const nextSeq = Math.max(Number(config?.startingNumber || 1), count + 1);
+
   return parseFormatTemplate(format, {
-    sequence: Number(config?.startingNumber || 1),
+    sequence: nextSeq,
     tahun,
     bulan,
     kode: klasifikasi,

@@ -73,7 +73,7 @@ router.get(
  * GET /api/documents/:id - Get document by ID
  */
 router.get(
-  '/:id',
+  '/:id(\\d+)',
   authenticateInternal(),
   authorize('document.view'),
   asyncHandler(async (req, res) => {
@@ -104,7 +104,7 @@ router.post(
  * PATCH /api/documents/:id - Update document definition
  */
 router.patch(
-  '/:id',
+  '/:id(\\d+)',
   authenticateInternal(),
   authorize('document.update'),
   asyncHandler(async (req, res) => {
@@ -340,7 +340,19 @@ router.get(
     if (!dokumen) {
       throw ApiError.notFound('Dokumen tidak ditemukan');
     }
-    return response.success(res, dokumen, 'Detail Dokumen');
+
+    let downloadUrl = dokumen.fileUrl;
+    if (dokumen.fileUrl && dokumen.fileUrl.includes('/uploads/')) {
+      const { generateDocumentAccessToken } = await import('../../utils/doc-token.js');
+      const docPath = dokumen.fileUrl.split('/uploads/')[1];
+      if (docPath) {
+        const token = generateDocumentAccessToken(docPath, 15, 'download');
+        const sep = dokumen.fileUrl.includes('?') ? '&' : '?';
+        downloadUrl = `${dokumen.fileUrl}${sep}doc_token=${token}`;
+      }
+    }
+
+    return response.success(res, { ...dokumen, downloadUrl }, 'Detail Dokumen');
   })
 );
 
@@ -516,29 +528,53 @@ router.get(
       throw ApiError.notFound('Dokumen tidak ditemukan');
     }
 
-    if (dokumen.status === 'REVOKED') {
-      return res.status(400).json({
-        success: false,
-        message: 'Dokumen ini telah dicabut (Revoked).',
-        data: {
-          nomorDokumen: dokumen.nomorDokumen,
-          status: dokumen.status,
-          judul: dokumen.judul
+    let pemohon: { nama?: string; nik?: string } = {};
+    const rawData = dokumen.dataSnapshot as Record<string, unknown> | null;
+    if (rawData && typeof rawData === 'object') {
+      const nikRaw = Object.values(rawData).find(v => typeof v === 'string' && /^\d{16}$/.test(v)) as string;
+      if (nikRaw) {
+        pemohon.nik = `${nikRaw.substring(0, 4)}********${nikRaw.substring(12)}`;
+      }
+      const nameKey = Object.keys(rawData).find(k => k.toLowerCase().includes('nama'));
+      if (nameKey) {
+        const nameRaw = rawData[nameKey];
+        if (typeof nameRaw === 'string') {
+          pemohon.nama = nameRaw;
         }
-      });
+      }
     }
+
+    const pt = dokumen.signature?.penandatangan;
+    const rawFoto = (pt as any)?.account?.perangkatDesa?.fotoUrl || null;
+    let signatoryFotoUrl = rawFoto;
+    if (rawFoto && !rawFoto.startsWith('http://') && !rawFoto.startsWith('https://')) {
+      const apiBase = config.apiUrl || 'http://localhost:3001';
+      signatoryFotoUrl = `${apiBase.replace(/\/$/, '')}${rawFoto.startsWith('/') ? '' : '/'}${rawFoto}`;
+    }
+
+    const penandatanganData = pt ? {
+      nama: pt.nama,
+      jabatan: pt.jabatan,
+      nip: pt.nip || undefined,
+      fotoUrl: signatoryFotoUrl,
+    } : null;
 
     return response.success(res, {
       nomorDokumen: dokumen.nomorDokumen,
+      jenisSurat: dokumen.dokumen?.nama || dokumen.judul,
+      layanan: dokumen.dokumen?.layanan?.nama || 'Pelayanan Umum',
+      tanggal: (dokumen.signedAt || dokumen.createdAt)?.toISOString(),
       judul: dokumen.judul,
       tujuan: dokumen.tujuan,
       status: dokumen.status,
       generatedAt: dokumen.generatedAt,
       signedAt: dokumen.signedAt,
       fileUrl: dokumen.fileUrl,
-      signature: dokumen.signature ? {
-        penandatangan: dokumen.signature.penandatangan?.nama,
-        jabatan: dokumen.signature.penandatangan?.jabatan
+      pemohon,
+      penandatangan: penandatanganData,
+      signature: pt ? {
+        penandatangan: pt.nama,
+        jabatan: pt.jabatan
       } : null
     }, 'Verifikasi Dokumen');
   })
@@ -805,8 +841,8 @@ router.post(
           include: { penduduk: true },
         });
         if (reqItem?.penduduk?.telepon) {
-          const baseUrl = config.apiUrl ? config.apiUrl.replace(/\/api$/, '') : 'https://mitradesa.id';
-          const verifyUrl = `${baseUrl}/verifikasi/${updated.verificationToken || ''}`;
+          const baseUrl = config.publicWebUrl;
+          const verifyUrl = `${baseUrl.replace(/\/+$/, '')}/verifikasi/${updated.verificationToken || ''}`;
           void notificationService.notifyDocumentSigned(
             reqItem.penduduk.telepon,
             updated.nomorDokumen,
@@ -819,6 +855,81 @@ router.post(
     }
 
     return response.success(res, updated, 'Dokumen berhasil ditandatangani');
+  })
+);
+
+/**
+ * POST /api/documents/:id/revoke
+ * Revoke an official document with mandatory audit reason
+ */
+router.post(
+  '/:id/revoke',
+  authenticateInternal(),
+  authorize('document.sign', 'document.generate'),
+  asyncHandler(async (req, res) => {
+    const id = BigInt(req.params.id);
+    const { reason } = z.object({
+      reason: z.string().min(5, 'Alasan pencabutan minimal 5 karakter'),
+    }).parse(req.body);
+
+    const callerAccountId = req.user?.accountId;
+    const document = await instanDokumenService.findById(id);
+    if (!document) {
+      throw ApiError.notFound('Dokumen tidak ditemukan');
+    }
+
+    if (document.status === 'REVOKED') {
+      throw ApiError.badRequest('Dokumen ini sudah dalam status dicabut (REVOKED)');
+    }
+
+    // Update document status to REVOKED
+    const updated = await prisma.instanDokumen.update({
+      where: { id },
+      data: { status: 'REVOKED' },
+    });
+
+    // Create immutable audit log
+    await prisma.auditLog.create({
+      data: {
+        entityType: 'document',
+        entityId: id,
+        action: 'UPDATE',
+        actorId: callerAccountId ? BigInt(callerAccountId) : undefined,
+        actorType: 'USER',
+        reason: `Pencabutan Dokumen Resmi: ${reason}`,
+        beforeData: { status: document.status },
+        afterData: { status: 'REVOKED', reason },
+        metadata: {
+          nomorDokumen: document.nomorDokumen,
+          revokedAt: new Date().toISOString(),
+          reason,
+        },
+      },
+    });
+
+    // Notify citizen if linked to request
+    if (document.permintaan?.id) {
+      try {
+        const reqItem = await prisma.permintaanLayanan.findUnique({
+          where: { id: document.permintaan.id },
+          include: { penduduk: true, layanan: true },
+        });
+        if (reqItem?.penduduk?.telepon) {
+          void notificationService.sendWhatsApp(
+            reqItem.penduduk.telepon,
+            `*Pemberitahuan Pencabutan Dokumen*\n\n` +
+            `Surat resmi dengan nomor *${document.nomorDokumen}* telah *DICABUT* oleh pemerintah desa.\n\n` +
+            `*Alasan:* ${reason}\n\n` +
+            `Dokumen tersebut kini sudah tidak berlaku lagi.\n\n` +
+            `Terima kasih,\n*Pemerintah Desa*`
+          ).catch((waErr) => console.error('Gagal kirim notifikasi WA pencabutan dokumen:', waErr));
+        }
+      } catch (waErr) {
+        console.warn('Gagal memproses notifikasi WA pencabutan:', waErr);
+      }
+    }
+
+    return response.success(res, updated, 'Dokumen berhasil dicabut');
   })
 );
 

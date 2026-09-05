@@ -5,12 +5,12 @@
  * Uses simplified authentication (OTP or tracking number).
  */
 
-import { Router } from 'express';
+import { Router, Request } from 'express';
 import { asyncHandler, response, ApiError } from '../../utils/response.js';
 import { Prisma, RequestStatus } from '@prisma/client';
 import { prisma } from '../../services/prisma.js';
 import { generateRequestNumber } from '../../utils/numbering.js';
-import { citizenRequestRateLimiter } from '../../middleware/index.js';
+import { citizenRequestRateLimiter, authenticateCitizen } from '../../middleware/index.js';
 import { getInstanceContext } from '../../config/instance.js';
 
 const router = Router();
@@ -88,7 +88,8 @@ async function validateRequestFields(
 async function createPublicRequest(
   layananId: bigint,
   fields: Record<string, unknown>,
-  catatan?: string
+  catatan?: string,
+  req?: Request
 ) {
   const { desaId } = getInstanceContext();
   // Get layanan info to determine desaId
@@ -112,11 +113,38 @@ async function createPublicRequest(
     layanan.kode
   );
 
+  // Look up resident if NIK is in fields or from citizen session token
+  let pendudukId: bigint | null = null;
+  const authHeader = req?.headers?.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const citizenToken = authHeader.substring(7);
+    const session = await prisma.citizenSession.findUnique({
+      where: { token: citizenToken },
+      select: { pendudukId: true },
+    });
+    if (session) {
+      pendudukId = session.pendudukId;
+    }
+  }
+
+  if (!pendudukId) {
+    const nikVal = Object.values(fields).find(v => typeof v === 'string' && /^\d{16}$/.test(v)) as string | undefined;
+    if (nikVal) {
+      const resident = await prisma.penduduk.findFirst({
+        where: { nik: nikVal, desaId: layanan.desaId }
+      });
+      if (resident) {
+        pendudukId = resident.id;
+      }
+    }
+  }
+
   // Create the request
   const request = await prisma.permintaanLayanan.create({
     data: {
       layananId: layananId,
       desaId: layanan.desaId,
+      pendudukId,
       nomorPermintaan,
       status: RequestStatus.SUBMITTED,
       dataJson: fields as Prisma.InputJsonValue,
@@ -125,8 +153,21 @@ async function createPublicRequest(
     },
     include: {
       layanan: { select: { nama: true, kode: true } },
+      penduduk: true,
     },
   });
+
+  // Notify resident on submission if phone available
+  if (request.penduduk?.telepon) {
+    const { notificationService } = await import('../../services/notification.service.js');
+    notificationService.notifyRequestStatusChanged(
+      request.penduduk.telepon,
+      request.nomorPermintaan,
+      request.layanan.nama,
+      request.status,
+      'Permohonan surat berhasil diajukan dan sedang menunggu verifikasi operator.'
+    ).catch(err => console.error('Failed to send submission WA notification:', err));
+  }
 
   return request;
 }
@@ -198,7 +239,7 @@ router.post(
     }
 
     // Create the request
-    const request = await createPublicRequest(layananIdBig, fields, catatan);
+    const request = await createPublicRequest(layananIdBig, fields, catatan, req);
 
     return response.created(res, {
       nomorPermintaan: request.nomorPermintaan,
@@ -277,6 +318,52 @@ router.post(
       nama: maskName(penduduk.namaLengkap),
       desa: penduduk.desa?.nama || '',
     }, 'NIK valid');
+  })
+);
+
+/**
+ * GET /api/citizen/history
+ * Fetch request history for the authenticated citizen
+ */
+router.get(
+  '/history',
+  authenticateCitizen(),
+  asyncHandler(async (req, res) => {
+    const pendudukId = req.user?.pendudukId;
+    if (!pendudukId) {
+      throw ApiError.unauthorized('Sesi warga tidak valid');
+    }
+
+    const { desaId } = getInstanceContext();
+    const requests = await prisma.permintaanLayanan.findMany({
+      where: {
+        pendudukId: BigInt(pendudukId),
+        desaId,
+        deletedAt: null,
+      },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        layanan: {
+          select: {
+            nama: true,
+            kode: true,
+          },
+        },
+      },
+    });
+
+    return response.success(
+      res,
+      requests.map((r) => ({
+        id: r.id.toString(),
+        nomorPermintaan: r.nomorPermintaan,
+        status: r.status,
+        layanan: r.layanan,
+        catatan: r.catatan,
+        createdAt: r.createdAt,
+      })),
+      'Riwayat Layanan'
+    );
   })
 );
 

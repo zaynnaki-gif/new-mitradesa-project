@@ -47,6 +47,7 @@ jobs:
         run: npm ci
 
       - name: Generate Prisma Client
+        working-directory: apps/api
         run: npx prisma generate
 
       - name: TypeScript type check
@@ -86,6 +87,7 @@ jobs:
         run: npm ci
 
       - name: Generate Prisma Client
+        working-directory: apps/api
         run: npx prisma generate
 
       - name: Run Unit Tests

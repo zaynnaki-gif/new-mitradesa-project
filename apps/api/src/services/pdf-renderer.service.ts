@@ -58,6 +58,10 @@ export interface FieldElement {
   binding: string;
   value: string;
   label?: string;
+  /** 'inline' = "Label: Nilai" (default), 'column' = tabel 3-kolom standar surat dinas */
+  layout?: 'inline' | 'column';
+  /** Lebar kolom label dalam mm untuk mode column (default: 45) */
+  labelWidth?: number;
   style?: TextStyle;
   x?: number;
   y?: number;
@@ -143,6 +147,11 @@ export interface KopConfig {
 }
 
 export interface SignatureConfig {
+  mode?: 'online_tte' | 'offline_physical';
+  dateLocation?: string;
+  applicantTitle?: string;
+  applicantName?: string;
+  showStampSpace?: boolean;
   title?: {
     enabled: boolean;
     text?: string;
@@ -162,6 +171,7 @@ export interface SignatureConfig {
   qrCode?: {
     enabled: boolean;
     data?: string;
+    size?: number;
   };
 }
 
@@ -202,6 +212,7 @@ export interface RenderOptions {
 const PAGE_SIZES: Record<string, [number, number]> = {
   A4: [595.28, 841.89],
   FOLIO: [612, 936],
+  F4: [612, 936],
   LETTER: [612, 792],
   LEGAL: [612, 1008],
 };
@@ -230,7 +241,7 @@ export class PdfRenderer {
     this.pageNumber = 0;
 
     this.doc = new PDFDocument({
-      size: options.layout.pageSize,
+      size: [width, height],
       layout: options.layout.orientation,
       margins: {
         top: this.mmToPoints(options.layout.margins.top),
@@ -246,8 +257,8 @@ export class PdfRenderer {
       },
     });
 
-    // Calculate content dimensions
-    this.contentStartY = this.pageHeight - this.doc.page.margins.top;
+    // Calculate content dimensions (top-left is 0,0 in PDFKit)
+    this.contentStartY = this.doc.page.margins.top;
     this.currentY = this.contentStartY;
     this.contentWidth = this.pageWidth - this.doc.page.margins.left - this.doc.page.margins.right;
   }
@@ -295,77 +306,85 @@ export class PdfRenderer {
    */
   async renderKop(kop: KopConfig): Promise<void> {
     const startY = this.doc.page.margins.top;
-
-    // Reset to top
     this.currentY = startY;
 
-    // Calculate positions for logos
-    const logoSize = kop.logoDesa?.size || 60;
-    const logoWidth = this.mmToPoints(logoSize / 10);
+    // Standard official logo height/width ~22-25mm
+    const rawLogoSize = kop.logoDesa?.size || 24;
+    const logoSizeMm = typeof rawLogoSize === 'number' && rawLogoSize <= 40 ? rawLogoSize : 24;
+    const logoWidth = this.mmToPoints(logoSizeMm);
 
-    // Left logo (Desa) - async version
-    if (kop.logoDesa?.visible && kop.logoDesa.source) {
+    // Left logo (Desa / Pemda)
+    if (kop.logoDesa?.visible !== false && kop.logoDesa?.source) {
       await this.drawLogoAsync(kop.logoDesa.source, this.doc.page.margins.left, startY, logoWidth);
     }
 
-    // Right logo (Kabupaten) - would draw here if source available
-
-    // Institution names
-    const institutionY = startY + 20;
-
-    this.doc.font('Helvetica-Bold').fontSize(14);
-
-    if (kop.institutionNames?.pemda?.visible) {
-      this.doc.text(
-        kop.institutionNames.pemda.text || 'PEMERINTAH KABUPATEN LOMBOK TIMUR',
-        0,
-        institutionY,
-        { align: 'center', width: this.contentWidth }
-      );
+    // Right logo (Kabupaten if provided)
+    if (kop.logoKabupaten?.visible && (kop.logoKabupaten as { source?: string }).source) {
+      const rightX = this.pageWidth - this.doc.page.margins.right - logoWidth;
+      await this.drawLogoAsync((kop.logoKabupaten as { source?: string }).source!, rightX, startY, logoWidth);
     }
 
-    if (kop.institutionNames?.kecamatan?.visible) {
+    let textY = startY;
+    const leftX = this.doc.page.margins.left;
+
+    if (kop.institutionNames?.pemda?.visible !== false) {
+      this.doc.font('Times-Bold').fontSize(12);
       this.doc.text(
-        kop.institutionNames.kecamatan.text || 'KECAMATAN PRINGGABAYA',
-        0,
-        institutionY + 18,
+        kop.institutionNames?.pemda?.text || 'PEMERINTAH KABUPATEN LOMBOK TIMUR',
+        leftX,
+        textY,
         { align: 'center', width: this.contentWidth }
       );
+      textY += 15;
     }
 
-    if (kop.institutionNames?.desa?.visible) {
+    if (kop.institutionNames?.kecamatan?.visible !== false) {
+      this.doc.font('Times-Bold').fontSize(13);
       this.doc.text(
-        kop.institutionNames.desa.text || 'DESA SERUNI MUMBUL',
-        0,
-        institutionY + 36,
+        kop.institutionNames?.kecamatan?.text || 'KECAMATAN PRINGGABAYA',
+        leftX,
+        textY,
         { align: 'center', width: this.contentWidth }
       );
+      textY += 16;
     }
 
-    // Address block
-    if (kop.addressBlock?.enabled && kop.addressBlock.lines) {
-      this.doc.font('Helvetica').fontSize(10);
-      let yOffset = institutionY + 60;
+    if (kop.institutionNames?.desa?.visible !== false) {
+      this.doc.font('Times-Bold').fontSize(15);
+      this.doc.text(
+        kop.institutionNames?.desa?.text || 'DESA SERUNI MUMBUL',
+        leftX,
+        textY,
+        { align: 'center', width: this.contentWidth }
+      );
+      textY += 18;
+    }
+
+    // Address block — only render if explicitly enabled AND lines provided
+    if (kop.addressBlock?.enabled !== false && kop.addressBlock?.lines && kop.addressBlock.lines.length > 0) {
+      this.doc.font('Times-Roman').fontSize(9);
       for (const line of kop.addressBlock.lines) {
-        this.doc.text(line, 0, yOffset, { align: 'center', width: this.contentWidth });
-        yOffset += 14;
+        if (line && line.trim()) {
+          this.doc.text(line, leftX, textY, { align: 'center', width: this.contentWidth });
+          textY += 12;
+        }
       }
     }
 
-    // Divider
-    this.currentY = institutionY + 100;
-    if (kop.divider?.style === 'double') {
-      this.drawDivider(2, 'black');
-      this.currentY += 4;
-      this.drawDivider(2, 'black');
-      this.currentY += 10;
+    // Crisp standard official divider lines
+    // Ensure currentY clears both the text block AND the logo height
+    this.currentY = Math.max(textY + 6, startY + logoWidth + 6);
+    if (kop.divider?.style === 'double' || !kop.divider?.style) {
+      this.drawDivider(2, '#000000');
+      this.currentY += 2;
+      this.drawDivider(0.75, '#000000');
+      this.currentY += 14;
     } else if (kop.divider?.style === 'single') {
-      this.drawDivider(kop.divider.thickness || 1, 'black');
+      this.drawDivider(kop.divider.thickness || 1.5, '#000000');
+      this.currentY += 14;
+    } else {
       this.currentY += 10;
     }
-
-    // Move past kop
-    this.currentY += 20;
   }
 
   /**
@@ -410,111 +429,214 @@ export class PdfRenderer {
   }
 
   /**
-   * Render signature block with TTE and QR code (async)
+   * Render signature block with TTE or Offline Physical dual signatures and QR code
    */
   async renderSignatureBlock(config: SignatureConfig, qrData?: string): Promise<void> {
-    const signatureY = this.pageHeight - this.doc.page.margins.bottom - 200;
+    const isOffline = config.mode === 'offline_physical';
+    const requiredHeight = isOffline ? 170 : 145;
 
-    // Move to signature area
-    this.currentY = signatureY;
-
-    // Title - use dynamic jabatan from signatory or fallback
-    if (config.title?.enabled) {
-      this.doc.font('Helvetica-Bold').fontSize(11);
-      const align = config.title.align || 'right';
-      // Resolve dynamic binding if title contains {{}}
-      let titleText = config.title.text || '';
-      if (titleText.includes('{{')) {
-        // For PDF rendering, use the signatory's title as fallback
-        titleText = config.signatory?.title || 'Kepala Desa';
-      }
-      this.doc.text(
-        titleText,
-        0,
-        this.currentY,
-        { align, width: this.contentWidth }
-      );
-      this.currentY += 30;
+    // Check if we need a new page for signature block
+    if (this.currentY > this.pageHeight - this.doc.page.margins.bottom - requiredHeight) {
+      this.addNewPage();
     }
 
-    // Signature image (TTE)
-    if (config.signatureImage?.enabled && config.signatureImage.url) {
-      try {
-        const imageData = await this.loadImageData(config.signatureImage.url);
-        if (imageData) {
-          const imgWidth = config.signatureImage.width || 100;
-          const imgHeight = config.signatureImage.height || 40;
-          const x = this.pageWidth - this.doc.page.margins.right - this.mmToPoints(imgWidth / 10);
-          this.doc.image(imageData, x, this.currentY, {
-            width: this.mmToPoints(imgWidth / 10),
-            height: this.mmToPoints(imgHeight / 10),
-          });
-          this.currentY += this.mmToPoints(imgHeight / 10) + 10;
-        }
-      } catch (error) {
-        throw new Error(`Gagal memuat gambar TTE (Tanda Tangan Elektronik): ${error instanceof Error ? error.message : String(error)}`);
+    // Anchor signature cleanly with breathing room or towards bottom
+    const bottomTargetY = this.pageHeight - this.doc.page.margins.bottom - requiredHeight;
+    const startY = Math.max(this.currentY + 20, bottomTargetY);
+    this.currentY = startY;
+
+    if (isOffline) {
+      // ==========================================
+      // DUAL SIGNATURE (OFFLINE PHYSICAL)
+      // Left: Pemohon / Yang Menyatakan
+      // Right: Kepala Desa / Pejabat + Wet Stamp Area
+      // ==========================================
+      const colWidth = (this.contentWidth - 30) / 2;
+      const leftColX = this.doc.page.margins.left;
+      const rightColX = this.doc.page.margins.left + colWidth + 30;
+
+      // Right column: Date & Place
+      const dateText = config.dateLocation || 'Seruni Mumbul, .................................... 20...';
+      this.doc.font('Times-Roman').fontSize(10);
+      this.doc.text(dateText, rightColX, startY, { width: colWidth, align: 'center' });
+
+      // Titles
+      const applicantTitle = config.applicantTitle || 'Yang Menyatakan / Pemohon,';
+      const officialTitle = config.title?.text || config.signatory?.title || 'Kepala Desa Seruni Mumbul,';
+
+      this.doc.font('Times-Bold').fontSize(10);
+      this.doc.text(applicantTitle, leftColX, startY + 16, { width: colWidth, align: 'center' });
+      this.doc.text(officialTitle, rightColX, startY + 16, { width: colWidth, align: 'center' });
+
+      // Wet Stamp Guide Box/Circle
+      if (config.showStampSpace !== false) {
+        const stampX = rightColX + 30;
+        const stampY = startY + 55;
+        this.doc.save();
+        this.doc.dash(3, { space: 3 });
+        this.doc.strokeColor('#aaaaaa');
+        this.doc.lineWidth(0.8);
+        this.doc.circle(stampX, stampY, 22).stroke();
+        this.doc.undash();
+        this.doc.fontSize(7).font('Times-Roman').fillColor('#777777');
+        this.doc.text('[ STEMPEL DESA ]', stampX - 35, stampY - 4, { width: 70, align: 'center' });
+        this.doc.fillColor('#000000');
+        this.doc.restore();
+      }
+
+      // Names & Signature lines
+      const sigLineY = startY + 85;
+      this.doc.font('Times-Bold').fontSize(10);
+
+      // Applicant name: if provided wrap in parentheses; if blank show underscore line (blanko)
+      if (config.applicantName && config.applicantName.trim()) {
+        const applicantFmt = `( ${config.applicantName} )`;
+        this.doc.text(applicantFmt, leftColX, sigLineY, { width: colWidth, align: 'center' });
+      } else {
+        // Blank blanko: draw a signature line instead of parentheses
+        const lineLen = colWidth * 0.65;
+        const lineX = leftColX + (colWidth - lineLen) / 2;
+        this.doc.save();
+        this.doc.moveTo(lineX, sigLineY + 12).lineTo(lineX + lineLen, sigLineY + 12).lineWidth(0.5).strokeColor('#000').stroke();
+        this.doc.restore();
+      }
+
+      const officialName = config.signatory?.name || '...................................................';
+      this.doc.text(officialName, rightColX, sigLineY, { width: colWidth, align: 'center' });
+
+      // Underline below name (standard on Indonesian official letters)
+      const nameTextWidth = Math.min(this.doc.widthOfString(officialName), colWidth);
+      const nameLineX = rightColX + (colWidth - nameTextWidth) / 2;
+      const nameLineY = sigLineY + 13;
+      this.doc.save();
+      this.doc.moveTo(nameLineX, nameLineY).lineTo(nameLineX + nameTextWidth, nameLineY).lineWidth(0.5).strokeColor('#000000').stroke();
+      this.doc.restore();
+
+      if (config.signatory?.nip) {
+        this.doc.font('Times-Roman').fontSize(9);
+        this.doc.text(`NIP. ${config.signatory.nip}`, rightColX, sigLineY + 16, { width: colWidth, align: 'center' });
+      }
+
+      // QR Code for verification
+      if (config.qrCode?.enabled !== false && qrData) {
+        await this.renderQrCode(qrData, {
+          x: leftColX,
+          y: sigLineY + 20,
+          sizeMm: 18,
+        });
       }
     } else {
-      // Draw signature line
-      this.currentY += 60;
-    }
+      // ==========================================
+      // ONLINE TTE
+      // Right: Date, Official Title, Electronic Seal / TTE Image, Name, NIP
+      // Bottom-Left: Official Verification QR Code
+      // ==========================================
+      const colWidth = 230;
+      const rightColX = this.pageWidth - this.doc.page.margins.right - colWidth;
 
-    // Name
-    if (config.signatory?.name) {
-      this.doc.font('Helvetica').fontSize(11);
-      this.doc.text(
-        config.signatory.name,
-        0,
-        this.currentY,
-        { align: 'right', width: this.contentWidth }
-      );
-      this.currentY += 18;
-    }
+      const dateText = config.dateLocation || 'Seruni Mumbul, .................................... 20...';
+      this.doc.font('Times-Roman').fontSize(10);
+      this.doc.text(dateText, rightColX, startY, { width: colWidth, align: 'center' });
 
-    // NIP
-    if (config.signatory?.nip) {
-      this.doc.fontSize(10);
-      this.doc.text(
-        `NIP. ${config.signatory.nip}`,
-        0,
-        this.currentY,
-        { align: 'right', width: this.contentWidth }
-      );
-    }
+      const titleText = config.title?.text || config.signatory?.title || 'Kepala Desa Seruni Mumbul';
+      this.doc.font('Times-Bold').fontSize(10);
+      this.doc.text(titleText, rightColX, startY + 16, { width: colWidth, align: 'center' });
 
-    // QR Code
-    if (config.qrCode?.enabled && qrData) {
-      await this.renderQrCode(qrData);
+      let currentRightY = startY + 34;
+
+      // Signature image (TTE)
+      if (config.signatureImage?.enabled && config.signatureImage.url) {
+        try {
+          const imageData = await this.loadImageData(config.signatureImage.url);
+          if (imageData) {
+            const imgWidthPt = this.mmToPoints(config.signatureImage.width || 35);
+            const imgHeightPt = this.mmToPoints(config.signatureImage.height || 18);
+            const imgX = rightColX + (colWidth - imgWidthPt) / 2;
+            this.doc.image(imageData, imgX, currentRightY, {
+              width: imgWidthPt,
+              height: imgHeightPt,
+            });
+            currentRightY += imgHeightPt + 8;
+          } else {
+            currentRightY += 50;
+          }
+        } catch {
+          currentRightY += 50;
+        }
+      } else {
+        // TTE Verified Badge
+        this.doc.save();
+        this.doc.roundedRect(rightColX + 20, currentRightY + 2, colWidth - 40, 36, 4).strokeColor('#2563eb').lineWidth(1).stroke();
+        this.doc.font('Times-Bold').fontSize(7.5).fillColor('#1e40af');
+        this.doc.text('DITANDATANGANI SECARA ELEKTRONIK', rightColX + 20, currentRightY + 10, { width: colWidth - 40, align: 'center' });
+        this.doc.font('Times-Roman').fontSize(6.5).fillColor('#4b5563');
+        this.doc.text('Sistem Informasi Desa Mitradesa', rightColX + 20, currentRightY + 22, { width: colWidth - 40, align: 'center' });
+        this.doc.restore();
+        currentRightY += 46;
+      }
+
+      // Name
+      if (config.signatory?.name) {
+        this.doc.font('Times-Bold').fontSize(10);
+        this.doc.text(config.signatory.name, rightColX, currentRightY, { width: colWidth, align: 'center' });
+
+        // Underline below name
+        const nameW = Math.min(this.doc.widthOfString(config.signatory.name), colWidth);
+        const nameUnderlineX = rightColX + (colWidth - nameW) / 2;
+        this.doc.save();
+        this.doc.moveTo(nameUnderlineX, currentRightY + 13)
+          .lineTo(nameUnderlineX + nameW, currentRightY + 13)
+          .lineWidth(0.5).strokeColor('#000000').stroke();
+        this.doc.restore();
+        currentRightY += 16;
+      }
+
+      // NIP
+      if (config.signatory?.nip) {
+        this.doc.font('Times-Roman').fontSize(9);
+        this.doc.text(`NIP. ${config.signatory.nip}`, rightColX, currentRightY, { width: colWidth, align: 'center' });
+      }
+
+      // QR Code
+      if (config.qrCode?.enabled !== false && qrData) {
+        await this.renderQrCode(qrData, {
+          x: this.doc.page.margins.left,
+          y: startY + 10,
+          sizeMm: 22,
+        });
+      }
     }
   }
 
   /**
-   * Render QR code at bottom-left
+   * Render QR code with exact millimeter sizing and security caption
    */
-  private async renderQrCode(data: string): Promise<void> {
+  private async renderQrCode(data: string, options?: { sizeMm?: number; x?: number; y?: number }): Promise<void> {
     try {
       const qrBuffer = await generateQrCodeBuffer(data);
-      const qrSize = 30; // mm
-      const x = this.doc.page.margins.left;
-      const y = this.pageHeight - this.doc.page.margins.bottom - this.mmToPoints(qrSize / 10) - 10;
+      const qrSizeMm = options?.sizeMm || 22;
+      const qrSizePt = this.mmToPoints(qrSizeMm);
+      const x = options?.x ?? this.doc.page.margins.left;
+      const y = options?.y ?? (this.pageHeight - this.doc.page.margins.bottom - qrSizePt - 15);
 
       this.doc.image(qrBuffer, x, y, {
-        width: this.mmToPoints(qrSize / 10),
-        height: this.mmToPoints(qrSize / 10),
+        width: qrSizePt,
+        height: qrSizePt,
       });
 
       // Add verification text below QR
-      this.doc.fontSize(6);
-      this.doc.fillColor('#666666');
+      this.doc.fontSize(6.5);
+      this.doc.font('Times-Roman');
+      this.doc.fillColor('#555555');
       this.doc.text(
-        'Scan untuk verifikasi',
+        'Scan untuk verifikasi keaslian surat',
         x,
-        y + this.mmToPoints(qrSize / 10) + 2,
-        { width: this.mmToPoints(qrSize / 10) }
+        y + qrSizePt + 3,
+        { width: qrSizePt + 40, align: 'left' }
       );
       this.doc.fillColor('#000000');
     } catch (error) {
-      throw new Error(`Gagal memuat QR Code verifikasi dokumen: ${error instanceof Error ? error.message : String(error)}`);
+      console.warn(`Gagal memuat QR Code: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -675,28 +797,26 @@ export class PdfRenderer {
     const isAbsolute = element.y !== undefined;
     const yPos = isAbsolute ? this.mmToPoints(element.y as number) : this.currentY;
 
-    // Check for page break only if it's part of the flow (not absolute)
-    if (!isAbsolute && yPos <= this.doc.page.margins.bottom + 50) {
+    if (!isAbsolute && yPos >= this.pageHeight - this.doc.page.margins.bottom - 45) {
       this.addNewPage();
     }
 
     const fontSize = element.style?.fontSize || 11;
     const fontWeight = element.style?.fontWeight || 'normal';
-    const textAlign = element.style?.textAlign || 'left';
-    const lineHeight = element.style?.lineHeight || 1.5;
+    // Default justify untuk teks body surat resmi Indonesia
+    const textAlign = element.style?.textAlign || 'justify';
+    const lineHeight = element.style?.lineHeight || 1.4;
     const color = element.style?.color || '#000000';
 
-    this.doc.font(fontWeight === 'bold' ? 'Helvetica-Bold' : 'Helvetica');
+    this.doc.font(fontWeight === 'bold' ? 'Times-Bold' : 'Times-Roman');
     this.doc.fontSize(fontSize);
     this.doc.fillColor(color);
 
-    // Calculate available width
     const x = element.x !== undefined ? this.mmToPoints(element.x) : this.doc.page.margins.left;
     const width = element.width !== undefined
       ? (typeof element.width === 'number' ? this.mmToPoints(element.width) : parseFloat(element.width as unknown as string))
       : this.contentWidth - (x - this.doc.page.margins.left);
 
-    // Draw text with line height
     const textHeight = this.doc.heightOfString(element.content, {
       width,
       align: textAlign,
@@ -710,7 +830,7 @@ export class PdfRenderer {
     });
 
     if (!isAbsolute) {
-      this.currentY += textHeight + (element.style?.margin?.bottom ? this.mmToPoints(element.style.margin.bottom) : 0);
+      this.currentY += textHeight + (element.style?.margin?.bottom ? this.mmToPoints(element.style.margin.bottom) : 3);
     }
   }
 
@@ -718,49 +838,98 @@ export class PdfRenderer {
     const isAbsolute = element.y !== undefined;
     const yPos = isAbsolute ? this.mmToPoints(element.y as number) : this.currentY;
 
-    // Check for page break
-    if (!isAbsolute && yPos <= this.doc.page.margins.bottom + 50) {
+    if (!isAbsolute && yPos >= this.pageHeight - this.doc.page.margins.bottom - 45) {
       this.addNewPage();
     }
 
     const fontSize = element.style?.fontSize || 11;
     const fontWeight = element.style?.fontWeight || 'normal';
     const textAlign = element.style?.textAlign || 'left';
+    const lineHeight = element.style?.lineHeight || 1.35;
 
-    this.doc.font(fontWeight === 'bold' ? 'Helvetica-Bold' : 'Helvetica');
+    this.doc.font(fontWeight === 'bold' ? 'Times-Bold' : 'Times-Roman');
     this.doc.fontSize(fontSize);
     this.doc.fillColor('#000000');
 
     const x = element.x !== undefined ? this.mmToPoints(element.x) : this.doc.page.margins.left;
-    const width = element.width !== undefined
+    const availableWidth = element.width !== undefined
       ? (typeof element.width === 'number' ? this.mmToPoints(element.width) : parseFloat(element.width as unknown as string))
       : this.contentWidth - (x - this.doc.page.margins.left);
 
-    // Label if present
+    // ──────────────────────────────────────────────────────────────
+    // COLUMN LAYOUT: Label | : | Nilai  (standar surat dinas RI)
+    // ──────────────────────────────────────────────────────────────
+    if (element.layout === 'column' && element.label) {
+      const labelWidthPt = this.mmToPoints(element.labelWidth || 45);
+      const colonWidthPt = this.mmToPoints(6);
+      const valueX = x + labelWidthPt + colonWidthPt;
+      const valueWidth = availableWidth - labelWidthPt - colonWidthPt;
+      const savedY = isAbsolute ? yPos : this.currentY;
+
+      const labelH = this.doc.heightOfString(element.label, {
+        width: labelWidthPt,
+        lineGap: fontSize * (lineHeight - 1),
+      });
+      this.doc.text(element.label, x, savedY, {
+        width: labelWidthPt,
+        align: 'left',
+        lineGap: fontSize * (lineHeight - 1),
+      });
+
+      this.doc.text(':', x + labelWidthPt, savedY, { width: colonWidthPt, align: 'center' });
+
+      const valueH = this.doc.heightOfString(element.value || '', {
+        width: valueWidth,
+        lineGap: fontSize * (lineHeight - 1),
+      });
+      this.doc.text(element.value || '', valueX, savedY, {
+        width: valueWidth,
+        align: 'left',
+        lineGap: fontSize * (lineHeight - 1),
+      });
+
+      if (!isAbsolute) {
+        this.currentY = savedY + Math.max(labelH, valueH) +
+          (element.style?.margin?.bottom ? this.mmToPoints(element.style.margin.bottom) : 3);
+      }
+      return;
+    }
+
+    // ──────────────────────────────────────────────────────────────
+    // INLINE LAYOUT: \"Label: Nilai\" (default)
+    // ──────────────────────────────────────────────────────────────
     let content = '';
     if (element.label) {
       content = `${element.label}: `;
     }
     content += element.value || '';
 
-    this.doc.text(content, x, isAbsolute ? yPos : this.currentY, {
-      width,
+    const textHeight = this.doc.heightOfString(content, {
+      width: availableWidth,
       align: textAlign,
+      lineGap: fontSize * (lineHeight - 1),
+    });
+
+    this.doc.text(content, x, isAbsolute ? yPos : this.currentY, {
+      width: availableWidth,
+      align: textAlign,
+      lineGap: fontSize * (lineHeight - 1),
     });
 
     if (!isAbsolute) {
-      this.currentY += fontSize * 1.5 + 5;
+      this.currentY += textHeight + (element.style?.margin?.bottom ? this.mmToPoints(element.style.margin.bottom) : 4);
     }
   }
 
   private async renderImage(element: ImageElement): Promise<void> {
     if (!element.source) return;
 
+
     const isAbsolute = element.y !== undefined;
     const yPos = isAbsolute ? this.mmToPoints(element.y as number) : this.currentY;
 
     // Check for page break
-    if (!isAbsolute && yPos <= this.doc.page.margins.bottom + 50) {
+    if (!isAbsolute && yPos >= this.pageHeight - this.doc.page.margins.bottom - 50) {
       this.addNewPage();
     }
 
@@ -789,7 +958,7 @@ export class PdfRenderer {
     const isAbsolute = element.y !== undefined;
     const yPos = isAbsolute ? this.mmToPoints(element.y as number) : this.currentY;
 
-    if (!isAbsolute && yPos <= this.doc.page.margins.bottom + 50) {
+    if (!isAbsolute && yPos >= this.pageHeight - this.doc.page.margins.bottom - 20) {
       this.addNewPage();
     }
 
@@ -816,7 +985,7 @@ export class PdfRenderer {
 
   private renderTable(element: TableElement): void {
     // Check for page break
-    if (this.currentY <= this.doc.page.margins.bottom + 100) {
+    if (this.currentY >= this.pageHeight - this.doc.page.margins.bottom - 100) {
       this.addNewPage();
     }
 
@@ -834,7 +1003,7 @@ export class PdfRenderer {
     const tableWidth = colWidth * colCount;
 
     // Draw header
-    this.doc.font('Helvetica-Bold').fontSize(headerStyle.fontSize || 10);
+    this.doc.font('Times-Bold').fontSize(headerStyle.fontSize || 10);
     this.doc.fillColor('#000000');
 
     let headerY = this.currentY;
@@ -862,7 +1031,7 @@ export class PdfRenderer {
     this.currentY = headerY + fontSize * 2;
 
     // Draw rows
-    this.doc.font('Helvetica').fontSize(rowStyle.fontSize || 10);
+    this.doc.font('Times-Roman').fontSize(rowStyle.fontSize || 10);
 
     for (const row of element.rows) {
       // Check if we need a new page
@@ -906,35 +1075,39 @@ export class PdfRenderer {
     this.currentY = signatureY;
 
     if (element.title) {
-      this.doc.font('Helvetica-Bold').fontSize(11);
-      this.doc.text(element.title, 0, this.currentY, {
+      this.doc.font('Times-Bold').fontSize(11);
+      this.doc.text(element.title, this.doc.page.margins.left, this.currentY, {
         width: this.contentWidth,
         align: element.position || 'right',
       });
       this.currentY += 40;
     }
 
-    // Signature image
-    if (element.imageUrl) {
-      // Signature image will be rendered by the async method
-      this.currentY += 50;
-    } else {
-      // Signature line
-      this.currentY += 40;
-    }
+    // Signature space
+    this.currentY += element.imageUrl ? 50 : 40;
 
     if (element.name) {
-      this.doc.font('Helvetica').fontSize(11);
-      this.doc.text(element.name, 0, this.currentY, {
+      this.doc.font('Times-Bold').fontSize(11);
+      this.doc.text(element.name, this.doc.page.margins.left, this.currentY, {
         width: this.contentWidth,
         align: element.position || 'right',
       });
+      // Underline below name
+      const nameW = Math.min(this.doc.widthOfString(element.name), this.contentWidth);
+      const nameUnderlineX = element.position === 'right'
+        ? this.pageWidth - this.doc.page.margins.right - nameW
+        : element.position === 'center'
+          ? this.doc.page.margins.left + (this.contentWidth - nameW) / 2
+          : this.doc.page.margins.left;
+      this.doc.save();
+      this.doc.moveTo(nameUnderlineX, this.currentY + 13).lineTo(nameUnderlineX + nameW, this.currentY + 13).lineWidth(0.5).strokeColor('#000').stroke();
+      this.doc.restore();
       this.currentY += 18;
     }
 
     if (element.nip) {
-      this.doc.fontSize(10);
-      this.doc.text(`NIP. ${element.nip}`, 0, this.currentY, {
+      this.doc.font('Times-Roman').fontSize(10);
+      this.doc.text(`NIP. ${element.nip}`, this.doc.page.margins.left, this.currentY, {
         width: this.contentWidth,
         align: element.position || 'right',
       });
@@ -949,7 +1122,7 @@ export class PdfRenderer {
     this.currentY = signatureY;
 
     if (element.title) {
-      this.doc.font('Helvetica-Bold').fontSize(11);
+      this.doc.font('Times-Bold').fontSize(11);
       this.doc.text(element.title, 0, this.currentY, {
         width: this.contentWidth,
         align: element.position || 'right',
@@ -981,7 +1154,7 @@ export class PdfRenderer {
     }
 
     if (element.name) {
-      this.doc.font('Helvetica').fontSize(11);
+      this.doc.font('Times-Roman').fontSize(11);
       this.doc.text(element.name, 0, this.currentY, {
         width: this.contentWidth,
         align: element.position || 'right',
@@ -1030,7 +1203,7 @@ export class PdfRenderer {
   private addNewPage(): void {
     this.doc.addPage();
     this.pageNumber++;
-    this.currentY = this.pageHeight - this.doc.page.margins.top;
+    this.currentY = this.doc.page.margins.top;
     this.contentStartY = this.currentY;
   }
 

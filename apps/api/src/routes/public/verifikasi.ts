@@ -39,11 +39,20 @@ router.get(
                 nama: true,
                 jabatan: true,
                 nip: true,
-              }
-            }
-          }
-        }
-      }
+                account: {
+                  select: {
+                    perangkatDesa: {
+                      select: {
+                        fotoUrl: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!document) {
@@ -52,28 +61,48 @@ router.get(
 
     // Prepare safe response (omit sensitive full json, just return identity)
     // Extract NIK and Nama if available
+    // Extract pemohon identity from permintaan or directly from dataSnapshot
     let pemohon: { nama?: string; nik?: string } = {};
-    if (document.permintaan?.dataJson) {
-      const data = document.permintaan.dataJson as Record<string, unknown>;
-      // Mask NIK
-      const nikRaw = Object.values(data).find(v => typeof v === 'string' && /^\d{16}$/.test(v)) as string;
+    const rawData = (document.permintaan?.dataJson || document.dataSnapshot) as Record<string, unknown> | null;
+    if (rawData && typeof rawData === 'object') {
+      const nikRaw = Object.values(rawData).find(v => typeof v === 'string' && /^\d{16}$/.test(v)) as string;
       if (nikRaw) {
         pemohon.nik = `${nikRaw.substring(0, 4)}********${nikRaw.substring(12)}`;
       }
       
-      // Look for Nama field
-      const nameKey = Object.keys(data).find(k => k.toLowerCase().includes('nama'));
+      const nameKey = Object.keys(rawData).find(k => k.toLowerCase().includes('nama'));
       if (nameKey) {
-        const nameRaw = data[nameKey];
+        const nameRaw = rawData[nameKey];
         if (typeof nameRaw === 'string') {
-           pemohon.nama = nameRaw.split(' ').map(w => w.length > 1 ? w[0] + '*'.repeat(w.length - 1) : w).join(' ');
+          pemohon.nama = nameRaw.split(' ').map(w => w.length > 1 ? w[0] + '*'.repeat(w.length - 1) : w).join(' ');
         }
       }
     }
 
+    let downloadUrl: string | null = document.fileUrl;
+    if (document.status === 'REVOKED') {
+      downloadUrl = null;
+    } else if (document.fileUrl && document.fileUrl.includes('/uploads/')) {
+      const { generateDocumentAccessToken } = await import('../../utils/doc-token.js');
+      const docPath = document.fileUrl.split('/uploads/')[1];
+      if (docPath) {
+        const docToken = generateDocumentAccessToken(docPath, 15, 'download');
+        const sep = document.fileUrl.includes('?') ? '&' : '?';
+        downloadUrl = `${document.fileUrl}${sep}doc_token=${docToken}`;
+      }
+    }
+
+    const rawFoto = document.signature?.penandatangan?.account?.perangkatDesa?.fotoUrl || null;
+    let signatoryFotoUrl = rawFoto;
+    if (rawFoto && !rawFoto.startsWith('http://') && !rawFoto.startsWith('https://')) {
+      const { config } = await import('../../config/index.js');
+      const apiBase = config.apiUrl || 'http://localhost:3001';
+      signatoryFotoUrl = `${apiBase.replace(/\/$/, '')}${rawFoto.startsWith('/') ? '' : '/'}${rawFoto}`;
+    }
+
     return response.success(res, {
       nomorDokumen: document.nomorDokumen,
-      tanggal: document.createdAt,
+      tanggal: (document.signedAt || document.createdAt).toISOString(),
       jenisSurat: document.dokumen.nama,
       layanan: document.dokumen.layanan?.nama,
       status: document.status,
@@ -82,8 +111,9 @@ router.get(
         nama: document.signature.penandatangan.nama,
         jabatan: document.signature.penandatangan.jabatan,
         nip: document.signature.penandatangan.nip,
+        fotoUrl: signatoryFotoUrl,
       } : null,
-      fileUrl: document.fileUrl
+      fileUrl: downloadUrl
     }, 'Dokumen valid');
   })
 );

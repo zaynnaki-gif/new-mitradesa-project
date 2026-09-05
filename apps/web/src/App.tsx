@@ -110,7 +110,7 @@ import { useAuthStore } from './stores/auth.store';
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
   const { user, token, loading } = useAuthStore();
-  const isAdmin = user?.roles?.includes('ADMIN') || user?.roles?.includes('DEVELOPER') || user?.roles?.includes('superadmin');
+  const isAdmin = user?.roles?.includes('ADMIN') || user?.roles?.includes('DEVELOPER') || user?.roles?.includes('superadmin') || user?.roles?.includes('PIMPINAN') || user?.roles?.includes('pimpinan');
 
   if (loading) return <Loading />;
 
@@ -169,6 +169,7 @@ function App() {
             {/* Auth routes */}
             <Route path="/login" element={<LoginPage />} />
             <Route path="/verifikasi" element={<RequestOtpPage />} />
+            <Route path="/layanan/mandiri" element={<Navigate to="/verifikasi" replace />} />
 
             {/* Admin root redirect */}
             <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
@@ -547,6 +548,7 @@ function App() {
 
             {/* Public verification */}
             <Route path="/verifikasi/:token" element={<VerifyPage />} />
+            <Route path="/verify/:token" element={<VerifyPage />} />
 
             {/* 404 */}
             <Route path="*" element={<NotFoundPage />} />

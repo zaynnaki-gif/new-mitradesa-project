@@ -59,6 +59,7 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   SIGNED: { bg: '#d1fae5', text: '#065f46' },
   VERIFIED: { bg: '#dbeafe', text: '#1e40af' },
   ARCHIVED: { bg: '#fee2e2', text: '#991b1b' },
+  REVOKED: { bg: '#fee2e2', text: '#991b1b' },
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -67,6 +68,7 @@ const STATUS_LABELS: Record<string, string> = {
   SIGNED: 'Ditandatangani',
   VERIFIED: 'Terverifikasi',
   ARCHIVED: 'Diarsipkan',
+  REVOKED: 'Dicabut (Revoked)',
 };
 
 export default function DokumenDetailPage() {
@@ -80,7 +82,10 @@ export default function DokumenDetailPage() {
   const [showSignModal, setShowSignModal] = useState(false);
   const [penandaTangan, setPenandaTangan] = useState<PenandaTangan[]>([]);
   const [selectedPenandatangan, setSelectedPenandatangan] = useState('');
+  const [pin, setPin] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  const [showRevokeModal, setShowRevokeModal] = useState(false);
+  const [revokeReason, setRevokeReason] = useState('');
 
   const headers = { Authorization: `Bearer ${token}` };
 
@@ -123,10 +128,41 @@ export default function DokumenDetailPage() {
       const res = await fetch(`${API_URL}/documents/${id}/sign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ penandatanganId: selectedPenandatangan }),
+        body: JSON.stringify({
+          penandatanganId: selectedPenandatangan,
+          pin: pin || undefined,
+        }),
       });
-      if (!res.ok) throw new Error('Gagal menandatangani');
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.message || 'Gagal menandatangani');
+      }
       setShowSignModal(false);
+      setPin('');
+      fetchDocument();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleRevoke = async () => {
+    if (!id || !revokeReason.trim()) return;
+    setActionLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/documents/${id}/revoke`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ reason: revokeReason.trim() }),
+      });
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error?.message || errJson.message || 'Gagal mencabut dokumen');
+      }
+      setShowRevokeModal(false);
+      setRevokeReason('');
       fetchDocument();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
@@ -326,8 +362,53 @@ export default function DokumenDetailPage() {
                 Tandatangani
               </Button>
             )}
+            {document.status !== 'REVOKED' && (
+              <Button onClick={() => setShowRevokeModal(true)} style={{ backgroundColor: '#dc2626', color: 'white', border: 'none' }}>
+                Cabut Dokumen
+              </Button>
+            )}
           </div>
         </div>
+
+        {/* Revoke Modal */}
+        {showRevokeModal && (
+          <div className={styles.modalOverlay} onClick={() => setShowRevokeModal(false)}>
+            <div className={styles.modal} onClick={e => e.stopPropagation()}>
+              <div className={styles.modalHeader} style={{ borderBottom: '1px solid #fecaca' }}>
+                <h2 style={{ color: '#dc2626' }}>Cabut Dokumen Resmi</h2>
+                <button onClick={() => setShowRevokeModal(false)}>&times;</button>
+              </div>
+              <div className={styles.modalBody}>
+                <div style={{ backgroundColor: '#fef2f2', padding: '0.75rem 1rem', borderRadius: '0.375rem', marginBottom: '1rem', color: '#991b1b', fontSize: '0.875rem' }}>
+                  <strong>PERINGATAN:</strong> Dokumen yang dicabut akan dinyatakan tidak sah/tidak berlaku lagi. QR code dan link verifikasi akan menampilkan status dicabut secara publik.
+                </div>
+                <div className={styles.formGroup}>
+                  <label className={styles.label}>
+                    Alasan Pencabutan (Wajib) *
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="Contoh: Terjadi kekeliruan data pemohon pada surat ini..."
+                    value={revokeReason}
+                    onChange={e => setRevokeReason(e.target.value)}
+                    className={styles.select}
+                    style={{ width: '100%', resize: 'vertical' }}
+                  />
+                </div>
+              </div>
+              <div className={styles.modalFooter}>
+                <Button variant="outline" onClick={() => setShowRevokeModal(false)}>Batal</Button>
+                <Button
+                  onClick={handleRevoke}
+                  disabled={!revokeReason.trim() || actionLoading}
+                  style={{ backgroundColor: '#dc2626', color: 'white', border: 'none' }}
+                >
+                  {actionLoading ? 'Mencabut...' : 'Konfirmasi Cabut Dokumen'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Sign Modal */}
         {showSignModal && (
@@ -353,8 +434,22 @@ export default function DokumenDetailPage() {
                     ))}
                   </select>
                 </div>
+                <div className={styles.formGroup} style={{ marginTop: '1rem' }}>
+                  <label className={styles.label}>
+                    PIN Pribadi Penandatangan *
+                  </label>
+                  <input
+                    type="password"
+                    maxLength={6}
+                    placeholder="Masukkan PIN (cth: 1234)"
+                    value={pin}
+                    onChange={e => setPin(e.target.value)}
+                    className={styles.select}
+                    style={{ letterSpacing: '0.2em' }}
+                  />
+                </div>
                 <p className={styles.disclaimer}>
-                  Dengan menandatangani, Anda menyatakan bahwa dokumen ini telah disetujui dan ditandatangani secara resmi.
+                  Dengan menandatangani, Anda menyatakan bahwa dokumen ini telah disetujui dan ditandatangani secara resmi menggunakan TTE internal yang sah.
                 </p>
               </div>
               <div className={styles.modalFooter}>

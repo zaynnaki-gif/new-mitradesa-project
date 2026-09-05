@@ -247,30 +247,33 @@ async function main() {
   }
 
   // ============================================
-  // DEVELOPMENT ACCOUNTS
+  // DEVELOPMENT ACCOUNTS (NON-PRODUCTION ONLY)
   // ============================================
-  console.log('Creating development accounts...');
+  if (process.env.NODE_ENV === 'production') {
+    console.log('Production environment detected: Skipping development accounts (admin/pimpinan/developer) creation.');
+  } else {
+    console.log('Creating development accounts for local/staging...');
 
-  const developmentAccounts = [
-    {
-      username: 'admin',
-      email: 'admin@mitradesa.local',
-      password: 'admin123',
-      roleCode: 'ADMIN',
-    },
-    {
-      username: 'pimpinan',
-      email: 'pimpinan@mitradesa.local',
-      password: 'pimpinan123',
-      roleCode: 'PIMPINAN',
-    },
-    {
-      username: 'developer',
-      email: 'developer@mitradesa.local',
-      password: 'dev123',
-      roleCode: 'DEVELOPER',
-    },
-  ];
+    const developmentAccounts = [
+      {
+        username: 'admin',
+        email: 'admin@mitradesa.local',
+        password: 'admin123',
+        roleCode: 'ADMIN',
+      },
+      {
+        username: 'pimpinan',
+        email: 'pimpinan@mitradesa.local',
+        password: 'pimpinan123',
+        roleCode: 'PIMPINAN',
+      },
+      {
+        username: 'developer',
+        email: 'developer@mitradesa.local',
+        password: 'dev123',
+        roleCode: 'DEVELOPER',
+      },
+    ];
 
   for (const account of developmentAccounts) {
     const role = await prisma.role.findUnique({ where: { code: account.roleCode } });
@@ -302,7 +305,8 @@ async function main() {
 
       console.log(`Created account: ${account.username}`);
     } else {
-      console.log(`Account already exists: ${account.username}`);
+        console.log(`Account already exists: ${account.username}`);
+      }
     }
   }
 

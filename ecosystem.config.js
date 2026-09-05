@@ -2,12 +2,11 @@ module.exports = {
   apps: [
     {
       name: 'mitradesa-api',
-      cwd: './apps/api',
-      script: 'dist/index.js',
-      instances: 'max',
-      exec_mode: 'cluster',
+      script: './dist/index.js',
+      instances: 1,
+      exec_mode: 'fork',
       watch: false,
-      max_memory_restart: '1G',
+      max_memory_restart: '512M',
       listen_timeout: 10000,
       kill_timeout: 10000,
       wait_ready: true,

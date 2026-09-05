@@ -17,6 +17,7 @@ interface VerificationResult {
     nama: string;
     jabatan: string;
     nip?: string;
+    fotoUrl?: string | null;
   };
   fileUrl?: string;
 }
@@ -44,6 +45,7 @@ export default function VerificationPage() {
   const [result, setResult] = useState<VerificationResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
     if (!token) {
@@ -172,6 +174,27 @@ export default function VerificationPage() {
           <div className={styles.infoSectionTitle}>Profil Penandatangan</div>
           {result.penandatangan ? (
             <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px', padding: '12px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                {result.penandatangan.fotoUrl && !imageError ? (
+                  <img
+                    src={result.penandatangan.fotoUrl}
+                    alt={result.penandatangan.nama}
+                    onError={() => setImageError(true)}
+                    style={{ width: '64px', height: '64px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #0284c7' }}
+                  />
+                ) : (
+                  <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#e0f2fe', color: '#0369a1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '24px', border: '2px solid #38bdf8' }}>
+                    {result.penandatangan.nama.charAt(0)}
+                  </div>
+                )}
+                <div>
+                  <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '15px' }}>{result.penandatangan.nama}</div>
+                  <div style={{ color: '#64748b', fontSize: '13px' }}>{result.penandatangan.jabatan}</div>
+                  {result.penandatangan.nip && (
+                    <div style={{ color: '#94a3b8', fontSize: '12px', fontFamily: 'monospace' }}>NIP. {result.penandatangan.nip}</div>
+                  )}
+                </div>
+              </div>
               <div className={styles.infoRow}>
                 <span className={styles.infoLabel}>Nama Penandatangan</span>
                 <span className={styles.infoValue}>{result.penandatangan.nama}</span>
@@ -193,6 +216,37 @@ export default function VerificationPage() {
             </div>
           )}
         </div>
+
+        {result.fileUrl && result.status !== 'REVOKED' && (
+          <div style={{ marginTop: '20px', textAlign: 'center' }}>
+            <a
+              href={result.fileUrl.startsWith('http') ? result.fileUrl : `${API_URL}${result.fileUrl}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                padding: '12px 24px',
+                backgroundColor: '#0284c7',
+                color: '#ffffff',
+                fontWeight: 600,
+                borderRadius: '8px',
+                textDecoration: 'none',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                transition: 'background-color 0.2s',
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              Unduh Dokumen Asli (PDF)
+            </a>
+          </div>
+        )}
 
         {/* Footer */}
         <p className={styles.footer}>

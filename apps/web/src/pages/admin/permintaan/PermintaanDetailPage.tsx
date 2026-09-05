@@ -402,7 +402,10 @@ export default function PermintaanDetailPage() {
                         {doc.status === 'SIGNED' ? 'Ditandatangani' : 'Dibuat'}
                       </span>
                     </div>
-                  <div className={styles.documentActions}>
+                    <div className={styles.documentActions}>
+                      <a href={`/admin/dokumen/${doc.id}`} className={styles.documentLink}>
+                        Detail / TTE
+                      </a>
                       {doc.fileUrl && (
                         <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className={`${styles.documentLink} ${styles.documentLinkGreen}`}>
                           Download

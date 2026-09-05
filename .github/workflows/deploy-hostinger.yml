@@ -63,7 +63,7 @@ jobs:
               apps/api/prisma/ $SSH_USER@$SSH_HOST:$DEST_PATH/prisma/ && \
             sshpass -e rsync -avz --timeout=60 \
               -e "ssh $SSH_OPTS" \
-              apps/api/.env apps/api/package.json \
+              apps/api/.env apps/api/package.json ecosystem.config.js \
               $SSH_USER@$SSH_HOST:$DEST_PATH/ && \
             echo "Upload berhasil!" && break || {
               echo "Attempt $attempt gagal. Tunggu 15s..."
@@ -81,6 +81,8 @@ jobs:
           request_pty: true
           command_timeout: 5m
           script: |
+            set -e # Strict fail-fast mode
+
             # Source profile untuk load NVM / Node path
             for f in ~/.bashrc ~/.bash_profile ~/.profile; do
               [ -f "$f" ] && source "$f" 2>/dev/null && break
@@ -103,17 +105,44 @@ jobs:
             cd ${{ secrets.HOSTINGER_API_PATH }}
             npm install --omit=dev --quiet
 
-            # Jalankan migrasi database otomatis sebelum restart
-            echo "Menjalankan migrasi database (prisma migrate deploy)..."
-            npx prisma migrate deploy || { echo "Migrasi database gagal!"; exit 1; }
+            # 1. Automated Pre-Migration Database Backup (Safety Snapshot)
+            echo "Membuat cadangan database sebelum migrasi (automated pre-migration snapshot)..."
+            mkdir -p ./backups
+            BACKUP_FILE="./backups/db_backup_$(date +%Y%m%d_%H%M%S).sql"
+            if [ -n "$DATABASE_URL" ] && command -v pg_dump >/dev/null 2>&1; then
+              pg_dump "$DATABASE_URL" > "$BACKUP_FILE" 2>/dev/null && echo "Backup database tersimpan di $BACKUP_FILE" || echo "Warning: pg_dump gagal atau tidak diizinkan di host ini, melanjutkan dengan hati-hati."
+            fi
 
+            # 2. Jalankan migrasi database resmi dengan fail-fast guard
+            echo "Menjalankan migrasi database (prisma migrate deploy)..."
+            PRISMA_BIN="./node_modules/.bin/prisma"
+            if [ ! -x "$PRISMA_BIN" ]; then PRISMA_BIN="npx prisma"; fi
+            if ! $PRISMA_BIN migrate deploy; then
+              echo "=========================================================="
+              echo "FATAL: prisma migrate deploy GAGAL!"
+              echo "Deployment dihentikan segera (fail-fast). PM2 TIDAK di-restart."
+              echo "Database dan kode lama tetap berjalan untuk mencegah downtime."
+              echo "=========================================================="
+              exit 1
+            fi
+            echo "Migrasi database berhasil diaplikasikan 100%."
+
+            # 3. Graceful reload via PM2 ecosystem & Passenger restart trigger
             [ -f "./node_modules/.bin/pm2" ] || npm install pm2 --save-dev --quiet
             PM2="./node_modules/.bin/pm2"
-            $PM2 stop mitradesa-api 2>/dev/null || true
-            $PM2 delete mitradesa-api 2>/dev/null || true
-            $PM2 start dist/index.js --name mitradesa-api
-            $PM2 save --force
-            $PM2 list
+            if [ -f "./ecosystem.config.js" ]; then
+              $PM2 startOrReload ecosystem.config.js --env production || true
+            else
+              $PM2 stop mitradesa-api 2>/dev/null || true
+              $PM2 delete mitradesa-api 2>/dev/null || true
+              $PM2 start dist/index.js --name mitradesa-api || true
+            fi
+            $PM2 save --force || true
+            $PM2 list || true
+
+            # LiteSpeed / CloudLinux Passenger restart trigger
+            mkdir -p tmp && touch tmp/restart.txt
+
 
       - name: Show post-deploy instructions
         if: always()

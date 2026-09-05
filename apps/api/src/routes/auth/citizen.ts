@@ -20,6 +20,77 @@ const verifyOtpSchema = z.object({
   otp: z.string().length(6, 'OTP must be 6 digits'),
 });
 
+const recoverAccessSchema = z.object({
+  nik: z.string().length(16, 'NIK harus 16 digit angka'),
+  noKk: z.string().length(16, 'Nomor Kartu Keluarga (KK) harus 16 digit angka'),
+  telepon: z.string().min(10, 'Nomor telepon minimal 10 digit').max(15, 'Nomor telepon maksimal 15 digit'),
+});
+
+const cancelRecoverySchema = z.object({
+  nik: z.string().length(16, 'NIK harus 16 digit angka'),
+  cancellationCode: z.string().min(4, 'Kode pembatalan tidak valid'),
+});
+
+/**
+ * @route   POST /api/auth/citizen/recover-access
+ * @desc    Recover citizen access online via NIK + No KK verification & update WhatsApp number with Grace Period
+ * @access  Public
+ */
+router.post(
+  '/recover-access',
+  otpRequestRateLimiter,
+  asyncHandler(async (req: Request, res: Response) => {
+    const { nik, noKk, telepon } = recoverAccessSchema.parse(req.body);
+
+    const result = await otpService.recoverAccessWithKk(
+      nik,
+      noKk,
+      telepon,
+      req.ip,
+      req.headers['user-agent']
+    );
+
+    const maskedNik = `${nik.substring(0, 6)}******${nik.substring(12)}`;
+
+    return response.success(res, {
+      challenge: result.challenge,
+      message: `Nomor WhatsApp berhasil diperbarui ke ${result.maskedPhone}. Kode OTP telah dikirimkan. Masa tenggang pembatalan (Grace Period): ${result.gracePeriodMinutes} menit.`,
+      maskedNik,
+      maskedPhone: result.maskedPhone,
+      gracePeriodMinutes: result.gracePeriodMinutes,
+      gracePeriodEndsAt: result.gracePeriodEndsAt,
+      // Cancellation code disertakan di development untuk kemudahan automated testing / audit
+      ...(process.env.NODE_ENV !== 'production' && { cancellationCode: result.cancellationCode }),
+    });
+  })
+);
+
+/**
+ * @route   POST /api/auth/citizen/cancel-recovery
+ * @desc    Cancel a pending recovery within the grace period (Emergency rollback)
+ * @access  Public
+ */
+router.post(
+  '/cancel-recovery',
+  otpRequestRateLimiter,
+  asyncHandler(async (req: Request, res: Response) => {
+    const { nik, cancellationCode } = cancelRecoverySchema.parse(req.body);
+
+    const result = await otpService.cancelRecovery(
+      nik,
+      cancellationCode,
+      req.ip,
+      req.headers['user-agent']
+    );
+
+    return response.success(res, {
+      success: result.success,
+      message: result.message,
+      restoredPhone: result.restoredPhone,
+    });
+  })
+);
+
 /**
  * @route   POST /api/auth/citizen/request-otp
  * @desc    Request OTP for citizen authentication
