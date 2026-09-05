@@ -21,7 +21,17 @@ if ($method === 'OPTIONS') {
     exit;
 }
 
-$targetUrl = $backendBase . $requestUri;
+// Parse path and query
+$parsedUrl = parse_url($requestUri);
+$path = $parsedUrl['path'] ?? '/';
+$query = isset($parsedUrl['query']) ? '?' . $parsedUrl['query'] : '';
+
+// Ensure path has /api prefix for Express backend routes
+if (strpos($path, '/api') !== 0) {
+    $path = '/api' . (strpos($path, '/') === 0 ? $path : '/' . $path);
+}
+
+$targetUrl = $backendBase . $path . $query;
 
 $ch = curl_init($targetUrl);
 
