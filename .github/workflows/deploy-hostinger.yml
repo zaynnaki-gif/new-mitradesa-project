@@ -77,42 +77,50 @@ jobs:
           done
 
           echo "=== Executing remote sync & diagnostics on Hostinger ==="
-          sshpass -e ssh $SSH_OPTS $SSH_USER@$SSH_HOST "
-            echo \"=== REMOTE PWD: \$(pwd) ===\"
-            echo \"=== PROCESSES ===\"
+          sshpass -e ssh $SSH_OPTS $SSH_USER@$SSH_HOST 'bash -s' << 'EOF'
+            echo "=== REMOTE PWD: $(pwd) ==="
+            echo "=== PROCESSES ==="
             ps aux || ps -ef
-            echo \"=== DOMAIN ROOT ===\"
-            ls -la /home/u800256894/domains/indigo-barracuda-105731.hostingersite.com/
-            echo \"=== HBUILDS DIR ===\"
-            ls -la /home/u800256894/domains/indigo-barracuda-105731.hostingersite.com/hbuilds/ || true
-            echo \"=== HBUILDS CURRENT ===\"
-            ls -la /home/u800256894/domains/indigo-barracuda-105731.hostingersite.com/hbuilds/current/ || true
 
             for target_dir in \
               /home/u800256894/domains/indigo-barracuda-105731.hostingersite.com/hbuilds/current/nodejs \
               /home/u800256894/domains/indigo-barracuda-105731.hostingersite.com/hbuilds/current \
-              \$HOME/domains/indigo-barracuda-105731.hostingersite.com/hbuilds/current/nodejs
+              $HOME/domains/indigo-barracuda-105731.hostingersite.com/hbuilds/current/nodejs
             do
-              if [ -d \"\$target_dir\" ]; then
-                echo \"Syncing to \$target_dir...\"
-                mkdir -p \"\$target_dir/dist\" \"\$target_dir/prisma\" \"\$target_dir/tmp\"
-                cp -rf $DEST_PATH/dist/* \"\$target_dir/dist/\" 2>/dev/null || true
-                cp -rf $DEST_PATH/prisma/* \"\$target_dir/prisma/\" 2>/dev/null || true
-                cp -f $DEST_PATH/.env \"\$target_dir/.env\" 2>/dev/null || true
-                touch \"\$target_dir/tmp/restart.txt\"
-                echo \"Content of \$target_dir/dist:\"; ls -la \"\$target_dir/dist/\"
+              if [ -d "$target_dir" ]; then
+                echo "Syncing to $target_dir..."
+                mkdir -p "$target_dir/dist" "$target_dir/prisma" "$target_dir/tmp"
+                cp -rf /home/u800256894/domains/indigo-barracuda-105731.hostingersite.com/nodejs/dist/* "$target_dir/dist/" 2>/dev/null || true
+                cp -rf /home/u800256894/domains/indigo-barracuda-105731.hostingersite.com/nodejs/prisma/* "$target_dir/prisma/" 2>/dev/null || true
+                cp -f /home/u800256894/domains/indigo-barracuda-105731.hostingersite.com/nodejs/.env "$target_dir/.env" 2>/dev/null || true
+                touch "$target_dir/tmp/restart.txt"
+                echo "Content of $target_dir/dist:"; ls -la "$target_dir/dist/"
               fi
             done
 
-            echo \"Terminating lsnode worker process to trigger fresh cold-start...\"
-            pkill -9 -f 'lsnode' || true
-            killall -9 lsnode 2>/dev/null || true
+            echo "=== TESTING DIRECT NODE STARTUP IN TARGET DIR ==="
+            cd /home/u800256894/domains/indigo-barracuda-105731.hostingersite.com/hbuilds/current/nodejs 2>/dev/null || true
+            /opt/alt/alt-nodejs18/root/bin/node -e "
+              console.log('Node version on server:', process.version);
+              try {
+                require('./dist/index.js');
+                console.log('dist/index.js executed without synchronous throw');
+              } catch(e) {
+                console.error('Error requiring dist/index.js:', e);
+              }
+            " 2>&1 | head -n 30 || true
+
+            echo "Terminating lsnode worker process safely..."
+            for pid in $(pgrep -u $(id -u) -f 'domains/indigo-barracuda' 2>/dev/null); do
+              if [ "$pid" != "$$" ] && [ "$pid" != "$PPID" ]; then
+                echo "Terminating worker PID $pid"
+                kill -9 "$pid" 2>/dev/null || true
+              fi
+            done
             touch /home/u800256894/domains/indigo-barracuda-105731.hostingersite.com/hbuilds/current/nodejs/tmp/restart.txt 2>/dev/null || true
-            echo \"=== PROCESSES AFTER PKILL ===\"
-            ps aux || ps -ef
-            echo \"Worker terminated. LiteSpeed will spawn fresh process on next request.\"
+            echo "Cold restart signaled. Exiting cleanly."
             exit 0
-          "
+EOF
 
       - name: Show post-deploy instructions
         if: always()

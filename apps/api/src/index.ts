@@ -11,10 +11,8 @@ import { app } from './app.js';
 import { prisma } from './services/prisma.js';
 import { setServerDraining } from './utils/lifecycle.js';
 
-// Verify Desa ID against database before starting
-// eslint-disable-next-line no-console
+// Verify Desa ID against database
 async function verifyInstanceIdentity() {
-  // eslint-disable-next-line no-console
   console.info(`[VERIFICATION] Memverifikasi Instance Desa (ID: ${config.desaId})...`);
   try {
     const desa = await prisma.desa.findUnique({
@@ -22,24 +20,19 @@ async function verifyInstanceIdentity() {
     });
     
     if (!desa) {
-      // eslint-disable-next-line no-console
       console.error(`[FATAL ERROR] Instance Desa dengan ID ${config.desaId} tidak ditemukan di database.`);
-      process.exit(1);
+    } else {
+      console.info(`[VERIFICATION] Instance valid: ${desa.nama}`);
     }
-    // eslint-disable-next-line no-console
-    console.info(`[VERIFICATION] Instance valid: ${desa.nama}`);
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.error(`[FATAL ERROR] Gagal memverifikasi database:`, err);
-    process.exit(1);
   }
 }
 
 // Start server
 const startServer = async () => {
-  await verifyInstanceIdentity();
-
-  const server = app.listen(config.apiPort, () => {
+  const listenPort = process.env.PORT || config.apiPort;
+  const server = app.listen(listenPort, () => {
     // eslint-disable-next-line no-console
     console.info(`
 ╔═══════════════════════════════════════════════════════╗
@@ -49,12 +42,15 @@ const startServer = async () => {
 ║                                                       ║
 ╠═══════════════════════════════════════════════════════╣
 ║                                                       ║
-║   Server:      ${`http://localhost:${config.apiPort}`.padEnd(40)}║
+║   Server:      ${`http://localhost:${listenPort}`.padEnd(40)}║
 ║   Environment:  ${config.nodeEnv.toUpperCase().padEnd(40)}║
 ║   Version:      ${config.appVersion.padEnd(40)}║
 ║                                                       ║
 ╚═══════════════════════════════════════════════════════╝
   `);
+
+    // Run instance identity check
+    void verifyInstanceIdentity();
 
     // Notify process manager (PM2 / systemd) that server is ready to accept traffic
     if (typeof process.send === 'function') {
