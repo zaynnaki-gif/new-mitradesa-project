@@ -78,7 +78,9 @@ jobs:
 
           echo "=== Executing remote sync & diagnostics on Hostinger ==="
           sshpass -e ssh $SSH_OPTS $SSH_USER@$SSH_HOST "
+            export PATH=/opt/alt/alt-nodejs18/root/bin:\$PATH
             echo \"=== REMOTE PWD: \$(pwd) ===\"
+            echo \"=== NODE & NPM PATH: \$(which node) | \$(which npm) ===\"
             echo \"=== PROCESSES ===\"
             ps aux || ps -ef
 

@@ -1,8 +1,6 @@
 /* eslint-disable no-console */
 import { IStorageProvider } from './types.js';
 import { LocalStorageProvider } from './LocalStorageProvider.js';
-import { S3StorageProvider } from './S3StorageProvider.js';
-import { SupabaseStorageProvider } from './SupabaseStorageProvider.js';
 
 let storageProvider: IStorageProvider | null = null;
 
@@ -19,11 +17,13 @@ export function getStorageProvider(): IStorageProvider {
     return storageProvider;
   }
 
-  const backend = process.env.STORAGE_PROVIDER || 'local';
+  const backend = process.env.STORAGE_PROVIDER || process.env.STORAGE_BACKEND || 'local';
 
   switch (backend) {
     case 'supabase':
       try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const { SupabaseStorageProvider } = require('./SupabaseStorageProvider.js');
         storageProvider = new SupabaseStorageProvider();
         console.log('Using Supabase Storage provider');
       } catch (error) {
@@ -33,6 +33,8 @@ export function getStorageProvider(): IStorageProvider {
       break;
     case 's3':
       try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const { S3StorageProvider } = require('./S3StorageProvider.js');
         storageProvider = new S3StorageProvider();
       } catch (error) {
         console.warn('S3 storage provider failed to initialize, falling back to local:', error);
