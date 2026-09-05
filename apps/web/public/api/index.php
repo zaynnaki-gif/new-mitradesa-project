@@ -31,6 +31,14 @@ if (strpos($path, '/api') !== 0) {
     $path = '/api' . (strpos($path, '/') === 0 ? $path : '/' . $path);
 }
 
+// Route aliases for document verification
+if (strpos($path, '/public/verify/') !== false) {
+    $path = str_replace('/public/verify/', '/documents/public/verify/', $path);
+}
+if (strpos($path, '/public/verifikasi/') !== false) {
+    $path = str_replace('/public/verifikasi/', '/documents/public/verify/', $path);
+}
+
 $targetUrl = $backendBase . $path . $query;
 
 $ch = curl_init($targetUrl);

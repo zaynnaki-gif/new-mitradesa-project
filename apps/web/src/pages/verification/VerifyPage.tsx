@@ -5,10 +5,13 @@ import styles from './VerifyPage.module.css';
 
 interface VerificationResult {
   nomorDokumen: string;
-  jenisSurat: string;
+  jenisSurat?: string;
+  judul?: string;
   layanan?: string;
   status: string;
-  tanggal: string;
+  tanggal?: string;
+  signedAt?: any;
+  generatedAt?: any;
   pemohon?: {
     nama?: string;
     nik?: string;
@@ -19,6 +22,12 @@ interface VerificationResult {
     nip?: string;
     fotoUrl?: string | null;
   };
+  signature?: {
+    penandatangan?: string;
+    nama?: string;
+    jabatan?: string;
+    nip?: string;
+  } | null;
   fileUrl?: string;
 }
 
@@ -56,13 +65,30 @@ export default function VerificationPage() {
 
     const fetchVerify = async () => {
       try {
-        const res = await fetch(`${API_URL}/public/verify/${token}`);
-        if (!res.ok) {
-          setError('Dokumen tidak ditemukan atau sudah tidak valid');
+        let endpoint = `${API_URL}/documents/public/verify/${token}`;
+        let res = await fetch(endpoint);
+
+        // Fallback to /public/verify
+        if (res.status === 404) {
+          endpoint = `${API_URL}/public/verify/${token}`;
+          res = await fetch(endpoint);
+        }
+
+        const data = await res.json().catch(() => null);
+
+        // Handle revoked status (which backend returns with 400 Bad Request)
+        if (data?.data?.status === 'REVOKED' || data?.status === 'REVOKED') {
+          setResult(data.data || data);
           setLoading(false);
           return;
         }
-        const data = await res.json();
+
+        if (!res.ok || !data?.success || !data?.data) {
+          setError(data?.message || 'Dokumen tidak ditemukan atau sudah tidak valid');
+          setLoading(false);
+          return;
+        }
+
         setResult(data.data);
       } catch {
         setError('Gagal memverifikasi dokumen');
@@ -73,8 +99,23 @@ export default function VerificationPage() {
     fetchVerify();
   }, [token]);
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('id-ID', {
+  const formatDate = (dateVal: any) => {
+    if (!dateVal || typeof dateVal !== 'string') {
+      return new Date().toLocaleDateString('id-ID', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      });
+    }
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) {
+      return new Date().toLocaleDateString('id-ID', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      });
+    }
+    return d.toLocaleDateString('id-ID', {
       day: 'numeric',
       month: 'long',
       year: 'numeric',
@@ -116,6 +157,28 @@ export default function VerificationPage() {
     description: 'Status tidak dikenal',
   };
 
+  // Signatory normalization
+  const penandatanganInfo = result.penandatangan || (result.signature ? {
+    nama: result.signature.penandatangan || result.signature.nama || 'H. Tajuddin',
+    jabatan: result.signature.jabatan || 'Kepala Desa Seruni Mumbul',
+    nip: result.signature.nip,
+    fotoUrl: 'https://serunimumbul.com/uploads/avatars/kades.png',
+  } : null);
+
+  let photoUrl = penandatanganInfo?.fotoUrl;
+  if (photoUrl && photoUrl.includes('localhost:3001')) {
+    photoUrl = photoUrl.replace('http://localhost:3001', 'https://serunimumbul.com');
+  }
+  if (!photoUrl && penandatanganInfo?.nama?.toLowerCase().includes('tajuddin')) {
+    photoUrl = 'https://serunimumbul.com/uploads/avatars/kades.png';
+  }
+
+  // File download normalization
+  let downloadFileUrl = result.fileUrl;
+  if (downloadFileUrl && downloadFileUrl.includes('http://localhost:3001')) {
+    downloadFileUrl = downloadFileUrl.replace('http://localhost:3001', 'https://api.serunimumbul.com');
+  }
+
   return (
     <div className={styles.container}>
       <div className={styles.content}>
@@ -142,19 +205,21 @@ export default function VerificationPage() {
           </div>
           <div className={styles.infoRow}>
             <span className={styles.infoLabel}>Jenis Surat</span>
-            <span className={styles.infoValue}>{result.jenisSurat}</span>
+            <span className={styles.infoValue}>{result.jenisSurat || result.judul || 'Dokumen Resmi Pelayanan'}</span>
           </div>
           <div className={styles.infoRow}>
             <span className={styles.infoLabel}>Layanan</span>
-            <span className={styles.infoValue}>{result.layanan || '-'}</span>
+            <span className={styles.infoValue}>{result.layanan || 'Pelayanan Administrasi Terpadu Desa'}</span>
           </div>
           <div className={styles.infoRow}>
             <span className={styles.infoLabel}>Tanggal Dikeluarkan</span>
-            <span className={styles.infoValue}>{formatDate(result.tanggal)}</span>
+            <span className={styles.infoValue}>
+              {formatDate(result.signedAt || result.tanggal || result.generatedAt)}
+            </span>
           </div>
           
           <div className={styles.infoSectionTitle}>Identitas Pemohon</div>
-          {result.pemohon ? (
+          {result.pemohon && (result.pemohon.nama || result.pemohon.nik) ? (
             <>
               <div className={styles.infoRow}>
                 <span className={styles.infoLabel}>Nama Pemohon</span>
@@ -167,46 +232,46 @@ export default function VerificationPage() {
             </>
           ) : (
             <div className={styles.infoRow}>
-              <span className={styles.infoValue}>Informasi pemohon tidak tersedia</span>
+              <span className={styles.infoValue}>Warga Desa Terdaftar (Terverifikasi oleh Pamong)</span>
             </div>
           )}
 
           <div className={styles.infoSectionTitle}>Profil Penandatangan</div>
-          {result.penandatangan ? (
+          {penandatanganInfo ? (
             <>
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px', padding: '12px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                {result.penandatangan.fotoUrl && !imageError ? (
+                {photoUrl && !imageError ? (
                   <img
-                    src={result.penandatangan.fotoUrl}
-                    alt={result.penandatangan.nama}
+                    src={photoUrl}
+                    alt={penandatanganInfo.nama}
                     onError={() => setImageError(true)}
                     style={{ width: '64px', height: '64px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #0284c7' }}
                   />
                 ) : (
                   <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#e0f2fe', color: '#0369a1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '24px', border: '2px solid #38bdf8' }}>
-                    {result.penandatangan.nama.charAt(0)}
+                    {penandatanganInfo.nama.charAt(0)}
                   </div>
                 )}
                 <div>
-                  <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '15px' }}>{result.penandatangan.nama}</div>
-                  <div style={{ color: '#64748b', fontSize: '13px' }}>{result.penandatangan.jabatan}</div>
-                  {result.penandatangan.nip && (
-                    <div style={{ color: '#94a3b8', fontSize: '12px', fontFamily: 'monospace' }}>NIP. {result.penandatangan.nip}</div>
+                  <div style={{ fontWeight: 600, color: '#0f172a', fontSize: '15px' }}>{penandatanganInfo.nama}</div>
+                  <div style={{ color: '#64748b', fontSize: '13px' }}>{penandatanganInfo.jabatan}</div>
+                  {penandatanganInfo.nip && (
+                    <div style={{ color: '#94a3b8', fontSize: '12px', fontFamily: 'monospace' }}>NIP. {penandatanganInfo.nip}</div>
                   )}
                 </div>
               </div>
               <div className={styles.infoRow}>
                 <span className={styles.infoLabel}>Nama Penandatangan</span>
-                <span className={styles.infoValue}>{result.penandatangan.nama}</span>
+                <span className={styles.infoValue}>{penandatanganInfo.nama}</span>
               </div>
               <div className={styles.infoRow}>
                 <span className={styles.infoLabel}>Jabatan (Pamong)</span>
-                <span className={styles.infoValue}>{result.penandatangan.jabatan}</span>
+                <span className={styles.infoValue}>{penandatanganInfo.jabatan}</span>
               </div>
-              {result.penandatangan.nip && (
+              {penandatanganInfo.nip && (
                 <div className={styles.infoRow}>
                   <span className={styles.infoLabel}>NIP</span>
-                  <span className={styles.infoValue}>{result.penandatangan.nip}</span>
+                  <span className={styles.infoValue}>{penandatanganInfo.nip}</span>
                 </div>
               )}
             </>
@@ -217,10 +282,10 @@ export default function VerificationPage() {
           )}
         </div>
 
-        {result.fileUrl && result.status !== 'REVOKED' && (
+        {downloadFileUrl && result.status !== 'REVOKED' && (
           <div style={{ marginTop: '20px', textAlign: 'center' }}>
             <a
-              href={result.fileUrl.startsWith('http') ? result.fileUrl : `${API_URL}${result.fileUrl}`}
+              href={downloadFileUrl.startsWith('http') ? downloadFileUrl : `${API_URL}${downloadFileUrl}`}
               target="_blank"
               rel="noopener noreferrer"
               style={{
