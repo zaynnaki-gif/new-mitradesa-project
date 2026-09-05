@@ -77,20 +77,12 @@ curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
 curl_setopt($ch, CURLOPT_TIMEOUT, 60);
 
 // Prevent "getaddrinfo() thread failed to start" on LiteSpeed/CloudLinux thread limits
-$resolveList = [];
-$dynamicIps = @gethostbynamel($backendHost);
-if (!empty($dynamicIps)) {
-    foreach ($dynamicIps as $dip) {
-        $resolveList[] = "$backendHost:443:$dip";
-        $resolveList[] = "$backendHost:80:$dip";
-    }
-}
-$resolveList[] = "$backendHost:443:185.124.137.126";
-$resolveList[] = "$backendHost:443:91.108.119.30";
-$resolveList[] = "$backendHost:80:185.124.137.126";
-$resolveList[] = "$backendHost:80:91.108.119.30";
-
-curl_setopt($ch, CURLOPT_RESOLVE, array_unique($resolveList));
+curl_setopt($ch, CURLOPT_RESOLVE, [
+    "indigo-barracuda-105731.hostingersite.com:443:185.124.137.126",
+    "indigo-barracuda-105731.hostingersite.com:443:91.108.119.30",
+    "indigo-barracuda-105731.hostingersite.com:80:185.124.137.126",
+    "indigo-barracuda-105731.hostingersite.com:80:91.108.119.30"
+]);
 curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
 curl_setopt($ch, CURLOPT_NOSIGNAL, 1);
 

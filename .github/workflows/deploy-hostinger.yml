@@ -134,6 +134,7 @@ jobs:
 
   deploy-web:
     name: Deploy Web
+    needs: [deploy-api]
     runs-on: ubuntu-latest
     environment: production
 
