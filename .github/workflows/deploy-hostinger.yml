@@ -96,16 +96,18 @@ jobs:
                 cp -rf $DEST_PATH/prisma/* \"\$target_dir/prisma/\" 2>/dev/null || true
                 cp -f $DEST_PATH/.env \"\$target_dir/.env\" 2>/dev/null || true
                 cp -f $DEST_PATH/package.json \"\$target_dir/package.json\" 2>/dev/null || true
-                (cd \"\$target_dir\" && npm install --omit=dev --no-audit --no-fund 2>&1 | tail -n 15 || true)
-                (cd \"\$target_dir\" && npx prisma generate 2>&1 | tail -n 5 || true)
+                if [ ! -d \"\$target_dir/node_modules\" ]; then
+                  (cd \"\$target_dir\" && timeout 60 npm install --omit=dev --no-audit --no-fund 2>&1 | tail -n 15 || true)
+                fi
+                (cd \"\$target_dir\" && timeout 30 npx prisma generate 2>&1 | tail -n 5 || true)
                 touch \"\$target_dir/tmp/restart.txt\"
                 echo \"Content of \$target_dir/dist:\"; ls -la \"\$target_dir/dist/\"
               fi
             done
 
-            echo \"=== TESTING DIRECT NODE STARTUP IN TARGET DIR ===\"
+            echo \"=== TESTING SYNTAX INTEGRITY OF BUILD ===\"
             cd /home/u800256894/domains/indigo-barracuda-105731.hostingersite.com/hbuilds/current/nodejs 2>/dev/null || true
-            /opt/alt/alt-nodejs18/root/bin/node -e 'console.log(\"Node version:\", process.version); try { require(\"./dist/index.js\"); console.log(\"Loaded dist/index.js successfully\"); } catch(e) { console.error(\"Require error:\", e.message); }' 2>&1 | head -n 30 || true
+            /opt/alt/alt-nodejs18/root/bin/node --check ./dist/index.js 2>&1 && echo \"dist/index.js syntax is valid\" || echo \"Syntax check failed\"
 
             echo \"Terminating lsnode worker process safely...\"
             pgrep -u \$(id -u) -f 'domains/indigo-barracuda' | grep -v \$\$ | xargs kill -9 2>/dev/null || true

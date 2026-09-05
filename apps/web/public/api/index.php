@@ -76,9 +76,66 @@ curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
 curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
 curl_setopt($ch, CURLOPT_TIMEOUT, 60);
 
+// Prevent "getaddrinfo() thread failed to start" on LiteSpeed/CloudLinux thread limits
+$resolveList = [];
+$dynamicIps = @gethostbynamel($backendHost);
+if (!empty($dynamicIps)) {
+    foreach ($dynamicIps as $dip) {
+        $resolveList[] = "$backendHost:443:$dip";
+        $resolveList[] = "$backendHost:80:$dip";
+    }
+}
+$resolveList[] = "$backendHost:443:185.124.137.126";
+$resolveList[] = "$backendHost:443:91.108.119.30";
+$resolveList[] = "$backendHost:80:185.124.137.126";
+$resolveList[] = "$backendHost:80:91.108.119.30";
+
+curl_setopt($ch, CURLOPT_RESOLVE, array_unique($resolveList));
+curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
+curl_setopt($ch, CURLOPT_NOSIGNAL, 1);
+
 $response = curl_exec($ch);
 
 if ($response === false) {
+    // Fallback: native PHP stream context without cURL threads
+    $streamHeaders = [];
+    foreach ($headers as $h) {
+        $streamHeaders[] = $h;
+    }
+    $contextOptions = [
+        'http' => [
+            'method' => $method,
+            'header' => implode("\r\n", $streamHeaders),
+            'content' => $input,
+            'ignore_errors' => true,
+            'timeout' => 60,
+        ],
+        'ssl' => [
+            'verify_peer' => false,
+            'verify_peer_name' => false,
+        ]
+    ];
+    $ctx = stream_context_create($contextOptions);
+    $streamRes = @file_get_contents($targetUrl, false, $ctx);
+    if ($streamRes !== false) {
+        $httpCode = 200;
+        if (isset($http_response_header)) {
+            foreach ($http_response_header as $line) {
+                if (preg_match('#HTTP/\d\.\d\s+(\d+)#', $line, $matches)) {
+                    $httpCode = (int)$matches[1];
+                } elseif (!empty($line) && stripos($line, 'Transfer-Encoding:') !== 0) {
+                    header($line, false);
+                }
+            }
+        }
+        http_response_code($httpCode);
+        header("Access-Control-Allow-Origin: $origin", false);
+        header("Access-Control-Allow-Credentials: true", false);
+        echo $streamRes;
+        curl_close($ch);
+        exit;
+    }
+
     http_response_code(502);
     header('Content-Type: application/json');
     echo json_encode([
