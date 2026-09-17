@@ -1,0 +1,174 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { prisma } from "./prisma.js";
+import { AuditService } from "./audit.service.js";
+import { ApiError } from "../utils/response.js";
+
+export class AsetDesaService {
+  private auditService: AuditService;
+
+  constructor() {
+    this.auditService = new AuditService();
+  }
+
+  private toResponse(a: any) {
+    return {
+      id: a.id.toString(),
+      kodeBarang: a.kodeBarang,
+      namaBarang: a.namaBarang,
+      nomorRegister: a.nomorRegister,
+      jenisBarang: a.jenisBarang,
+      tahunPerolehan: a.tahunPerolehan,
+      harga: a.harga ? a.harga.toString() : undefined,
+      kondisi: a.kondisi,
+      asalUsul: a.asalUsul,
+      keterangan: a.keterangan,
+      createdAt: a.createdAt.toISOString(),
+      updatedAt: a.updatedAt?.toISOString(),
+    };
+  }
+
+  async findAll(query: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    kategori?: string;
+    kondisi?: string;
+  }) {
+    const pageNum = Number(query.page) || 1;
+    const limitNum = Math.min(Number(query.limit) || 20, 100);
+    const skip = (pageNum - 1) * limitNum;
+
+    const where: import("@prisma/client").Prisma.AsetDesaWhereInput = {};
+
+    if (query.kategori) where.jenisBarang = query.kategori;
+    if (query.kondisi) where.kondisi = query.kondisi;
+    if (query.search) {
+      where.OR = [
+        { namaBarang: { contains: query.search, mode: "insensitive" } },
+        { kodeBarang: { contains: query.search, mode: "insensitive" } },
+      ];
+    }
+
+    const [total, data] = await Promise.all([
+      prisma.asetDesa.count({ where }),
+      prisma.asetDesa.findMany({
+        where,
+                skip,
+        take: limitNum,
+        orderBy: { createdAt: "desc" },
+      }),
+    ]);
+
+    return {
+      data: data.map((d: any) => this.toResponse(d)),
+      meta: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum),
+      },
+    };
+  }
+
+  async findById(id: string) {
+    const data = await prisma.asetDesa.findUnique({
+      where: { id: BigInt(id) },
+          });
+
+    if (!data) throw new ApiError(404, "NOT_FOUND", "Aset not found");
+    return this.toResponse(data);
+  }
+
+  async create(data: any, adminId: string) {
+    const { tanah: _tanah, gedung: _gedung, peralatan: _peralatan, ...baseData } = data;
+
+    const result = await prisma.asetDesa.create({
+      data: {
+        kodeBarang: baseData.kodeBarang,
+        namaBarang: baseData.namaBarang,  nomorRegister: baseData.register,
+        jenisBarang: baseData.kategori,
+        tahunPerolehan: Number(baseData.tahunPerolehan),
+        harga: Number(baseData.harga),
+        kondisi: baseData.kondisi,
+        asalUsul: baseData.asalUsul,
+        keterangan: data.keterangan,
+      },
+          });
+
+    await this.auditService.log({
+      action: "CREATE_ASET",
+      entityType: "AsetDesa",
+      entityId: result.id,
+      actorId: adminId ? BigInt(adminId) : undefined,
+      metadata: {
+        kodeBarang: baseData.kodeBarang,
+        namaBarang: baseData.namaBarang,
+        jenisBarang: baseData.kategori,
+      },
+    });
+
+    return this.toResponse(result);
+  }
+
+  async update(id: string, data: any, adminId: string) {
+    const existing = await prisma.asetDesa.findUnique({
+      where: { id: BigInt(id) },
+          });
+
+    if (!existing) throw new ApiError(404, "NOT_FOUND", "Aset not found");
+
+    const { tanah: _tanah, gedung: _gedung, peralatan: _peralatan, ...baseData } = data;
+
+    const result = await prisma.asetDesa.update({
+      where: { id: BigInt(id) },
+      data: {
+        kodeBarang: baseData.kodeBarang,
+        namaBarang: baseData.namaBarang,  nomorRegister: baseData.register,
+        jenisBarang: baseData.kategori,
+        tahunPerolehan: baseData.tahunPerolehan
+          ? Number(baseData.tahunPerolehan)
+          : undefined,
+        harga:
+          baseData.harga !== undefined ? Number(baseData.harga) : undefined,
+        kondisi: baseData.kondisi,
+        asalUsul: baseData.asalUsul,
+        keterangan: baseData.keterangan,
+      },
+          });
+
+    await this.auditService.log({
+      action: "UPDATE_ASET",
+      entityType: "AsetDesa",
+      entityId: result.id,
+      actorId: adminId ? BigInt(adminId) : undefined,
+      metadata: baseData,
+    });
+
+    return this.toResponse(result);
+  }
+
+  async remove(id: string, adminId: string) {
+    const existing = await prisma.asetDesa.findUnique({
+      where: { id: BigInt(id) },
+    });
+
+    if (!existing) throw new ApiError(404, "NOT_FOUND", "Aset not found");
+
+    await prisma.asetDesa.delete({
+      where: { id: BigInt(id) },
+    });
+
+    await this.auditService.log({
+      action: "DELETE_ASET",
+      entityType: "AsetDesa",
+      entityId: BigInt(id),
+      actorId: adminId ? BigInt(adminId) : undefined,
+      metadata: {
+        kodeBarang: existing.kodeBarang,
+        namaBarang: existing.namaBarang,
+      },
+    });
+
+    return { success: true };
+  }
+}

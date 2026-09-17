@@ -697,8 +697,7 @@ export class TemplateDesignerService {
       logoKabupaten: { visible: true, position: 'right', size: '60px', source: 'kabupaten_config' },
       institutionNames: {
         pemda: { visible: true, source: 'auto' },
-        kecamatan: { visible: true, source: 'auto' },
-        desa: { visible: true, source: 'auto' },
+        kecamatan: { visible: true, source: 'auto' }
       },
       addressBlock: {
         enabled: true,

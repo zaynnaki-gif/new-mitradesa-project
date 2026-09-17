@@ -1,8 +1,7 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { prisma } from './prisma.js';
 import { ApiError } from '../utils/response.js';
 import { CreateKategoriInput, UpdateKategoriInput, QueryKategoriInput } from '../dto/cms.dto.js';
-import { getInstanceContext } from '../config/instance.js';
+
 export interface PaginationMeta {
   page: number;
   limit: number;
@@ -22,9 +21,7 @@ export class KategoriService {
   async findAll(query: QueryKategoriInput): Promise<PaginatedResult<any>> {
     const { page, limit, search, isAktif, urutan } = query;
     const skip = (page - 1) * limit;
-
-    const { desaId } = getInstanceContext();
-    const where: any = { desaId };
+    const where: any = { };
 
     if (search) {
       where.OR = [
@@ -77,9 +74,8 @@ export class KategoriService {
    * Get kategori by ID
    */
   async findById(id: bigint) {
-    const { desaId } = getInstanceContext();
     const kategori = await prisma.kategori.findFirst({
-      where: { id, desaId },
+      where: { id },
       include: {
         _count: {
           select: { berita: true },
@@ -102,9 +98,8 @@ export class KategoriService {
    * Get kategori by slug
    */
   async findBySlug(slug: string) {
-    const { desaId } = getInstanceContext();
     const kategori = await prisma.kategori.findFirst({
-      where: { slug, desaId },
+      where: { slug },
       include: {
         _count: {
           select: { berita: true },
@@ -127,7 +122,6 @@ export class KategoriService {
    * Create new kategori
    */
   async create(data: CreateKategoriInput) {
-    const { desaId } = getInstanceContext();
     // Check for duplicate slug
     const existing = await prisma.kategori.findFirst({
       where: { slug: data.slug },
@@ -145,8 +139,7 @@ export class KategoriService {
         ikon: data.ikon,
         warna: data.warna,
         urutan: data.urutan ?? 0,
-        isAktif: data.isAktif ?? true,
-        desaId: desaId ?? null,
+        isAktif: data.isAktif ?? true
       },
     });
 
@@ -157,9 +150,8 @@ export class KategoriService {
    * Update kategori
    */
   async update(id: bigint, data: UpdateKategoriInput) {
-    const { desaId } = getInstanceContext();
     const existing = await prisma.kategori.findFirst({
-      where: { id, desaId },
+      where: { id },
     });
 
     if (!existing) {
@@ -198,9 +190,8 @@ export class KategoriService {
    * Delete kategori
    */
   async delete(id: bigint) {
-    const { desaId } = getInstanceContext();
     const existing = await prisma.kategori.findFirst({
-      where: { id, desaId },
+      where: { id },
       include: {
         _count: {
           select: { berita: true },
@@ -227,9 +218,8 @@ export class KategoriService {
    * Get all active kategoris (for dropdown/selection)
    */
   async findActive() {
-    const { desaId } = getInstanceContext();
     return prisma.kategori.findMany({
-      where: { isAktif: true, desaId },
+      where: { isAktif: true },
       orderBy: { urutan: 'asc' },
       select: {
         id: true,
@@ -245,8 +235,7 @@ export class KategoriService {
    * Get statistics
    */
   async getStats() {
-    const { desaId } = getInstanceContext();
-    const where = { desaId };
+    const where = { };
     const total = await prisma.kategori.count({ where });
     const aktif = await prisma.kategori.count({ where: { ...where, isAktif: true } });
     return { total, aktif };

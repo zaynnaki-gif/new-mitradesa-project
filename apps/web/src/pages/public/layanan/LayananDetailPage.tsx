@@ -8,7 +8,7 @@ import { DynamicForm } from '@/components/forms/DynamicForm';
 import type { FieldDefinition } from '@/components/forms/DynamicForm';
 import { API_URL } from '@/lib/constants';
 import { EditorialHero, EditorialSection } from '@/components/editorial';
-import { useAuthStore } from '@/stores/auth.store';
+
 import styles from './LayananPage.module.css';
 
 interface ServiceDetail {
@@ -45,7 +45,7 @@ export default function LayananDetailPage() {
   const [nomorPermintaan, setNomorPermintaan] = useState('');
   const [submitError, setSubmitError] = useState('');
 
-  const { token } = useAuthStore();
+  const token = typeof window !== 'undefined' ? localStorage.getItem('citizen_token') : null;
 
   useSEO({
     title: getPageTitle(service ? `Ajukan ${service.nama}` : 'Layanan'),

@@ -8,8 +8,8 @@ import {
 } from '../dto/service-document.dto.js';
 import { ApiError } from '../utils/response.js';
 import { generateRequestNumber } from '../utils/numbering.js';
-import { getInstanceContext } from '../config/instance.js';
 import { notificationService } from './notification.service.js';
+import { buildDynamicSchema } from '../utils/form-validator.js';
 
 export class PermintaanLayananService {
   constructor(private readonly prismaClient: PrismaClient = prisma) {}
@@ -21,10 +21,10 @@ export class PermintaanLayananService {
     data: CreatePermintaanLayananInput,
     createdBy: bigint
   ): Promise<Prisma.PermintaanLayananGetPayload<object>> {
-    const { desaId } = getInstanceContext();
+    
     // Verify layanan exists and belongs to the same desa
     const layanan = await this.prismaClient.layanan.findFirst({
-      where: { id: data.layananId, desaId, deletedAt: null },
+      where: { id: data.layananId, deletedAt: null },
     });
 
     if (!layanan) {
@@ -50,7 +50,7 @@ export class PermintaanLayananService {
       // Generate request number
       const nomorPermintaan = await generateRequestNumber(
         tx,
-        desaId,
+        
         layanan.kode
       );
 
@@ -58,7 +58,7 @@ export class PermintaanLayananService {
         data: {
           layananId: data.layananId,
           pendudukId: data.pendudukId,
-          desaId,
+          
           nomorPermintaan,
           status: RequestStatus.DRAFT,
           dataJson: data.dataJson as Prisma.JsonObject,
@@ -85,10 +85,10 @@ export class PermintaanLayananService {
     const page = query.page || 1;
     const limit = query.limit || 20;
     const skip = (page - 1) * limit;
-    const { desaId } = getInstanceContext();
+    
 
     const where: Prisma.PermintaanLayananWhereInput = {
-      desaId,
+      
       deletedAt: null,
     };
 
@@ -140,9 +140,9 @@ export class PermintaanLayananService {
    * Find request by ID
    */
   async findById(id: bigint): Promise<Prisma.PermintaanLayananGetPayload<object> | null> {
-    const { desaId } = getInstanceContext();
+    
     return this.prismaClient.permintaanLayanan.findFirst({
-      where: { id, desaId },
+      where: { id },
       include: {
         layanan: true,
         penduduk: true,
@@ -161,9 +161,9 @@ export class PermintaanLayananService {
   async findByNomor(
     nomorPermintaan: string
   ): Promise<Prisma.PermintaanLayananGetPayload<object> | null> {
-    const { desaId } = getInstanceContext();
+    
     return this.prismaClient.permintaanLayanan.findFirst({
-      where: { nomorPermintaan, desaId },
+      where: { nomorPermintaan },
       include: {
         layanan: true,
         penduduk: true,
@@ -178,9 +178,10 @@ export class PermintaanLayananService {
     id: bigint,
     data: UpdatePermintaanLayananInput
   ): Promise<Prisma.PermintaanLayananGetPayload<object>> {
-    const { desaId } = getInstanceContext();
+    
     const existing = await this.prismaClient.permintaanLayanan.findFirst({
-      where: { id, desaId },
+      where: { id },
+      include: { layanan: { include: { fields: true } } },
     });
 
     if (!existing) {
@@ -190,6 +191,15 @@ export class PermintaanLayananService {
     // Can only update DRAFT requests
     if (existing.status !== RequestStatus.DRAFT) {
       throw ApiError.badRequest('Hanya permintaan berstatus DRAFT yang dapat diubah');
+    }
+
+    if (existing.layanan.fields && existing.layanan.fields.length > 0) {
+      const schema = buildDynamicSchema(existing.layanan.fields);
+      const validationResult = schema.safeParse(data.dataJson || {});
+      if (!validationResult.success) {
+        throw ApiError.badRequest('Validasi data gagal: ' + validationResult.error.errors.map((e: any) => e.message).join(', '));
+      }
+      data.dataJson = validationResult.data;
     }
 
     return this.prismaClient.permintaanLayanan.update({
@@ -213,9 +223,9 @@ export class PermintaanLayananService {
     data: UpdatePermintaanStatusInput,
     _actorId: bigint
   ): Promise<Prisma.PermintaanLayananGetPayload<object>> {
-    const { desaId } = getInstanceContext();
+    
     const existing = await this.prismaClient.permintaanLayanan.findFirst({
-      where: { id, desaId },
+      where: { id },
       include: { layanan: true },
     });
 
@@ -342,9 +352,9 @@ export class PermintaanLayananService {
    * Soft delete request
    */
   async softDelete(id: bigint): Promise<void> {
-    const { desaId } = getInstanceContext();
+    
     const existing = await this.prismaClient.permintaanLayanan.findFirst({
-      where: { id, desaId },
+      where: { id },
     });
 
     if (!existing) {
@@ -369,14 +379,14 @@ export class PermintaanLayananService {
     total: number;
     perStatus: Record<RequestStatus, number>;
   }> {
-    const { desaId } = getInstanceContext();
+    
     const [total, allRequests] = await Promise.all([
       this.prismaClient.permintaanLayanan.count({
-        where: { desaId, deletedAt: null },
+        where: {  deletedAt: null },
       }),
       this.prismaClient.permintaanLayanan.groupBy({
         by: ['status'],
-        where: { desaId, deletedAt: null },
+        where: {  deletedAt: null },
         _count: true,
       }),
     ]);
@@ -411,7 +421,7 @@ export class PermintaanLayananService {
     // Get layanan info to determine desaId
     const layanan = await this.prismaClient.layanan.findUnique({
       where: { id: layananId },
-      select: { id: true, desaId: true, kode: true, nama: true, isActive: true, slug: true },
+      select: { id: true, kode: true, nama: true, isActive: true, slug: true, fields: true },
     });
 
     if (!layanan) {
@@ -422,11 +432,19 @@ export class PermintaanLayananService {
       throw ApiError.badRequest('Layanan tidak tersedia');
     }
 
+    if (layanan.fields && layanan.fields.length > 0) {
+      const schema = buildDynamicSchema(layanan.fields);
+      const validationResult = schema.safeParse(fields || {});
+      if (!validationResult.success) {
+        throw ApiError.badRequest('Validasi data gagal: ' + validationResult.error.errors.map((e: any) => e.message).join(', '));
+      }
+      fields = validationResult.data as Record<string, unknown>;
+    }
+
     return this.prismaClient.$transaction(async (tx) => {
       // Generate request number
       const nomorPermintaan = await generateRequestNumber(
         tx,
-        layanan.desaId,
         layanan.kode
       );
 
@@ -434,7 +452,6 @@ export class PermintaanLayananService {
       return tx.permintaanLayanan.create({
         data: {
           layananId: layananId,
-          desaId: layanan.desaId,
           nomorPermintaan,
           status: RequestStatus.SUBMITTED,
           dataJson: fields as Prisma.JsonObject,

@@ -1,44 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { AdminLayout } from '@/layouts';
 import { Typography, Button, Modal } from '@/components/ui';
 import { LoadingState, ErrorState } from '@/components/states';
 import { useAuthStore } from '@/stores/auth.store';
 import { MediaUploadForm } from '@/components/forms/MediaUploadForm';
-import { AdminLayout } from '@/layouts';
-import { API_URL } from '@/lib/constants';
+import { useMediaList, useDeleteMedia, useMediaStats, Media } from '@/hooks/useKonten';
 import styles from './MediaPage.module.css';
-
-interface Media {
-  id: string;
-  nama: string;
-  slug: string;
-  deskripsi: string | null;
-  fileUrl: string;
-  fileType: string;
-  fileSize: number;
-  mimeType: string;
-  width: number | null;
-  height: number | null;
-  alt: string | null;
-  kategori: string | null;
-  uploadedBy: { id: string; username: string } | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface PaginationMeta {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-}
-
-interface Stats {
-  total: number;
-  images: number;
-  videos: number;
-  audio: number;
-  documents: number;
-}
+import { useConfirm } from '@/hooks/useConfirm';
 
 const fileTypeColors: Record<string, { bg: string; text: string; icon: string }> = {
   IMAGE: { bg: '#dbeafe', text: '#1e40af', icon: '🖼️' },
@@ -55,68 +23,47 @@ function formatFileSize(bytes: number): string {
 
 export function MediaPage() {
   const { token } = useAuthStore();
-  const [data, setData] = useState<Media[]>([]);
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [meta, setMeta] = useState<PaginationMeta>({ page: 1, limit: 20, total: 0, totalPages: 0 });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { confirm, ConfirmElement } = useConfirm();
+  const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [fileTypeFilter, setFileTypeFilter] = useState<string>('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Partial<Media> | null>(null);
 
-  const fetchData = async (page = 1, searchQuery = '', fileType = '') => {
-    setLoading(true);
-    setError(null);
-    const params = new URLSearchParams({
-      page: page.toString(),
-      limit: '20',
-      ...(searchQuery && { search: searchQuery }),
-      ...(fileType && { fileType }),
-    });
-    const headers: HeadersInit = { 'Content-Type': 'application/json' };
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-    const res = await fetch(`${API_URL}/media?${params}`, { headers });
-    const result = await res.json();
-    if (result.success) {
-      setData(result.data || []);
-      if (result.meta) setMeta(result.meta);
-    } else {
-      throw new Error(result.error?.message || 'Failed to fetch');
-    }
+  const { data: queryData, isLoading: loading, error, refetch } = useMediaList(page, search, fileTypeFilter, token || '');
+  const data = queryData?.data || [];
+  const meta = queryData?.meta || { page: 1, limit: 20, total: 0, totalPages: 0 };
+
+  const { data: statsData, refetch: refetchStats } = useMediaStats(token || '');
+  const stats = statsData || null;
+
+  const deleteMedia = useDeleteMedia();
+
+  const handleSearch = () => {
+    setSearch(searchInput);
+    setPage(1);
   };
-
-  const fetchStats = async () => {
-    const headers: HeadersInit = { 'Content-Type': 'application/json' };
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-    const res = await fetch(`${API_URL}/media/stats`, { headers });
-    const result = await res.json();
-    if (result.success) setStats(result.data);
-  };
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { fetchData(1, search, fileTypeFilter); fetchStats(); }, []);
-
-  const handleSearch = () => fetchData(1, search, fileTypeFilter);
   const handleFilterChange = (newFileType: string) => {
     setFileTypeFilter(newFileType);
-    fetchData(1, search, newFileType);
+    setPage(1);
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Yakin ingin menghapus media ini?')) return;
-    const headers: HeadersInit = { 'Content-Type': 'application/json' };
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-    const res = await fetch(`${API_URL}/media/${id}`, { method: 'DELETE', headers });
-    const result = await res.json();
-    if (result.success) { fetchData(meta.page, search, fileTypeFilter); fetchStats(); }
-    else alert(result.error?.message || 'Gagal menghapus');
+    const _ok = await confirm({ message: 'Yakin ingin menghapus media ini?', title: 'Konfirmasi' }); 
+    if (!_ok) return;
+    try {
+      await deleteMedia.mutateAsync({ id, token: token || '' });
+      refetchStats();
+    } catch (err: any) {
+      alert(err.message || 'Gagal menghapus');
+    }
   };
 
-  const handleOpenCreate = () => { setEditingItem(null); setIsModalOpen(true); };
-  const handleOpenEdit = (item: Media) => { setEditingItem(item); setIsModalOpen(true); };
-  const handleCloseModal = () => { setIsModalOpen(false); setEditingItem(null); };
-  const handleFormSuccess = () => { handleCloseModal(); fetchData(meta.page, search, fileTypeFilter); fetchStats(); };
+  const handleOpenCreate = async () => { setEditingItem(null); setIsModalOpen(true); };
+  const handleOpenEdit = async (item: Media) => { setEditingItem(item); setIsModalOpen(true); };
+  const handleCloseModal = async () => { setIsModalOpen(false); setEditingItem(null); };
+  const handleFormSuccess = async () => { handleCloseModal(); refetch(); refetchStats(); };
 
   const formatDate = (dateStr: string) =>
     new Date(dateStr).toLocaleDateString('id-ID', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -124,6 +71,7 @@ export function MediaPage() {
   if (loading && data.length === 0) {
     return (
       <AdminLayout>
+      {ConfirmElement}
         <div className={styles.container}>
           <LoadingState message="Memuat data media..." fullPage />
         </div>
@@ -131,11 +79,12 @@ export function MediaPage() {
     );
   }
 
-  if (error && data.length === 0) {
+  if (error) {
     return (
       <AdminLayout>
+      {ConfirmElement}
         <div className={styles.container}>
-          <ErrorState message={error} onRetry={() => fetchData()} />
+          <ErrorState message={error.message || 'Gagal'} onRetry={() => refetch()} />
         </div>
       </AdminLayout>
     );
@@ -184,8 +133,8 @@ export function MediaPage() {
           <input
             type="text"
             placeholder="Cari media..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             className={styles.searchInput}
           />
@@ -277,8 +226,8 @@ export function MediaPage() {
               Menampilkan {((meta.page - 1) * meta.limit) + 1} - {Math.min(meta.page * meta.limit, meta.total)} dari {meta.total}
             </span>
             <div className={styles.paginationControls}>
-              <Button variant="secondary" size="sm" disabled={meta.page <= 1} onClick={() => fetchData(meta.page - 1, search, fileTypeFilter)}>Previous</Button>
-              <Button variant="secondary" size="sm" disabled={meta.page >= meta.totalPages} onClick={() => fetchData(meta.page + 1, search, fileTypeFilter)}>Next</Button>
+              <Button variant="secondary" size="sm" disabled={meta.page <= 1} onClick={() => setPage(meta.page - 1)}>Previous</Button>
+              <Button variant="secondary" size="sm" disabled={meta.page >= meta.totalPages} onClick={() => setPage(meta.page + 1)}>Next</Button>
             </div>
           </div>
         )}

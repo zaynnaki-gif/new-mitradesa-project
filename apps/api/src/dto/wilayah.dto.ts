@@ -8,7 +8,6 @@ import { z } from 'zod';
 // Gubug (Dusun) Schemas
 // ============================================
 export const createGubugSchema = z.object({
-  desaId: z.string().regex(/^\d+$/, 'Desa ID harus angka').transform(s => BigInt(s)),
   kode: z.string().min(1).max(20),
   nama: z.string().min(1).max(100),
 });
@@ -60,7 +59,6 @@ export const rtIdParamSchema = z.object({
 // Query params
 // ============================================
 export const wilayahQuerySchema = z.object({
-  desaId: z.string().regex(/^\d+$/, 'Desa ID harus angka').optional(),
   gubugId: z.string().regex(/^\d+$/, 'Gubug ID harus angka').optional(),
 });
 
@@ -69,7 +67,6 @@ export const wilayahQuerySchema = z.object({
 // ============================================
 export interface GubugResponse {
   id: string;
-  desaId: string;
   kode: string;
   nama: string;
   createdAt: string;

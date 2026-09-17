@@ -3,50 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@/layouts';
 import { Typography, Button, Input, Table, Badge, Modal } from '@/components/ui';
 import { LoadingState } from '@/components/states';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
-import { API_URL } from '@/lib/constants';
 import { useAuthStore } from '@/stores/auth.store';
 import styles from './ArsipSuratPage.module.css';
-import { safeFetchJson } from '@/lib/fetch';
-
-interface SuratMasuk {
-  id: string;
-  nomorSurat: string;
-  tanggalSurat: string;
-  tanggalDiterima: string;
-  pengirim: string;
-  perihal: string;
-  status: 'DITERIMA' | 'DIPROSES' | 'SELESAI' | 'DIARSIPKAN';
-  disposisi: Disposisi[];
-}
-
-interface Disposisi {
-  id: string;
-  tujuan: string;
-  instruksi: string;
-  tanggalSelesai: string | null;
-  status: 'PENDING' | 'DIPROSES' | 'SELESAI';
-  createdAt: string;
-}
-
-interface SuratKeluar {
-  id: string;
-  nomorDokumen: string;
-  judul: string;
-  tujuan: string | null;
-  status: string;
-  createdAt: string;
-  dokumen: { kode: string; nama: string };
-  fileUrl?: string;
-}
-
-interface ApiResponse<T> {
-  success: boolean;
-  data: { data: T[]; meta: { page: number; limit: number; total: number; totalPages: number } };
-  message: string;
-}
+import { 
+  SuratMasuk, 
+  SuratKeluar, 
+  useSuratMasukList, 
+  useSuratKeluarList,
+  useCreateDisposisi,
+  useCreateSuratMasuk
+} from '@/hooks/useArsipSurat';
 
 const getStatusBadge = (status: string) => {
   switch (status) {
@@ -61,12 +29,9 @@ const getStatusBadge = (status: string) => {
   }
 };
 
-
-
 export default function ArsipSuratPage() {
   const { token } = useAuthStore();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
 
   const [activeTab, setActiveTab] = useState<'masuk' | 'keluar'>('masuk');
   const [search, setSearch] = useState('');
@@ -79,72 +44,55 @@ export default function ArsipSuratPage() {
   // Disposisi form
   const [disposisiForm, setDisposisiForm] = useState({ tujuan: '', instruksi: '', tanggalSelesai: '' });
 
-  const headers = { Authorization: `Bearer ${token}` };
-
   // Queries
-  const { data: suratMasukResponse, isLoading: loadingMasuk } = useQuery<ApiResponse<SuratMasuk>>({
-    queryKey: ['surat-masuk', search],
-    queryFn: async () => {
-      const url = new URL(`${API_URL}/arsip-surat/masuk`);
-      if (search) url.searchParams.append('search', search);
-      return await safeFetchJson(url.toString(), { headers });
-    },
-    enabled: activeTab === 'masuk',
-  });
+  const { data: suratMasukResponse, isLoading: loadingMasuk } = useSuratMasukList(search, token || '', activeTab === 'masuk');
+  const { data: suratKeluarResponse, isLoading: loadingKeluar } = useSuratKeluarList(search, token || '', activeTab === 'keluar');
 
-  const { data: suratKeluarResponse, isLoading: loadingKeluar } = useQuery<ApiResponse<SuratKeluar>>({
-    queryKey: ['surat-keluar', search],
-    queryFn: async () => {
-      const url = new URL(`${API_URL}/arsip-surat/keluar`);
-      if (search) url.searchParams.append('search', search);
-      return await safeFetchJson(url.toString(), { headers });
-    },
-    enabled: activeTab === 'keluar',
-  });
-
-  const suratMasukData = suratMasukResponse?.data?.data || [];
-  const suratKeluarData = suratKeluarResponse?.data?.data || [];
-
-  // Add mutation
-  const addMutation = useMutation({
-    mutationFn: async (data: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
-      return await safeFetchJson(`${API_URL}/arsip-surat/masuk`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(data),
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['surat-masuk'] });
-      setIsAddModalOpen(false);
-      setFormData({ nomorSurat: '', tanggalSurat: '', tanggalDiterima: '', pengirim: '', perihal: '' });
-    },
-  });
-
-  // Disposisi mutation
-  const disposisiMutation = useMutation({
-    mutationFn: async ({ suratId, data }: { suratId: string; data: any }) => { // eslint-disable-line @typescript-eslint/no-explicit-any
-      return await safeFetchJson(`${API_URL}/arsip-surat/masuk/${suratId}/disposisi`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(data),
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['surat-masuk'] });
-      setIsDisposisiModalOpen(false);
-      setSelectedSurat(null);
-      setDisposisiForm({ tujuan: '', instruksi: '', tanggalSelesai: '' });
-    },
-  });
+  const createDisposisi = useCreateDisposisi();
+  // const updateStatus = useUpdateStatusMasuk();
+  const createSuratMasuk = useCreateSuratMasuk();
 
   const [formData, setFormData] = useState({
     nomorSurat: '', tanggalSurat: '', tanggalDiterima: '', pengirim: '', perihal: '',
   });
 
-  const handleAddSubmit = (e: React.FormEvent) => {
+  const handleDisposisiSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    addMutation.mutate(formData);
+    if (!selectedSurat) return;
+
+    try {
+      await createDisposisi.mutateAsync({
+        suratId: selectedSurat.id,
+        data: disposisiForm,
+        token: token || '',
+      });
+      setIsDisposisiModalOpen(false);
+      setSelectedSurat(null);
+      setDisposisiForm({ tujuan: '', instruksi: '', tanggalSelesai: '' });
+      alert('Disposisi berhasil ditambahkan');
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Gagal menambahkan disposisi');
+    }
+  };
+
+  // const handleUpdateStatus = async (suratId: string, status: string) => {
+  //   try {
+  //     await updateStatus.mutateAsync({ id: suratId, status, token: token || '' });
+  //   } catch (err: unknown) {
+  //     alert(err instanceof Error ? err.message : 'Gagal update status');
+  //   }
+  // };
+
+  const handleAddSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await createSuratMasuk.mutateAsync({ data: formData, token: token || '' });
+      setIsAddModalOpen(false);
+      setFormData({ nomorSurat: '', tanggalSurat: '', tanggalDiterima: '', pengirim: '', perihal: '' });
+      alert('Surat masuk berhasil ditambahkan');
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Gagal menambahkan surat');
+    }
   };
 
   const openDisposisi = (surat: SuratMasuk) => {
@@ -153,19 +101,13 @@ export default function ArsipSuratPage() {
     setIsDisposisiModalOpen(true);
   };
 
-  const handleDisposisiSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedSurat) return;
-    disposisiMutation.mutate({
-      suratId: selectedSurat.id,
-      data: disposisiForm,
-    });
-  };
-
   const openSuratKeluarDetail = (surat: SuratKeluar) => {
     setSelectedKeluar(surat);
     setIsDetailModalOpen(true);
   };
+
+  const suratMasukData = suratMasukResponse?.data?.data || [];
+  const suratKeluarData = suratKeluarResponse?.data?.data || [];
 
   return (
     <AdminLayout>
@@ -332,14 +274,14 @@ export default function ArsipSuratPage() {
           <Input
             label="Perihal"
             value={formData.perihal}
-            onChange={e => setFormData(f => ({ ...f, pertains: e.target.value }))}
+            onChange={e => setFormData(f => ({ ...f, perihal: e.target.value }))}
             required
             placeholder="Perihal/isi surat"
           />
           <div className={styles.formActions}>
             <Button type="button" variant="outline" onClick={() => setIsAddModalOpen(false)}>Batal</Button>
-            <Button type="submit" disabled={addMutation.isPending}>
-              {addMutation.isPending ? 'Menyimpan...' : 'Simpan'}
+            <Button type="submit" disabled={createSuratMasuk.isPending}>
+              {createSuratMasuk.isPending ? 'Menyimpan...' : 'Simpan'}
             </Button>
           </div>
         </form>
@@ -400,8 +342,8 @@ export default function ArsipSuratPage() {
 
             <div className={styles.formActions}>
               <Button type="button" variant="outline" onClick={() => { setIsDisposisiModalOpen(false); setSelectedSurat(null); }}>Batal</Button>
-              <Button type="submit" disabled={disposisiMutation.isPending}>
-                {disposisiMutation.isPending ? 'Menyimpan...' : 'Kirim Disposisi'}
+              <Button type="submit" disabled={createDisposisi.isPending}>
+                {createDisposisi.isPending ? 'Menyimpan...' : 'Kirim Disposisi'}
               </Button>
             </div>
           </form>

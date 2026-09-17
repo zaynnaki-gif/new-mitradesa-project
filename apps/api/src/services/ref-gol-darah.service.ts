@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+import { Prisma } from '@prisma/client';
 import { prisma } from './prisma.js';
 import { AuditService } from './audit.service.js';
 import { ApiError } from '../utils/response.js';
@@ -23,7 +23,7 @@ export class RefGolDarahService {
     const page = options.page || 1;
     const limit = options.limit || 20;
     const skip = (page - 1) * limit;
-    const where: any = {};
+    const where: Prisma.RefGolonganDarahWhereInput = {};
 
     if (options.search) {
       where.OR = [

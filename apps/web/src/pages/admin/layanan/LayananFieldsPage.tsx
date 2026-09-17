@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@/layouts';
 import { useAuthStore } from '@/stores/auth.store';
@@ -6,14 +6,14 @@ import { DynamicForm } from '@/components/forms/DynamicForm';
 import type { FieldDefinition, FieldOption, FieldType } from '@/components/forms/DynamicForm';
 import shared from '../../../styles/AdminShared.module.css';
 import s from './LayananListPage.module.css';
-
-interface ILayanan {
-  id: string;
-  kode: string;
-  nama: string;
-  slug: string;
-  kategori?: string;
-}
+import { useConfirm } from '@/hooks/useConfirm';
+import { 
+  useAdminLayananDetailById, 
+  useLayananFields, 
+  useSaveField, 
+  useDeleteField,
+  useReorderFields
+} from '@/hooks/useLayanan';
 
 const FIELD_TYPES: { value: FieldType; label: string }[] = [
   { value: 'TEXT', label: 'Teks Singkat' },
@@ -34,15 +34,12 @@ const FIELD_TYPES: { value: FieldType; label: string }[] = [
 
 export default function LayananFieldsPage() {
   const { token } = useAuthStore();
+  const { confirm, ConfirmElement } = useConfirm();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [layanan, setLayanan] = useState<ILayanan | null>(null);
-  const [fields, setFields] = useState<FieldDefinition[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState('');
 
   const [formData, setFormData] = useState<Partial<FieldDefinition>>({
@@ -59,38 +56,19 @@ export default function LayananFieldsPage() {
 
   const [optionsText, setOptionsText] = useState('');
 
-  const fetchData = useCallback(async () => {
-    if (!id) return;
-    setLoading(true);
-    setError('');
+  // React Query Hooks
+  const { data: layananData, isLoading: loadingLayanan, error: errorLayanan } = useAdminLayananDetailById(id || null, token || '');
+  const { data: fieldsData, isLoading: loadingFields, error: errorFields } = useLayananFields(id || null, token || '');
+  
+  const saveFieldMutation = useSaveField();
+  const deleteFieldMutation = useDeleteField();
+  const reorderFieldsMutation = useReorderFields();
 
-    try {
-      const headers = { Authorization: `Bearer ${token}` };
-
-      const [layananRes, fieldsRes] = await Promise.all([
-        fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/services/${id}`, { headers }),
-        fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/services/${id}/fields`, { headers }),
-      ]);
-
-      if (!layananRes.ok) throw new Error('Layanan tidak ditemukan');
-      if (!fieldsRes.ok) throw new Error('Gagal memuat fields');
-
-      const layananData = await layananRes.json();
-      const fieldsData = await fieldsRes.json();
-
-      setLayanan(layananData.data || layananData);
-      setFields(fieldsData.data || []);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Error');
-    } finally {
-      setLoading(false);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const layanan = layananData?.data;
+  const fields = fieldsData?.data || [];
+  
+  const loading = loadingLayanan || loadingFields;
+  const error = errorLayanan?.message || errorFields?.message;
 
   const parseOptionsFromText = (text: string): FieldOption[] => {
     return text
@@ -113,8 +91,8 @@ export default function LayananFieldsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!id || !token) return;
     setFormError('');
-    setFormLoading(true);
 
     try {
       const dataToSubmit = {
@@ -125,33 +103,18 @@ export default function LayananFieldsPage() {
           : [],
       };
 
-      const url = editingId
-        ? `${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/services/${id}/fields/${editingId}`
-        : `${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/services/${id}/fields`;
-      const method = editingId ? 'PATCH' : 'POST';
-
-      const res = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(dataToSubmit),
+      await saveFieldMutation.mutateAsync({
+        layananId: id,
+        fieldId: editingId,
+        data: dataToSubmit,
+        token
       });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Gagal menyimpan');
-      }
 
       setShowForm(false);
       setEditingId(null);
       resetForm();
-      fetchData();
     } catch (e: unknown) {
       setFormError(e instanceof Error ? e.message : 'Error');
-    } finally {
-      setFormLoading(false);
     }
   };
 
@@ -188,43 +151,39 @@ export default function LayananFieldsPage() {
   };
 
   const handleDelete = async (fieldId: string) => {
-    if (!confirm('Yakin ingin menghapus field ini?')) return;
+    if (!id || !token) return;
+    const _ok = await confirm({ message: 'Yakin ingin menghapus field ini?', title: 'Konfirmasi' }); 
+    if (!_ok) return;
+
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/services/${id}/fields/${fieldId}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
+      await deleteFieldMutation.mutateAsync({
+        layananId: id,
+        fieldId,
+        token
       });
-      if (!res.ok) throw new Error('Gagal menghapus');
-      fetchData();
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : 'Error');
     }
   };
 
-  const handleReorder = async (newOrder: FieldDefinition[]) => {
-    setFields(newOrder);
+  const moveField = async (index: number, direction: 'up' | 'down') => {
+    if (!id || !token) return;
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= fields.length) return;
+    
+    const newFields = [...fields];
+    [newFields[index], newFields[newIndex]] = [newFields[newIndex], newFields[index]];
+    
     try {
-      const orderData = newOrder.map((f, index) => ({ id: f.id, orderIndex: index }));
-      await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/services/${id}/fields/reorder`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ fields: orderData }),
+      const orderData = newFields.map((f, i) => ({ id: String(f.id), orderIndex: i }));
+      await reorderFieldsMutation.mutateAsync({
+        layananId: id,
+        fields: orderData,
+        token
       });
     } catch (e) {
       console.error('Reorder failed:', e);
-      fetchData();
     }
-  };
-
-  const moveField = (index: number, direction: 'up' | 'down') => {
-    const newIndex = direction === 'up' ? index - 1 : index + 1;
-    if (newIndex < 0 || newIndex >= fields.length) return;
-    const newFields = [...fields];
-    [newFields[index], newFields[newIndex]] = [newFields[newIndex], newFields[index]];
-    handleReorder(newFields);
   };
 
   if (loading) return <AdminLayout><div style={{ padding: '1.5rem' }}>Memuat...</div></AdminLayout>;
@@ -233,6 +192,7 @@ export default function LayananFieldsPage() {
 
   return (
     <AdminLayout>
+      {ConfirmElement}
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 400px', gap: '2rem', padding: '1.5rem', alignItems: 'start' }}>
       {/* Builder Side */}
       <div>
@@ -320,7 +280,7 @@ export default function LayananFieldsPage() {
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' }}>
                       <button
                         onClick={() => moveField(index, 'up')}
-                        disabled={index === 0}
+                        disabled={index === 0 || reorderFieldsMutation.isPending}
                         style={{
                           background: 'none', border: 'none', cursor: index === 0 ? 'not-allowed' : 'pointer',
                           color: 'var(--color-text-secondary)', opacity: index === 0 ? 0.3 : 1, lineHeight: 1,
@@ -329,7 +289,7 @@ export default function LayananFieldsPage() {
                       <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>{index + 1}</span>
                       <button
                         onClick={() => moveField(index, 'down')}
-                        disabled={index === fields.length - 1}
+                        disabled={index === fields.length - 1 || reorderFieldsMutation.isPending}
                         style={{
                           background: 'none', border: 'none', cursor: index === fields.length - 1 ? 'not-allowed' : 'pointer',
                           color: 'var(--color-text-secondary)', opacity: index === fields.length - 1 ? 0.3 : 1, lineHeight: 1,
@@ -359,7 +319,11 @@ export default function LayananFieldsPage() {
                   <td className={`${shared.td} ${shared.tdRight}`}>
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.25rem' }}>
                       <button onClick={() => handleEdit(field)} className={`${s.actionLink} ${s.actionLinkBlue}`}>Edit</button>
-                      <button onClick={() => handleDelete(String(field.id))} className={`${s.actionLink} ${s.actionLinkRed}`}>Hapus</button>
+                      <button 
+                        onClick={() => handleDelete(String(field.id))} 
+                        disabled={deleteFieldMutation.isPending}
+                        className={`${s.actionLink} ${s.actionLinkRed}`}
+                      >Hapus</button>
                     </div>
                   </td>
                 </tr>
@@ -473,8 +437,8 @@ export default function LayananFieldsPage() {
                 >
                   Batal
                 </button>
-                <button type="submit" disabled={formLoading} className={s.btnSubmit}>
-                  {formLoading ? 'Menyimpan...' : 'Simpan'}
+                <button type="submit" disabled={saveFieldMutation.isPending} className={s.btnSubmit}>
+                  {saveFieldMutation.isPending ? 'Menyimpan...' : 'Simpan'}
                 </button>
               </div>
             </form>

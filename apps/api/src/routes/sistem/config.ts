@@ -1,9 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Router, Request, Response } from 'express';
-import { z } from 'zod';
+
 import { prisma } from '../../services/prisma.js';
 import { authenticateInternal, authorize, authorizeAny } from '../../middleware/index.js';
 import { response, asyncHandler, ApiError } from '../../utils/response.js';
+import { Prisma } from '@prisma/client';
 
 const router = Router();
 router.use(authenticateInternal());
@@ -13,31 +14,7 @@ router.use(authorizeAny('config.view', 'config.manage'));
 // Validation Schemas
 // ============================================
 
-const createSchema = z.object({
-  groupName: z.string().min(1).max(100),
-  key: z.string().min(1).max(100),
-  value: z.string().optional(),
-  valueType: z.enum(['STRING', 'NUMBER', 'BOOLEAN', 'JSON']).default('STRING'),
-  description: z.string().max(500).optional(),
-  isSystem: z.boolean().default(false),
-});
-
-const updateSchema = z.object({
-  value: z.string().optional(),
-  valueType: z.enum(['STRING', 'NUMBER', 'BOOLEAN', 'JSON']).optional(),
-  description: z.string().max(500).optional(),
-});
-
-const querySchema = z.object({
-  page: z.coerce.number().int().positive().default(1),
-  limit: z.coerce.number().int().positive().max(100).default(50),
-  search: z.string().optional(),
-  groupName: z.string().optional(),
-  groupname: z.string().optional(),
-}).transform((val) => ({
-  ...val,
-  groupName: val.groupName || val.groupname,
-}));
+import { createSchema, updateSchema, querySchema } from '../../dto/config.dto.js';
 
 // ============================================
 // List configurations with grouping
@@ -47,7 +24,7 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
   const { page, limit, search, groupName } = querySchema.parse(req.query);
 
   const skip = (page - 1) * limit;
-  const where: any = {};
+  const where: Prisma.ConfigurationWhereInput = {};
 
   if (groupName) where.groupName = groupName;
   if (search) {
@@ -233,30 +210,23 @@ router.patch('/:id', authorizeAny('config.update', 'config.manage'), asyncHandle
 // ============================================
 
 router.delete('/:id', authorize('config.update'), asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
+  const { id } = req.params;
 
-    const existing = await prisma.configuration.findUnique({
-      where: { id: BigInt(id) },
-    });
+  const existing = await prisma.configuration.findUnique({
+    where: { id: BigInt(id) },
+  });
 
-    if (!existing) {
-      throw ApiError.notFound('Konfigurasi tidak ditemukan');
-    }
-
-    if (existing.isSystem) {
-      throw ApiError.forbidden('Konfigurasi sistem tidak dapat dihapus');
-    }
-
-    await prisma.configuration.delete({ where: { id: BigInt(id) } });
-
-    return response.success(res, null, 'Konfigurasi berhasil dihapus');
-  } catch (err: any) {
-    if (err?.code === 'P2025') {
-      throw ApiError.notFound('Konfigurasi tidak ditemukan');
-    }
-    throw err;
+  if (!existing) {
+    throw ApiError.notFound('Konfigurasi tidak ditemukan');
   }
+
+  if (existing.isSystem) {
+    throw ApiError.forbidden('Konfigurasi sistem tidak dapat dihapus');
+  }
+
+  await prisma.configuration.delete({ where: { id: BigInt(id) } });
+
+  return response.success(res, null, 'Konfigurasi berhasil dihapus');
 }));
 
 export default router;

@@ -15,6 +15,46 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
+const registerSchema = z.object({
+  username: z.string().min(3),
+  email: z.string().email(),
+  fullName: z.string().min(3),
+  password: z.string().min(6),
+});
+
+/**
+ * @route   POST /api/auth/register
+ * @desc    Internal account register
+ * @access  Public
+ */
+router.post(
+  '/register',
+  loginRateLimiter, // Resusing login rate limiter for simplicity
+  asyncHandler(async (req: Request, res: Response) => {
+    const { username, email, fullName: _fullName, password } = registerSchema.parse(req.body);
+
+    const { hashPassword } = await import('../../services/auth.service.js');
+    const passwordHash = await hashPassword(password);
+
+    const result = await authService.registerInternal(
+      username,
+      email,
+      passwordHash,
+      req.ip,
+      req.headers['user-agent']
+    );
+
+    return response.created(res, {
+      user: {
+        id: result.id.toString(),
+        username: result.username,
+        email: result.email,
+        roles: result.accountRoles.map((ar) => ar.role.code),
+      },
+    });
+  })
+);
+
 /**
  * @route   POST /api/auth/login
  * @desc    Internal account login

@@ -5,80 +5,51 @@ import { Button, Input, Typography } from '@/components/ui';
 import { LoadingState, ErrorState } from '@/components/states';
 import { useAuthStore } from '@/stores/auth.store';
 import { API_URL } from '@/lib/constants';
-import { safeFetchJson } from '@/lib/fetch';
+import { useIdentitasDesa, useUpdateIdentitasDesa } from '@/hooks/useIdentitasDesa';
 import { WilayahSelector } from '@/components/WilayahSelector';
 import { Provinsi, Kabupaten, Kecamatan, Desa } from '@/types';
 import styles from './IdentitasDesaPage.module.css';
 
 interface IdentitasFormData {
-  desaId: number;
   namaDesa: string;
-  singkatanDesa: string;
   kodeDesa: string;
   alamat: string;
   telepon: string;
   whatsapp: string;
   email: string;
   website: string;
+  kodepos: string;
   kepalaDesa: string;
   sekretarisDesa: string;
+  facebook: string;
+  instagram: string;
+  twitter: string;
+  youtube: string;
+  logoDesaUrl: string;
 }
 
-interface IdentitasDesa {
-  id: number;
-  desaId?: number;
-  namaDesa: string;
-  singkatanDesa?: string;
-  kodeDesa?: string;
-  alamat?: string;
-  telepon?: string;
-  whatsapp?: string;
-  email?: string;
-  website?: string;
-  logoDesaUrl?: string;
-  kepalaDesa?: string;
-  sekretarisDesa?: string;
-  desa?: {
-    id: number;
-    kode: string;
-    nama: string;
-    kecamatan?: {
-      id: number;
-      nama: string;
-      kode: string;
-      kabupaten?: {
-        id: number;
-        nama: string;
-        kode: string;
-        provinsi?: {
-          id: number;
-          nama: string;
-          kode: string;
-        };
-      };
-    };
-  };
-}
 
 export default function IdentitasDesaPage() {
   const { token } = useAuthStore();
 
-  const [identitas, setIdentitas] = useState<IdentitasDesa | null>(null);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [form, setForm] = useState<IdentitasFormData>({
-    desaId: 0,
     namaDesa: '',
-    singkatanDesa: '',
     kodeDesa: '',
     alamat: '',
+    kodepos: '',
     telepon: '',
     whatsapp: '',
     email: '',
     website: '',
     kepalaDesa: '',
     sekretarisDesa: '',
+    facebook: '',
+    instagram: '',
+    twitter: '',
+    youtube: '',
+    logoDesaUrl: '',
   });
 
   const [originalForm, setOriginalForm] = useState<IdentitasFormData | null>(null);
@@ -96,61 +67,43 @@ export default function IdentitasDesaPage() {
     desaId?: number;
   }>({});
 
-  const fetchIdentitas = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await safeFetchJson(`${API_URL}/identitas`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (data.success) {
-        setIdentitas(data.data);
-      } else {
-        throw new Error(data.error?.message || 'Gagal memuat data');
-      }
-    } catch (e: any) {
-      setError(e.message || 'Terjadi kesalahan');
-    } finally {
-      setLoading(false);
-    }
-  }, [token]);
+  const { data: identitas, isLoading: loading, error: queryError, refetch } = useIdentitasDesa();
+  const updateMutation = useUpdateIdentitasDesa();
 
-  useEffect(() => { fetchIdentitas(); }, [fetchIdentitas]);
+  // Handle manual errors
+  useEffect(() => {
+    if (queryError) {
+      setError(queryError.message || 'Terjadi kesalahan');
+    } else {
+      setError(null);
+    }
+  }, [queryError]);
 
   // Populate form when data loads
   useEffect(() => {
     if (identitas) {
-      // Extract wilayah hierarchy from identitas data
-      const desa = identitas.desa;
-      const kecamatan = desa?.kecamatan;
-      const kabupaten = kecamatan?.kabupaten;
-      const provinsi = kabupaten?.provinsi;
-
       const newForm: IdentitasFormData = {
-        desaId: identitas.desaId || identitas.desa?.id || 0,
         namaDesa: identitas.namaDesa || '',
-        singkatanDesa: identitas.singkatanDesa || '',
         kodeDesa: identitas.kodeDesa || '',
         alamat: identitas.alamat || '',
+        kodepos: identitas.kodepos || '',
         telepon: identitas.telepon || '',
         whatsapp: identitas.whatsapp || '',
         email: identitas.email || '',
         website: identitas.website || '',
         kepalaDesa: identitas.kepalaDesa || '',
         sekretarisDesa: identitas.sekretarisDesa || '',
+        facebook: identitas.facebook || '',
+        instagram: identitas.instagram || '',
+        twitter: identitas.twitter || '',
+        youtube: identitas.youtube || '',
+        logoDesaUrl: identitas.logoDesaUrl || '',
       };
       setForm(newForm);
       setOriginalForm(newForm);
-
-      // Set initial values for wilayah cascade
-      if (provinsi && kabupaten && kecamatan && desa) {
-        setWilayahInitialValues({
-          provinsiId: provinsi.id,
-          kabupatenId: kabupaten.id,
-          kecamatanId: kecamatan.id,
-          desaId: desa.id,
-        });
-      }
+      
+      // Set initial values for wilayah cascade (No longer populated from identitas)
+      setWilayahInitialValues({});
     }
   }, [identitas]);
 
@@ -178,19 +131,13 @@ export default function IdentitasDesaPage() {
   const validateForm = useCallback((): boolean => {
     const newErrors: Partial<Record<keyof IdentitasFormData, string>> = {};
 
-    if (!form.desaId) {
-      newErrors.desaId = 'Wilayah desa wajib dipilih';
-    }
-
     if (!form.namaDesa.trim()) {
       newErrors.namaDesa = 'Nama desa wajib diisi';
     } else if (form.namaDesa.length > 100) {
       newErrors.namaDesa = 'Nama desa maksimal 100 karakter';
     }
 
-    if (form.singkatanDesa && form.singkatanDesa.length > 20) {
-      newErrors.singkatanDesa = 'Singkatan maksimal 20 karakter';
-    }
+
 
     if (form.kodeDesa && form.kodeDesa !== '') {
       const cleanKode = form.kodeDesa.replace(/\./g, '').trim();
@@ -219,7 +166,7 @@ export default function IdentitasDesaPage() {
     return Object.keys(newErrors).length === 0;
   }, [form]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
     if (!confirm('Apakah Anda yakin ingin menyimpan perubahan identitas desa?')) return;
@@ -228,27 +175,24 @@ export default function IdentitasDesaPage() {
     setSaveError(null);
     setSaveSuccess(false);
 
-    try {
-      const data = await safeFetchJson(`${API_URL}/identitas`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(form),
-      });
-      if (data.success) {
+    updateMutation.mutate({
+      data: {
+        ...form,
+        kepalaDesa: undefined,
+        sekretarisDesa: undefined,
+      },
+      token: token!
+    }, {
+      onSuccess: () => {
         setOriginalForm(form);
         setSaveSuccess(true);
-        fetchIdentitas();
-      } else {
-        throw new Error(data.error?.message || 'Gagal menyimpan');
+        setSaving(false);
+      },
+      onError: (err: Error) => {
+        setSaveError(err.message || 'Gagal menyimpan');
+        setSaving(false);
       }
-    } catch (err: any) {
-      setSaveError(err.message);
-    } finally {
-      setSaving(false);
-    }
+    });
   };
 
   const handleChange = (field: keyof IdentitasFormData, value: string | number) => {
@@ -258,18 +202,50 @@ export default function IdentitasDesaPage() {
     }
   };
 
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      alert('Ukuran file maksimal 2MB');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('kategori', 'LOGO');
+
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const res = await fetch(`${API_URL}/media/upload`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+        body: formData
+      });
+      const data = await res.json();
+      if (data.success) {
+        setForm(prev => ({ ...prev, logoDesaUrl: data.data.fileUrl }));
+      } else {
+        throw new Error(data.error?.message || 'Gagal mengupload logo');
+      }
+    } catch (err: any) {
+      setSaveError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // Handle wilayah selection change
-  const handleWilayahChange = (desaId: number, fullData?: {
+  const handleWilayahChange = (_: number, fullData?: {
     provinsi: Provinsi;
     kabupaten: Kabupaten;
     kecamatan: Kecamatan;
     desa: Desa;
   }) => {
-    setForm(prev => ({ ...prev, desaId }));
     setWilayahError(undefined);
-    if (errors.desaId) {
-      setErrors(prev => ({ ...prev, desaId: undefined }));
-    }
 
     // Auto-fill namaDesa and kodeDesa from API unconditionally
     if (fullData?.desa) {
@@ -299,7 +275,7 @@ export default function IdentitasDesaPage() {
   if (error) {
     return (
       <AdminLayout>
-        <ErrorState title="Gagal Memuat Data" message={error} onRetry={fetchIdentitas} />
+        <ErrorState title="Gagal Memuat Data" message={error} onRetry={() => refetch()} />
       </AdminLayout>
     );
   }
@@ -348,15 +324,37 @@ export default function IdentitasDesaPage() {
 
         <form onSubmit={handleSubmit}>
 
-          {/* Logo Preview */}
-          {identitas.logoDesaUrl && (
-            <div className={styles.logoPreview}>
-              <Typography variant="body2" color="secondary" style={{ marginBottom: '0.5rem' }}>
-                Logo Desa
-              </Typography>
-              <img src={identitas.logoDesaUrl} alt="Logo Desa" />
+          {/* Logo Preview & Upload */}
+          <div className={styles.section}>
+            <h2 className={styles.sectionTitle}>Logo Desa</h2>
+            <div className={styles.formGroup} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'flex-start' }}>
+              {form.logoDesaUrl ? (
+                <div className={styles.logoPreview}>
+                  <img src={form.logoDesaUrl} alt="Logo Desa" style={{ maxWidth: '150px', maxHeight: '150px', objectFit: 'contain' }} />
+                </div>
+              ) : (
+                <div className={styles.logoPreview} style={{ width: '150px', height: '150px', backgroundColor: 'var(--surface-color-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Typography variant="body2" color="secondary">Belum ada logo</Typography>
+                </div>
+              )}
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <input
+                  type="file"
+                  id="logo-upload"
+                  accept="image/png, image/jpeg, image/webp"
+                  onChange={handleLogoUpload}
+                  style={{ display: 'none' }}
+                />
+                <Button type="button" variant="outline" onClick={() => document.getElementById('logo-upload')?.click()} disabled={saving}>
+                  {saving ? 'Mengupload...' : 'Pilih Logo Baru'}
+                </Button>
+                <Typography variant="body2" color="secondary" style={{ fontSize: '0.75rem' }}>
+                  Format: JPG, PNG, WEBP. Maks 2MB.
+                </Typography>
+              </div>
             </div>
-          )}
+          </div>
 
           {/* Section: Informasi Dasar */}
           <div className={styles.section}>
@@ -365,10 +363,8 @@ export default function IdentitasDesaPage() {
             {/* Wilayah Selector - Cascading Dropdown */}
             <div className={styles.formGroup}>
               <WilayahSelector
-                selectedDesaId={form.desaId || undefined}
                 onChange={handleWilayahChange}
-                error={errors.desaId || wilayahError}
-                required
+                error={wilayahError}
                 initialValues={wilayahInitialValues}
               />
             </div>
@@ -377,6 +373,7 @@ export default function IdentitasDesaPage() {
               <Input
                 label="Nama Desa *"
                 value={form.namaDesa}
+                disabled
                 onChange={e => handleChange('namaDesa', e.target.value)}
                 error={errors.namaDesa}
                 required
@@ -384,15 +381,11 @@ export default function IdentitasDesaPage() {
                 placeholder="Otomatis dari pilihan wilayah"
                 style={{ backgroundColor: 'var(--surface-color-dim)' }}
               />
-              <Input
-                label="Singkatan Desa"
-                value={form.singkatanDesa}
-                onChange={e => handleChange('singkatanDesa', e.target.value)}
-                placeholder="Contoh: SRG"
-              />
+
               <Input
                 label="Kode Desa"
                 value={form.kodeDesa}
+                disabled
                 onChange={e => handleChange('kodeDesa', e.target.value)}
                 readOnly
                 placeholder="Otomatis dari pilihan wilayah"
@@ -403,7 +396,7 @@ export default function IdentitasDesaPage() {
 
           {/* Section: Alamat */}
           <div className={styles.section}>
-            <h2 className={styles.sectionTitle}>Alamat</h2>
+            <h2 className={styles.sectionTitle}>Lokasi & Koordinat</h2>
             <div className={styles.formGroup}>
               <Input
                 label="Alamat Lengkap"
@@ -412,11 +405,19 @@ export default function IdentitasDesaPage() {
                 placeholder="Jl. Raya Desa No. 1, RT 001/RW 001"
               />
             </div>
+            <div className={styles.sectionGrid}>
+              <Input
+                label="Kode Pos"
+                value={form.kodepos}
+                onChange={e => handleChange('kodepos', e.target.value)}
+                placeholder="Contoh: 12345"
+              />
+            </div>
           </div>
 
           {/* Section: Kontak */}
           <div className={styles.section}>
-            <h2 className={styles.sectionTitle}>Informasi Kontak</h2>
+            <h2 className={styles.sectionTitle}>Informasi Kontak & Media Sosial</h2>
             <div className={styles.sectionGrid3}>
               <Input
                 label="Telepon"
@@ -445,12 +446,43 @@ export default function IdentitasDesaPage() {
             </div>
             <div className={styles.formGroup} style={{ marginTop: '1rem' }}>
               <Input
-                label="Website"
+                label="Website URL"
                 type="url"
                 value={form.website}
                 onChange={e => handleChange('website', e.target.value)}
-                
                 placeholder="https://desa.desa.id"
+              />
+            </div>
+            
+            <h3 className={styles.sectionTitle} style={{ marginTop: '2rem', fontSize: '1rem' }}>Media Sosial</h3>
+            <div className={styles.sectionGrid}>
+              <Input
+                label="Facebook (URL)"
+                type="url"
+                value={form.facebook}
+                onChange={e => handleChange('facebook', e.target.value)}
+                placeholder="https://facebook.com/..."
+              />
+              <Input
+                label="Instagram (URL)"
+                type="url"
+                value={form.instagram}
+                onChange={e => handleChange('instagram', e.target.value)}
+                placeholder="https://instagram.com/..."
+              />
+              <Input
+                label="Twitter / X (URL)"
+                type="url"
+                value={form.twitter}
+                onChange={e => handleChange('twitter', e.target.value)}
+                placeholder="https://x.com/..."
+              />
+              <Input
+                label="YouTube Channel (URL)"
+                type="url"
+                value={form.youtube}
+                onChange={e => handleChange('youtube', e.target.value)}
+                placeholder="https://youtube.com/..."
               />
             </div>
           </div>
@@ -463,18 +495,24 @@ export default function IdentitasDesaPage() {
                 label="Nama Kepala Desa"
                 value={form.kepalaDesa}
                 onChange={e => handleChange('kepalaDesa', e.target.value)}
-                placeholder="Nama lengkap kepala desa"
+                placeholder="Otomatis dari data Perangkat Desa"
+                disabled
+                readOnly
+                style={{ backgroundColor: 'var(--surface-color-dim)' }}
               />
               <Input
                 label="Nama Sekretaris Desa"
                 value={form.sekretarisDesa}
                 onChange={e => handleChange('sekretarisDesa', e.target.value)}
-                placeholder="Nama lengkap sekretaris desa"
+                placeholder="Otomatis dari data Perangkat Desa"
+                disabled
+                readOnly
+                style={{ backgroundColor: 'var(--surface-color-dim)' }}
               />
             </div>
             <Typography variant="body2" color="secondary" style={{ marginTop: '0.5rem' }}>
-              Note: Untuk memperbarui data pejabat desa secara detail, gunakan menu{' '}
-              <strong>Perangkat Desa</strong>.
+              Note: Nama Kepala Desa dan Sekretaris Desa akan ditarik secara otomatis dari menu{' '}
+              <strong>Pemerintahan {'>'} Perangkat Desa</strong>.
             </Typography>
           </div>
 

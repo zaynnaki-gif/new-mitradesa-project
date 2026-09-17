@@ -1,0 +1,361 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { Router, Request, Response } from 'express';
+import { z } from 'zod';
+import { prisma } from '../../services/prisma.js';
+import { authenticateInternal, authorize, authorizeAny } from '../../middleware/index.js';
+import { response, asyncHandler, ApiError } from '../../utils/response.js';
+
+const router = Router();
+router.use(authenticateInternal());
+router.use(authorizeAny('config.view', 'config.manage'));
+
+// ============================================
+// Validation Schemas
+// ============================================
+
+const createSchema = z.object({
+  groupName: z.string().min(1).max(100),
+  key: z.string().min(1).max(100),
+  value: z.string().optional(),
+  valueType: z.enum(['STRING', 'NUMBER', 'BOOLEAN', 'JSON']).default('STRING'),
+  description: z.string().max(500).optional(),
+  isSystem: z.boolean().default(false),
+});
+
+const updateSchema = z.object({
+  value: z.string().optional(),
+  valueType: z.enum(['STRING', 'NUMBER', 'BOOLEAN', 'JSON']).optional(),
+  description: z.string().max(500).optional(),
+});
+
+const querySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(50),
+  search: z.string().optional(),
+  groupName: z.string().optional(),
+  groupname: z.string().optional(),
+}).transform((val) => ({
+  ...val,
+  groupName: val.groupName || val.groupname,
+}));
+
+const bulkUpdateSchema = z.object({
+  updates: z.array(z.object({
+    key: z.string().min(1),
+    groupName: z.string().min(1),
+    value: z.string(),
+  })),
+});
+
+// ============================================
+// List configurations with grouping
+// ============================================
+
+router.get('/', asyncHandler(async (req: Request, res: Response) => {
+  const { page, limit, search, groupName } = querySchema.parse(req.query);
+
+  const skip = (page - 1) * limit;
+  const where: any = {};
+
+  if (groupName) where.groupName = groupName;
+  if (search) {
+    where.OR = [
+      { key: { contains: search, mode: 'insensitive' } },
+      { description: { contains: search, mode: 'insensitive' } },
+      { value: { contains: search, mode: 'insensitive' } },
+    ];
+  }
+
+  const [data, total] = await Promise.all([
+    prisma.configuration.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: [{ groupName: 'asc' }, { key: 'asc' }],
+    }),
+    prisma.configuration.count({ where }),
+  ]);
+
+  const formattedData = data.map((item) => ({
+    id: item.id.toString(),
+    groupName: item.groupName,
+    groupname: item.groupName,
+    key: item.key,
+    value: item.value,
+    valueType: item.value_type,
+    value_type: item.value_type,
+    description: item.description,
+    isSystem: item.isSystem ?? false,
+    createdAt: item.createdAt?.toISOString(),
+    updatedAt: item.updatedAt?.toISOString(),
+  }));
+
+  // Group configurations
+  const grouped: Record<string, any[]> = {};
+  formattedData.forEach((item) => {
+    const group = item.groupName;
+    if (!grouped[group]) grouped[group] = [];
+    grouped[group].push(item);
+  });
+
+  return response.success(res, {
+    data: formattedData,
+    grouped,
+    meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
+  });
+}));
+
+// ============================================
+// Get configuration groups
+// ============================================
+
+router.get('/groups', asyncHandler(async (_req: Request, res: Response) => {
+  const groups = await prisma.configuration.groupBy({
+    by: ['groupName'],
+    _count: true,
+    orderBy: { groupName: 'asc' },
+  });
+
+  return response.success(res, groups.map(g => ({
+    name: g.groupName,
+    count: g._count,
+  })));
+}));
+
+// ============================================
+// System status summary (for admin dashboard - human readable)
+// ============================================
+
+router.get('/system-status', asyncHandler(async (_req: Request, res: Response) => {
+  const [dbOk, waConfig, backupConfig] = await Promise.all([
+    prisma.$queryRaw`SELECT 1 as ok`.then(() => true).catch(() => false),
+    prisma.configuration.findUnique({ where: { groupName_key: { groupName: 'NOTIFICATION', key: 'WA_GATEWAY_STATUS' } } }),
+    prisma.configuration.findUnique({ where: { groupName_key: { groupName: 'SYSTEM', key: 'LAST_BACKUP_DATE' } } }),
+  ]);
+
+  const memUsage = process.memoryUsage();
+
+  return response.success(res, {
+    database: {
+      status: dbOk ? 'OK' : 'ERROR',
+      label: dbOk ? 'Database terhubung ✓' : 'Database bermasalah ✗',
+    },
+    whatsapp: {
+      status: waConfig?.value || 'DISCONNECTED',
+      label: waConfig?.value === 'CONNECTED' ? 'WhatsApp Gateway terhubung ✓' : 'WhatsApp Gateway tidak terhubung',
+    },
+    backup: {
+      lastDate: backupConfig?.value || null,
+      label: backupConfig?.value ? `Backup terakhir: ${backupConfig.value}` : 'Belum ada backup tercatat',
+    },
+    system: {
+      uptimeLabel: formatUptime(process.uptime()),
+      memoryMb: Math.round(memUsage.heapUsed / 1024 / 1024),
+    },
+  });
+}));
+
+// ============================================
+// Test WhatsApp Gateway connection (Fonnte)
+// ============================================
+
+router.post('/test-wa', authorizeAny('config.update', 'config.manage'), asyncHandler(async (_req: Request, res: Response) => {
+  const apiKeyConfig = await prisma.configuration.findUnique({
+    where: { groupName_key: { groupName: 'NOTIFICATION', key: 'FONNTE_API_KEY' } },
+  });
+
+  const apiKey = apiKeyConfig?.value || '';
+  if (!apiKey || apiKey.trim() === '') {
+    await prisma.configuration.updateMany({ where: { key: 'WA_GATEWAY_STATUS' }, data: { value: 'DISCONNECTED' } });
+    return response.success(res, { connected: false, status: 'DISCONNECTED', message: 'API Key Fonnte belum diisi' });
+  }
+
+  try {
+    const fetchFn = (globalThis as any).fetch || (await import('node-fetch')).default;
+    const testRes = await (fetchFn as any)('https://api.fonnte.com/device', {
+      method: 'GET',
+      headers: { 'Authorization': apiKey },
+      signal: AbortSignal.timeout(8000),
+    });
+
+    const connected = testRes.status === 200;
+    const statusValue = connected ? 'CONNECTED' : 'DISCONNECTED';
+    await prisma.configuration.updateMany({ where: { key: 'WA_GATEWAY_STATUS' }, data: { value: statusValue } });
+
+    return response.success(res, {
+      connected,
+      status: statusValue,
+      message: connected ? 'WhatsApp Gateway berhasil terhubung ✓' : 'API Key tidak valid atau koneksi gagal',
+    });
+  } catch (err: any) {
+    await prisma.configuration.updateMany({ where: { key: 'WA_GATEWAY_STATUS' }, data: { value: 'DISCONNECTED' } });
+    return response.success(res, {
+      connected: false,
+      status: 'DISCONNECTED',
+      message: `Koneksi gagal: ${err?.message || 'Network error'}`,
+    });
+  }
+}));
+
+// ============================================
+// Bulk update (for Settings tabs that save multiple keys at once)
+// ============================================
+
+router.patch('/bulk', authorizeAny('config.update', 'config.manage'), asyncHandler(async (req: Request, res: Response) => {
+  const { updates } = bulkUpdateSchema.parse(req.body);
+
+  const results = [];
+  for (const upd of updates) {
+    const existing = await prisma.configuration.findUnique({
+      where: { groupName_key: { groupName: upd.groupName, key: upd.key } },
+    });
+
+    if (!existing) {
+      const created = await prisma.configuration.create({
+        data: { groupName: upd.groupName, key: upd.key, value: upd.value, value_type: 'STRING' },
+      });
+      results.push({ id: created.id.toString(), key: created.key, value: created.value, action: 'created' });
+      continue;
+    }
+
+    // Skip isSystem items except WA_GATEWAY_STATUS (system-written)
+    if (existing.isSystem && existing.key !== 'WA_GATEWAY_STATUS') continue;
+
+    const updated = await prisma.configuration.update({
+      where: { id: existing.id },
+      data: { value: upd.value },
+    });
+    results.push({ id: updated.id.toString(), key: updated.key, value: updated.value, action: 'updated' });
+  }
+
+  return response.success(res, results, 'Konfigurasi berhasil disimpan');
+}));
+
+// ============================================
+// Get one configuration
+// ============================================
+
+router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const item = await prisma.configuration.findUnique({ where: { id: BigInt(id) } });
+
+  if (!item) throw ApiError.notFound('Konfigurasi tidak ditemukan');
+
+  return response.success(res, {
+    id: item.id.toString(),
+    groupName: item.groupName,
+    key: item.key,
+    value: item.value,
+    valueType: item.value_type,
+    description: item.description,
+    isSystem: item.isSystem,
+    createdAt: item.createdAt?.toISOString(),
+    updatedAt: item.updatedAt?.toISOString(),
+  });
+}));
+
+// ============================================
+// Create
+// ============================================
+
+router.post('/', authorizeAny('config.update', 'config.manage'), asyncHandler(async (req: Request, res: Response) => {
+  const data = createSchema.parse(req.body);
+
+  const existing = await prisma.configuration.findUnique({
+    where: { groupName_key: { groupName: data.groupName, key: data.key } },
+  });
+
+  if (existing) throw ApiError.badRequest(`Konfigurasi "${data.groupName}.${data.key}" sudah ada`);
+
+  const created = await prisma.configuration.create({
+    data: {
+      groupName: data.groupName,
+      key: data.key,
+      value: data.value || '',
+      value_type: data.valueType,
+      description: data.description,
+      isSystem: data.isSystem,
+    },
+  });
+
+  return response.created(res, {
+    id: created.id.toString(),
+    groupName: created.groupName,
+    key: created.key,
+    value: created.value,
+    valueType: created.value_type,
+    description: created.description,
+    isSystem: created.isSystem,
+    createdAt: created.createdAt?.toISOString(),
+    updatedAt: created.updatedAt?.toISOString(),
+  }, 'Konfigurasi berhasil dibuat');
+}));
+
+// ============================================
+// Update
+// ============================================
+
+router.patch('/:id', authorizeAny('config.update', 'config.manage'), asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const data = updateSchema.parse(req.body);
+
+  const existing = await prisma.configuration.findUnique({ where: { id: BigInt(id) } });
+  if (!existing) throw ApiError.notFound('Konfigurasi tidak ditemukan');
+
+  // System configs are protected except WA_GATEWAY_STATUS which is system-written
+  if (existing.isSystem && existing.key !== 'WA_GATEWAY_STATUS') {
+    throw ApiError.forbidden('Konfigurasi sistem tidak dapat diubah');
+  }
+
+  const updated = await prisma.configuration.update({
+    where: { id: BigInt(id) },
+    data: {
+      ...(data.value !== undefined && { value: data.value }),
+      ...(data.valueType !== undefined && { value_type: data.valueType }),
+      ...(data.description !== undefined && { description: data.description }),
+    },
+  });
+
+  return response.success(res, {
+    id: updated.id.toString(),
+    groupName: updated.groupName,
+    key: updated.key,
+    value: updated.value,
+    valueType: updated.value_type,
+    description: updated.description,
+    isSystem: updated.isSystem,
+    createdAt: updated.createdAt?.toISOString(),
+    updatedAt: updated.updatedAt?.toISOString(),
+  }, 'Konfigurasi berhasil diperbarui');
+}));
+
+// ============================================
+// Delete
+// ============================================
+
+router.delete('/:id', authorize('config.update'), asyncHandler(async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const existing = await prisma.configuration.findUnique({ where: { id: BigInt(id) } });
+    if (!existing) throw ApiError.notFound('Konfigurasi tidak ditemukan');
+    if (existing.isSystem) throw ApiError.forbidden('Konfigurasi sistem tidak dapat dihapus');
+
+    await prisma.configuration.delete({ where: { id: BigInt(id) } });
+    return response.success(res, null, 'Konfigurasi berhasil dihapus');
+  } catch (err: any) {
+    if (err?.code === 'P2025') throw ApiError.notFound('Konfigurasi tidak ditemukan');
+    throw err;
+  }
+}));
+
+function formatUptime(seconds: number): string {
+  const d = Math.floor(seconds / 86400);
+  const h = Math.floor((seconds % 86400) / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (d > 0) return `${d} hari ${h} jam`;
+  if (h > 0) return `${h} jam ${m} menit`;
+  return `${m} menit`;
+}
+
+export default router;

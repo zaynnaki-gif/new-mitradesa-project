@@ -19,7 +19,15 @@ interface NavSection {
 const NAV_SECTIONS: NavSection[] = [
   {
     items: [
-      { label: 'Dashboard', href: '/admin/dashboard', icon: '📊' },
+      { label: 'Dashboard', href: '/admin/dashboard', icon: '🏠' },
+    ],
+  },
+  {
+    title: 'Perencanaan',
+    items: [
+      { label: 'RPJMDes & RKPDes', href: '/admin/perencanaan/rpjmdes', icon: '📊' },
+      { label: 'Usulan Warga', href: '/admin/perencanaan/usulan', icon: '💡' },
+      { label: 'E-Voting', href: '/admin/perencanaan/voting', icon: '🗳️' },
     ],
   },
   {
@@ -28,6 +36,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Layanan', href: '/admin/layanan', icon: '📋' },
       { label: 'Permintaan Masuk', href: '/admin/permintaan', icon: '📥' },
       { label: 'Dokumen', href: '/admin/dokumen', icon: '📄' },
+      { label: 'Pengaturan Layanan', href: '/admin/layanan/pengaturan', icon: '⚙️' },
     ],
   },
   {
@@ -64,6 +73,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Identitas Desa', href: '/admin/master/identitas-desa', icon: '🏘️' },
       { label: 'Perangkat Desa', href: '/admin/master/perangkat-desa', icon: '👥' },
       { label: 'Wilayah', href: '/admin/master/wilayah', icon: '🗺️' },
+      { label: 'Pengaturan Kependudukan', href: '/admin/master/penduduk/pengaturan', icon: '⚙️' },
     ],
   },
   {
@@ -77,6 +87,7 @@ const NAV_SECTIONS: NavSection[] = [
     title: 'Keuangan',
     items: [
       { label: 'Kas Umum', href: '/admin/keuangan/kas-umum', icon: '💰' },
+      { label: 'Buku Bank', href: '/admin/keuangan/buku-bank', icon: '🏦' },
       { label: 'APBDes Entry', href: '/admin/keuangan/apbdes-entry', icon: '📑' },
     ],
   },
@@ -85,6 +96,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: 'Bansos', href: '/admin/pemerintahan/bansos', icon: '🎁' },
       { label: 'Saran & Aduan', href: '/admin/pemerintahan/saran', icon: '💬' },
+      { label: 'Aset Desa', href: '/admin/pemerintahan/aset', icon: '🏢' },
     ],
   },
   {
@@ -94,6 +106,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Activity Log', href: '/admin/sistem/activity-log', icon: '📜' },
       { label: 'Konfigurasi', href: '/admin/sistem/config', icon: '🔧' },
       { label: 'Export Data', href: '/admin/sistem/export', icon: '📥' },
+      { label: 'Backup & Restore', href: '/admin/sistem/backup', icon: '💾' },
     ],
   },
 ];
@@ -153,6 +166,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       'DEVELOPER': 'Developer',
       'OPERATOR': 'Operator',
       'SUPERADMIN': 'Super Admin',
+      'SUPER_ADMIN': 'Super Admin',
     };
     return roleMap[roles[0]] || roles[0];
   };

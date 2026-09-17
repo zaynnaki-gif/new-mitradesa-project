@@ -1,0 +1,186 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { prisma } from "./prisma.js";
+import { AuditService } from "./audit.service.js";
+import { ApiError } from "../utils/response.js";
+
+export class AnggotaLembagaService {
+  private auditService: AuditService;
+
+  constructor() {
+    this.auditService = new AuditService();
+  }
+
+  private toResponse(a: any) {
+    return {
+      id: a.id.toString(),
+      lembagaId: a.lembagaId.toString(),
+      pendudukId: a.pendudukId.toString(),
+      jabatan: a.jabatan,
+      
+      
+      status: a.isActive,
+      createdAt: a.createdAt.toISOString(),
+      updatedAt: a.updatedAt?.toISOString(),
+      penduduk: a.penduduk
+        ? {
+            id: a.penduduk.id.toString(),
+            nama: a.penduduk.nama,
+            nik: a.penduduk.nik,
+          }
+        : undefined,
+    };
+  }
+
+  async findAllByLembaga(
+    lembagaId: string,
+    query: {
+      page?: number;
+      limit?: number;
+      isActive?: boolean;
+    },
+  ) {
+    const pageNum = Number(query.page) || 1;
+    const limitNum = Math.min(Number(query.limit) || 20, 100);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Verify lembaga belongs to desa
+    const lembaga = await prisma.lembaga.findUnique({
+      where: { id: BigInt(lembagaId) },
+    });
+    if (!lembaga) throw new ApiError(404, "NOT_FOUND", "Lembaga not found");
+
+    const where: import("@prisma/client").Prisma.AnggotaLembagaWhereInput = {
+      lembagaId: BigInt(lembagaId),
+    };
+    if (query.isActive !== undefined) {
+      where.status = String(query.isActive) === "true" ? "AKTIF" : "NONAKTIF";
+    }
+
+    const [total, data] = await Promise.all([
+      prisma.anggotaLembaga.count({ where }),
+      prisma.anggotaLembaga.findMany({
+        where,
+        include: { penduduk: true },
+        skip,
+        take: limitNum,
+        orderBy: { createdAt: "desc" },
+      }),
+    ]);
+
+    return {
+      data: data.map(this.toResponse),
+      meta: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum),
+      },
+    };
+  }
+
+  async create(
+    lembagaId: string,
+    data: {
+      pendudukId: string;
+      jabatan: string;
+      noSk?: string;
+      tanggalSk?: string;
+    },
+    adminId: string,
+  ) {
+    const lembaga = await prisma.lembaga.findUnique({
+      where: { id: BigInt(lembagaId) },
+    });
+    if (!lembaga) throw new ApiError(404, "NOT_FOUND", "Lembaga not found");
+
+    const result = await prisma.anggotaLembaga.create({
+      data: {
+        lembagaId: BigInt(lembagaId),
+        pendudukId: BigInt(data.pendudukId),
+        jabatan: data.jabatan,
+        
+        
+      },
+      include: { penduduk: true },
+    });
+
+    await this.auditService.log({
+      action: "CREATE_ANGGOTA_LEMBAGA",
+      entityType: "AnggotaLembaga",
+      entityId: result.id,
+      actorId: adminId ? BigInt(adminId) : undefined,
+      metadata: {
+        lembagaId,
+        pendudukId: data.pendudukId,
+        jabatan: data.jabatan,
+      },
+    });
+
+    return this.toResponse(result);
+  }
+
+  async update(
+    id: string,
+    data: {
+      jabatan?: string;
+      noSk?: string;
+      tanggalSk?: string;
+      isActive?: boolean;
+    },
+    adminId: string,
+  ) {
+    const existing = await prisma.anggotaLembaga.findUnique({
+      where: { id: BigInt(id) },
+      include: { lembaga: true },
+    });
+
+    if (!existing) {
+      throw new ApiError(404, "NOT_FOUND", "Anggota Lembaga not found");
+    }
+
+    const result = await prisma.anggotaLembaga.update({
+      where: { id: BigInt(id) },
+      data: {
+        jabatan: data.jabatan,
+        
+        status: data.isActive !== undefined ? (data.isActive ? 'AKTIF' : 'NONAKTIF') : undefined,
+      },
+      include: { penduduk: true },
+    });
+
+    await this.auditService.log({
+      action: "UPDATE_ANGGOTA_LEMBAGA",
+      entityType: "AnggotaLembaga",
+      entityId: result.id,
+      actorId: adminId ? BigInt(adminId) : undefined,
+      metadata: data,
+    });
+
+    return this.toResponse(result);
+  }
+
+  async remove(id: string, adminId: string) {
+    const existing = await prisma.anggotaLembaga.findUnique({
+      where: { id: BigInt(id) },
+      include: { lembaga: true },
+    });
+
+    if (!existing) {
+      throw new ApiError(404, "NOT_FOUND", "Anggota Lembaga not found");
+    }
+
+    await prisma.anggotaLembaga.delete({
+      where: { id: BigInt(id) },
+    });
+
+    await this.auditService.log({
+      action: "DELETE_ANGGOTA_LEMBAGA",
+      entityType: "AnggotaLembaga",
+      entityId: BigInt(id),
+      actorId: adminId ? BigInt(adminId) : undefined,
+      metadata: { jabatan: existing.jabatan },
+    });
+
+    return { success: true };
+  }
+}

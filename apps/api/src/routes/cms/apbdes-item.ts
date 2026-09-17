@@ -10,9 +10,10 @@ const router = Router();
 const createApbdesItemSchema = z.object({
   kategori: z.enum(['PENDAPATAN', 'BELANJA', 'PEMBIAYAAN']),
   kodeRekening: z.string().max(50).optional().nullable(),
-  nama: z.string().min(1, 'Nama wajib diisi').max(255),
+  nama: z.string().min(1, 'Nama wajib diisi').max(255).optional(), // Can be empty if rkpdesId is provided
   anggaran: z.coerce.number().min(0).default(0),
   realization: z.coerce.number().min(0).default(0),
+  rkpdesId: z.coerce.number().optional().nullable(),
 });
 
 const updateApbdesItemSchema = z.object({
@@ -20,6 +21,7 @@ const updateApbdesItemSchema = z.object({
   nama: z.string().min(1).max(255).optional(),
   anggaran: z.coerce.number().min(0).optional(),
   realization: z.coerce.number().min(0).optional(),
+  rkpdesId: z.coerce.number().optional().nullable(),
 });
 
 /**
@@ -45,13 +47,15 @@ router.post(
   authorize('transparansi.update'),
   asyncHandler(async (req, res) => {
     const { id } = idParamSchema.parse(req.params);
-    const data = createApbdesItemSchema.parse(req.body) as { 
-      kategori: 'PENDAPATAN' | 'BELANJA' | 'PEMBIAYAAN'; 
-      nama: string; 
-      anggaran: number; 
-      realization: number 
+    const data = createApbdesItemSchema.parse(req.body) as any;
+    const payload = {
+      ...data,
+      rkpdesId: data.rkpdesId ? BigInt(data.rkpdesId) : undefined
     };
-    const item = await transparansiService.addItem(BigInt(id), data);
+    if (!payload.nama && !payload.rkpdesId) {
+      return response.badRequest(res, 'Nama wajib diisi jika RKPDes tidak dipilih');
+    }
+    const item = await transparansiService.addItem(BigInt(id), payload);
     return response.created(res, item, 'Rincian berhasil ditambahkan');
   })
 );
@@ -69,8 +73,12 @@ router.patch(
       itemId: z.string().regex(/^\d+$/),
     }).parse(req.params);
 
-    const data = updateApbdesItemSchema.parse(req.body);
-    const item = await transparansiService.updateItem(BigInt(apbdesId), BigInt(itemId), data);
+    const data = updateApbdesItemSchema.parse(req.body) as any;
+    const payload = {
+      ...data,
+      rkpdesId: data.rkpdesId !== undefined ? (data.rkpdesId === null ? null : BigInt(data.rkpdesId)) : undefined
+    };
+    const item = await transparansiService.updateItem(BigInt(apbdesId), BigInt(itemId), payload);
     return response.success(res, item, 'Rincian berhasil diperbarui');
   })
 );

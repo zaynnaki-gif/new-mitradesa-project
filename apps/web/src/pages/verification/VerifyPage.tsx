@@ -10,8 +10,8 @@ interface VerificationResult {
   layanan?: string;
   status: string;
   tanggal?: string;
-  signedAt?: any;
-  generatedAt?: any;
+  signedAt?: string | null;
+  generatedAt?: string | null;
   pemohon?: {
     nama?: string;
     nik?: string;
@@ -99,7 +99,7 @@ export default function VerificationPage() {
     fetchVerify();
   }, [token]);
 
-  const formatDate = (dateVal: any) => {
+  const formatDate = (dateVal: unknown) => {
     if (!dateVal || typeof dateVal !== 'string') {
       return new Date().toLocaleDateString('id-ID', {
         day: 'numeric',

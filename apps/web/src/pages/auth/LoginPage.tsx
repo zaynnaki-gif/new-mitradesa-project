@@ -1,7 +1,6 @@
 import { useState, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useMutation } from '@tanstack/react-query';
-import { authApi } from '../../hooks/useAuth';
+import { useLogin, useRegister } from '../../hooks/useAuth';
 import { useAuthStore } from '../../stores/auth.store';
 import styles from './LoginPage.module.css';
 
@@ -50,20 +49,8 @@ export function LoginPage() {
   const [regEmail, setRegEmail] = useState('');
   const [regConfirmPassword, setRegConfirmPassword] = useState('');
 
-  const loginMutation = useMutation({
-    mutationFn: async (data: { username: string; password: string }) => {
-      const response = await authApi.login(data.username, data.password);
-      return response;
-    },
-    onSuccess: (data) => {
-      // In a real app, 'rememberMe' would set token in localStorage vs sessionStorage
-      setAuth(data.token, data.user);
-      navigate('/admin/dashboard');
-    },
-    onError: (err: Error) => {
-      setError(err.message || 'Gagal masuk. Periksa kembali kredensial Anda.');
-    },
-  });
+  const loginMutation = useLogin();
+  const registerMutation = useRegister();
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -79,19 +66,35 @@ export function LoginPage() {
         setError('Mohon lengkapi semua data pendaftaran.');
         return;
       }
-      // Mock registration success
-      setSuccessMsg('Pendaftaran berhasil! (Simulasi). Silahkan masuk.');
-      setTimeout(() => {
-        setIsRegister(false);
-        setPassword('');
-        setRegConfirmPassword('');
-      }, 1500);
+      
+      registerMutation.mutate({
+        fullName: regFullName,
+        username,
+        email: regEmail,
+        password,
+      }, {
+        onSuccess: () => {
+          setSuccessMsg('Pendaftaran berhasil! Silahkan masuk.');
+          setTimeout(() => {
+            setIsRegister(false);
+            setPassword('');
+            setRegConfirmPassword('');
+          }, 1500);
+        },
+        onError: (err: Error) => setError(err.message || 'Gagal mendaftar. Periksa kembali data Anda.'),
+      });
     } else {
       if (!username || !password) {
         setError('Username dan password harus diisi.');
         return;
       }
-      loginMutation.mutate({ username, password });
+      loginMutation.mutate({ username, password }, {
+        onSuccess: (data) => {
+          setAuth(data.token, data.user);
+          navigate('/admin/dashboard');
+        },
+        onError: (err: Error) => setError(err.message || 'Gagal masuk. Periksa kembali kredensial Anda.'),
+      });
     }
   };
 
@@ -180,6 +183,7 @@ export function LoginPage() {
                 placeholder="Masukkan username Anda"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
+                autoComplete="username"
               />
             </div>
 
@@ -192,6 +196,7 @@ export function LoginPage() {
                   placeholder="Masukkan password Anda"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
                 />
                 <button
                   type="button"
@@ -214,6 +219,7 @@ export function LoginPage() {
                     placeholder="Ulangi password Anda"
                     value={regConfirmPassword}
                     onChange={(e) => setRegConfirmPassword(e.target.value)}
+                    autoComplete="new-password"
                   />
                 </div>
               </div>

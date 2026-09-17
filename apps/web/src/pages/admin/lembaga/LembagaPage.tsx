@@ -5,6 +5,7 @@ import { AdminLayout } from '@/layouts';
 import { useAuthStore } from '../../../stores/auth.store';
 import { API_URL } from '../../../lib/constants';
 import { safeFetchJson } from '@/lib/fetch';
+import { RecordSelector } from '@/components/RecordSelector';
 import styles from './LembagaPage.module.css';
 
 interface Lembaga {
@@ -12,6 +13,8 @@ interface Lembaga {
   jenis: string;
   nama: string;
   deskripsi?: string;
+  pimpinanId?: string;
+  pimpinanNama?: string;
   status: string;
   createdAt: string;
 }
@@ -45,7 +48,8 @@ export default function LembagaPage() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Lembaga | null>(null);
   const [formLoading, setFormLoading] = useState(false);
-  const [formData, setFormData] = useState({ jenis: '', nama: '', deskripsi: '' });
+  const [formData, setFormData] = useState({ jenis: '', nama: '', deskripsi: '', pimpinanId: '' });
+  const [defaultSearchName, setDefaultSearchName] = useState('');
 
   const fetchItems = useCallback(async (page = 1) => {
     setLoading(true);
@@ -75,10 +79,17 @@ export default function LembagaPage() {
 
   useEffect(() => { fetchItems(); }, [fetchItems]);
 
-  const openCreate = () => { setEditing(null); setFormData({ jenis: '', nama: '', deskripsi: '' }); setShowModal(true); };
+  const openCreate = () => { 
+    setEditing(null); 
+    setFormData({ jenis: '', nama: '', deskripsi: '', pimpinanId: '' }); 
+    setDefaultSearchName('');
+    setShowModal(true); 
+  };
+  
   const openEdit = (item: Lembaga) => {
     setEditing(item);
-    setFormData({ jenis: item.jenis, nama: item.nama, deskripsi: item.deskripsi || '' });
+    setFormData({ jenis: item.jenis, nama: item.nama, deskripsi: item.deskripsi || '', pimpinanId: item.pimpinanId || '' });
+    setDefaultSearchName(item.pimpinanNama || '');
     setShowModal(true);
   };
 
@@ -148,6 +159,12 @@ export default function LembagaPage() {
                         <span className={styles.jenisBadge}>{item.jenis}</span>
                         <h3 className={styles.cardTitle}>{item.nama}</h3>
                         {item.deskripsi && <p className={styles.cardDesc}>{item.deskripsi}</p>}
+                        {item.pimpinanNama && (
+                          <div style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                            Pimpinan: {item.pimpinanNama}
+                          </div>
+                        )}
                       </div>
                       <div className={styles.cardRight}>
                         <span className={`${styles.statusBadge} ${item.status === 'AKTIF' ? styles.aktif : styles.nonaktif}`}>
@@ -184,6 +201,22 @@ export default function LembagaPage() {
               required
             />
             <Input label="Nama" value={formData.nama} onChange={e => setFormData(f => ({ ...f, nama: e.target.value }))} required placeholder="Nama lengkap" />
+            
+            <RecordSelector
+              endpoint="/cms/penduduk"
+              label="Pimpinan / Ketua"
+              value={formData.pimpinanId}
+              defaultName={defaultSearchName}
+              onChange={(id) => setFormData(f => ({ ...f, pimpinanId: id }))}
+              renderItem={res => (
+                <>
+                  <div style={{ fontWeight: 500 }}>{res.namaLengkap}</div>
+                  <div style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>NIK: {res.nik}</div>
+                </>
+              )}
+              getDisplayValue={res => res.namaLengkap}
+            />
+
             <Input label="Deskripsi" value={formData.deskripsi} onChange={e => setFormData(f => ({ ...f, deskripsi: e.target.value }))} />
             <div className={styles.formActions}>
               <Button type="button" variant="outline" onClick={() => setShowModal(false)}>Batal</Button>

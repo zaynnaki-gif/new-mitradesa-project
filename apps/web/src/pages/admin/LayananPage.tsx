@@ -1,58 +1,26 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@/layouts';
 import { useAuthStore } from '@/stores/auth.store';
-import { API_URL } from '@/lib/constants';
 import styles from './LayananPage.module.css';
-
-interface ILayanan {
-  id: string;
-  kode: string;
-  nama: string;
-  slug: string;
-  kategori?: string;
-  isActive: boolean;
-}
+import { useAdminLayananList, useDeleteLayanan } from '@/hooks/useLayanan';
 
 export default function LayananPage() {
   const { token } = useAuthStore();
   const navigate = useNavigate();
-  const [data, setData] = useState<ILayanan[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(1);
 
-  const load = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const res = await fetch(`${API_URL}/services?page=${page}&limit=20`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error('Gagal memuat');
-      const json = await res.json();
-      setData(json.data || []);
-      setTotal(json.meta?.totalPages || 1);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Error');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: response, isLoading: loading, error: queryError } = useAdminLayananList(page, token || '');
+  const data = response?.data || [];
+  const total = response?.meta?.totalPages || 1;
+  const error = queryError ? queryError.message : '';
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { load(); }, [page]);
+  const deleteMutation = useDeleteLayanan();
 
   const hapus = async (id: string) => {
     if (!confirm('Hapus?')) return;
     try {
-      const res = await fetch(`${API_URL}/services/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error('Gagal hapus');
-      load();
+      await deleteMutation.mutateAsync({ id, token: token || '' });
     } catch (e: unknown) {
       alert(e instanceof Error ? e.message : 'Error');
     }

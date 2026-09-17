@@ -7,6 +7,7 @@ import { Button, Input, Modal, Select } from '@/components/ui';
 import shared from '@/styles/AdminShared.module.css';
 import s from '@/pages/admin/layanan/LayananListPage.module.css';
 import { safeFetchJson } from '@/lib/fetch';
+import { useConfirm } from '@/hooks/useConfirm';
 
 interface FieldDefinition {
   id: string;
@@ -22,6 +23,7 @@ export default function TemplateFieldsPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { token, loading: authLoading } = useAuthStore();
+  const { confirm, ConfirmElement } = useConfirm();
   
   const [fields, setFields] = useState<FieldDefinition[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,7 +63,7 @@ export default function TemplateFieldsPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, id]);
 
-  const handleOpenModal = (item?: FieldDefinition) => {
+  const handleOpenModal = async (item?: FieldDefinition) => {
     if (item) {
       setEditingData(item);
       setFormData({
@@ -129,7 +131,8 @@ export default function TemplateFieldsPage() {
   };
 
   const handleDelete = async (fieldId: string) => {
-    if (!token || !window.confirm('Apakah Anda yakin ingin menghapus field ini?')) return;
+    if (!token) return;
+    const _ok = await confirm({ message: 'Apakah Anda yakin ingin menghapus field ini?', title: 'Konfirmasi' }); if (!_ok) return;
 
     try {
       const result = await safeFetchJson(`${API_URL}/template-designer/templates/${id}/fields/${fieldId}`, {
@@ -154,6 +157,7 @@ export default function TemplateFieldsPage() {
 
   return (
     <AdminLayout>
+      {ConfirmElement}
       <div className={shared.container}>
         <div className={shared.header}>
           <div>

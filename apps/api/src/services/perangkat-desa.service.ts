@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { prisma } from './prisma.js';
 import { AuditService } from './audit.service.js';
 import {
@@ -9,7 +8,6 @@ import {
   PerangkatDesaDetailResponse,
 } from '../dto/perangkat-desa.dto.js';
 import { ApiError } from '../utils/response.js';
-import { getInstanceContext } from '../config/instance.js';
 
 /**
  * PerangkatDesaService - Village Government Officials Management
@@ -31,7 +29,6 @@ export class PerangkatDesaService {
       pendudukId: perangkat.pendudukId.toString(),
       pendudukNik: perangkat.penduduk?.nik || '',
       pendudukNama: perangkat.penduduk?.namaLengkap || '',
-      desaId: perangkat.desaId.toString(),
       desaNama: perangkat.desa?.nama || '',
       jabatan: perangkat.jabatan,
       status: perangkat.status,
@@ -93,9 +90,7 @@ export class PerangkatDesaService {
     const pageNum = Number(query.page) || 1;
     const limitNum = Number(query.limit) || 20;
     const skip = (pageNum - 1) * limitNum;
-
-    const { desaId } = getInstanceContext();
-    const where: any = { deletedAt: null, desaId };
+    const where: any = { deletedAt: null };
 
     if (query.search) {
       where.OR = [
@@ -124,7 +119,7 @@ export class PerangkatDesaService {
         orderBy: { createdAt: 'desc' },
         include: {
           penduduk: { select: { id: true, nik: true, namaLengkap: true } },
-          desa: { select: { id: true, nama: true } },
+          
           account: { select: { id: true, username: true } },
         },
       }),
@@ -159,9 +154,8 @@ export class PerangkatDesaService {
    * Get perangkat desa by ID
    */
   async findById(id: bigint): Promise<PerangkatDesaDetailResponse> {
-    const { desaId } = getInstanceContext();
     const perangkat = await prisma.perangkatDesa.findFirst({
-      where: { id, desaId },
+      where: { id },
       include: {
         penduduk: {
           select: {
@@ -170,7 +164,7 @@ export class PerangkatDesaService {
             alamat: true, rtId: true, rwId: true, gubugId: true,
           },
         },
-        desa: { select: { id: true, nama: true } },
+        
         account: { select: { id: true, username: true, email: true, status: true } },
       },
     });
@@ -191,12 +185,11 @@ export class PerangkatDesaService {
     actorIp?: string,
     actorAgent?: string
   ) {
-    const { desaId } = getInstanceContext();
-    if (!desaId) throw ApiError.badRequest('Konteks desa tidak ditemukan');
+    
 
     // Validate penduduk exists and is active
     const penduduk = await prisma.penduduk.findFirst({
-      where: { id: data.pendudukId, desaId },
+      where: { id: data.pendudukId },
     });
     if (!penduduk) throw ApiError.badRequest('Penduduk tidak ditemukan');
     if (!penduduk.isAktif) throw ApiError.badRequest('Penduduk tidak aktif');
@@ -205,7 +198,6 @@ export class PerangkatDesaService {
     const existing = await prisma.perangkatDesa.findFirst({
       where: {
         pendudukId: data.pendudukId,
-        desaId,
         deletedAt: null,
       },
     });
@@ -228,7 +220,6 @@ export class PerangkatDesaService {
     const result = await prisma.perangkatDesa.create({
       data: {
         pendudukId: data.pendudukId,
-        desaId,
         jabatan: data.jabatan,
         status: data.status || 'AKTIF',
         fotoUrl: data.fotoUrl || null,
@@ -236,7 +227,7 @@ export class PerangkatDesaService {
       },
       include: {
         penduduk: { select: { id: true, nik: true, namaLengkap: true } },
-        desa: { select: { id: true, nama: true } },
+        
         account: { select: { id: true, username: true } },
       },
     });
@@ -265,13 +256,12 @@ export class PerangkatDesaService {
     actorIp?: string,
     actorAgent?: string
   ) {
-    const { desaId } = getInstanceContext();
-    const existing = await prisma.perangkatDesa.findFirst({ where: { id, desaId } });
+    const existing = await prisma.perangkatDesa.findFirst({ where: { id } });
     if (!existing || existing.deletedAt) throw ApiError.notFound('Perangkat Desa tidak ditemukan');
 
     // Validate new penduduk if changing
     if (data.pendudukId && data.pendudukId !== existing.pendudukId) {
-      const penduduk = await prisma.penduduk.findFirst({ where: { id: data.pendudukId, desaId } });
+      const penduduk = await prisma.penduduk.findFirst({ where: { id: data.pendudukId } });
       if (!penduduk) throw ApiError.badRequest('Penduduk tidak valid');
       if (!penduduk.isAktif) throw ApiError.badRequest('Penduduk tidak aktif');
     }
@@ -300,7 +290,7 @@ export class PerangkatDesaService {
       },
       include: {
         penduduk: { select: { id: true, nik: true, namaLengkap: true } },
-        desa: { select: { id: true, nama: true } },
+        
         account: { select: { id: true, username: true } },
       },
     });
@@ -329,8 +319,7 @@ export class PerangkatDesaService {
     actorIp?: string,
     actorAgent?: string
   ) {
-    const { desaId } = getInstanceContext();
-    const existing = await prisma.perangkatDesa.findFirst({ where: { id, desaId } });
+    const existing = await prisma.perangkatDesa.findFirst({ where: { id } });
     if (!existing || existing.deletedAt) throw ApiError.notFound('Perangkat Desa tidak ditemukan');
 
     await prisma.perangkatDesa.update({
@@ -362,8 +351,7 @@ export class PerangkatDesaService {
     actorIp?: string,
     actorAgent?: string
   ) {
-    const { desaId } = getInstanceContext();
-    const perangkat = await prisma.perangkatDesa.findFirst({ where: { id, desaId } });
+    const perangkat = await prisma.perangkatDesa.findFirst({ where: { id } });
     if (!perangkat || perangkat.deletedAt) throw ApiError.notFound('Perangkat Desa tidak ditemukan');
 
     // Check account exists
@@ -404,8 +392,7 @@ export class PerangkatDesaService {
     actorIp?: string,
     actorAgent?: string
   ) {
-    const { desaId } = getInstanceContext();
-    const perangkat = await prisma.perangkatDesa.findFirst({ where: { id, desaId } });
+    const perangkat = await prisma.perangkatDesa.findFirst({ where: { id } });
     if (!perangkat || perangkat.deletedAt) throw ApiError.notFound('Perangkat Desa tidak ditemukan');
 
     await prisma.perangkatDesa.update({
@@ -431,9 +418,8 @@ export class PerangkatDesaService {
    * Get account linked to perangkat desa
    */
   async getAccount(id: bigint) {
-    const { desaId } = getInstanceContext();
     const perangkat = await prisma.perangkatDesa.findFirst({
-      where: { id, desaId },
+      where: { id },
       include: {
         account: {
           select: {

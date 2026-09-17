@@ -1,0 +1,1 @@
+import { PrismaClient } from '@prisma/client'; const prisma = new PrismaClient(); async function main() { console.log(JSON.stringify(await prisma.penduduk.groupBy({ by: ['pendidikan'], _count: { pendidikan: true }, where: { deletedAt: null } }))); } main().finally(() => prisma.$disconnect());

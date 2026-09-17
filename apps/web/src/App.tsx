@@ -12,6 +12,7 @@ const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 const ProfilPage = lazy(() => import('./pages/public/ProfilPage'));
 const PemerintahanPage = lazy(() => import('./pages/public/PemerintahanPage'));
 const KependudukanPage = lazy(() => import('./pages/public/KependudukanPage'));
+const PendudukSettings = lazy(() => import('./pages/admin/master/PendudukSettings'));
 const KontakPage = lazy(() => import('./pages/public/KontakPage'));
 const GaleriPage = lazy(() => import('./pages/public/GaleriPage'));
 const HalamanPage = lazy(() => import('./pages/public/HalamanPage'));
@@ -21,6 +22,8 @@ const LayananCatalogPage = lazy(() => import('./pages/public/layanan/LayananCata
 const LayananDetailPage = lazy(() => import('./pages/public/layanan/LayananDetailPage'));
 const TrackingPage = lazy(() => import('./pages/public/layanan/TrackingPage'));
 const RiwayatLayananPage = lazy(() => import('./pages/public/layanan/RiwayatLayananPage').then(m => ({ default: m.RiwayatLayananPage })));
+const UsulanPublicPage = lazy(() => import('./pages/public/layanan-warga/UsulanPublicPage'));
+const VotingPublicPage = lazy(() => import('./pages/public/layanan-warga/VotingPublicPage'));
 
 // Berita pages
 const BeritaListPage = lazy(() => import('./pages/public/berita/BeritaListPage'));
@@ -71,6 +74,7 @@ const RequestDetailPage = lazy(() => import('./pages/admin/permintaan/Permintaan
 
 // Admin Layanan pages
 const LayananListPage = lazy(() => import('./pages/admin/layanan/LayananListPage'));
+const LayananSettings = lazy(() => import('./pages/admin/layanan/LayananSettings'));
 const LayananFieldsPage = lazy(() => import('./pages/admin/layanan/LayananFieldsPage'));
 
 // Admin Document pages
@@ -90,11 +94,21 @@ const ExecutiveDashboard = lazy(() => import('./pages/admin/ExecutiveDashboard')
 
 // Admin missing pages
 const MutasiPendudukPage = lazy(() => import('./pages/admin/penduduk/MutasiPage'));
+const RpjmdesPage = lazy(() => import('./pages/admin/perencanaan/RpjmdesPage'));
+const RpjmdesDetailPage = lazy(() => import('./pages/admin/perencanaan/RpjmdesDetailPage'));
+const UsulanPage = lazy(() => import('./pages/admin/perencanaan/UsulanPage'));
+const VotingPage = lazy(() => import('./pages/admin/perencanaan/VotingPage'));
+const VotingDetailPage = lazy(() => import('./pages/admin/perencanaan/VotingDetailPage'));
 const AdminPosyanduPage = lazy(() => import('./pages/admin/kesehatan/AdminPosyanduKunjungan'));
 const BumilAdminPage = lazy(() => import('./pages/admin/kesehatan/BumilPage'));
 const KasUmumAdminPage = lazy(() => import('./pages/admin/keuangan/KasUmumPage'));
 const ApbdesEntryAdminPage = lazy(() => import('./pages/admin/keuangan/ApbdesEntryPage'));
-const BansosAdminPage = lazy(() => import('./pages/admin/pemerintahan/BansosPage'));
+
+// Admin Kesejahteraan routes
+const BansosListPage = lazy(() => import('./pages/admin/kesejahteraan/bansos/BansosListPage'));
+const BansosFormPage = lazy(() => import('./pages/admin/kesejahteraan/bansos/BansosFormPage'));
+const BansosPenerimaPage = lazy(() => import('./pages/admin/kesejahteraan/bansos/BansosPenerimaPage'));
+
 const SaranAdminPage = lazy(() => import('./pages/admin/pemerintahan/SaranPage'));
 const UserManagementAdminPage = lazy(() => import('./pages/admin/sistem/UserManagementPage'));
 const ActivityLogAdminPage = lazy(() => import('./pages/admin/sistem/ActivityLogPage'));
@@ -106,11 +120,9 @@ const VerifyPage = lazy(() => import('./pages/verification/VerifyPage'));
 import { Navigate } from 'react-router-dom';
 import { useAuthStore } from './stores/auth.store';
 
-
-
 function AdminRoute({ children }: { children: React.ReactNode }) {
   const { user, token, loading } = useAuthStore();
-  const isAdmin = user?.roles?.includes('ADMIN') || user?.roles?.includes('DEVELOPER') || user?.roles?.includes('superadmin') || user?.roles?.includes('PIMPINAN') || user?.roles?.includes('pimpinan');
+  const isAdmin = user?.roles?.includes('ADMIN') || user?.roles?.includes('DEVELOPER') || user?.roles?.includes('superadmin') || user?.roles?.includes('SUPER_ADMIN') || user?.roles?.includes('SUPERADMIN') || user?.roles?.includes('PIMPINAN') || user?.roles?.includes('pimpinan');
 
   if (loading) return <Loading />;
 
@@ -144,6 +156,8 @@ function App() {
             <Route path="/layanan/riwayat" element={<RiwayatLayananPage />} />
             <Route path="/layanan/tracking" element={<TrackingPage />} />
             <Route path="/layanan/:slug" element={<LayananDetailPage />} />
+            <Route path="/usulan-warga" element={<UsulanPublicPage />} />
+            <Route path="/e-voting" element={<VotingPublicPage />} />
 
             {/* Berita routes */}
             <Route path="/berita" element={<BeritaListPage />} />
@@ -191,6 +205,14 @@ function App() {
               element={
                 <AdminRoute>
                   <PendudukPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/master/penduduk/pengaturan"
+              element={
+                <AdminRoute>
+                  <PendudukSettings />
                 </AdminRoute>
               }
             />
@@ -340,6 +362,14 @@ function App() {
               }
             />
             <Route
+              path="/admin/layanan/pengaturan"
+              element={
+                <AdminRoute>
+                  <LayananSettings />
+                </AdminRoute>
+              }
+            />
+            <Route
               path="/admin/layanan/:id/fields"
               element={
                 <AdminRoute>
@@ -458,6 +488,48 @@ function App() {
               }
             />
 
+            {/* Admin Perencanaan routes */}
+            <Route
+              path="/admin/perencanaan/rpjmdes"
+              element={
+                <AdminRoute>
+                  <RpjmdesPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/perencanaan/rpjmdes/:id"
+              element={
+                <AdminRoute>
+                  <RpjmdesDetailPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/perencanaan/usulan"
+              element={
+                <AdminRoute>
+                  <UsulanPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/perencanaan/voting"
+              element={
+                <AdminRoute>
+                  <VotingPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/perencanaan/voting/:id"
+              element={
+                <AdminRoute>
+                  <VotingDetailPage />
+                </AdminRoute>
+              }
+            />
+
             {/* Admin Kesehatan routes */}
             <Route
               path="/admin/kesehatan/posyandu"
@@ -494,15 +566,41 @@ function App() {
               }
             />
 
-            {/* Admin Pemerintahan routes */}
+            {/* Admin Kesejahteraan routes */}
             <Route
-              path="/admin/pemerintahan/bansos"
+              path="/admin/kesejahteraan/bansos"
               element={
                 <AdminRoute>
-                  <BansosAdminPage />
+                  <BansosListPage />
                 </AdminRoute>
               }
             />
+            <Route
+              path="/admin/kesejahteraan/bansos/create"
+              element={
+                <AdminRoute>
+                  <BansosFormPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/kesejahteraan/bansos/:id/edit"
+              element={
+                <AdminRoute>
+                  <BansosFormPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/kesejahteraan/bansos/:id/penerima"
+              element={
+                <AdminRoute>
+                  <BansosPenerimaPage />
+                </AdminRoute>
+              }
+            />
+
+            {/* Admin Pemerintahan routes */}
             <Route
               path="/admin/pemerintahan/saran"
               element={

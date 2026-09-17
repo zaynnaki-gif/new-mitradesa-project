@@ -67,7 +67,7 @@ export interface Desa {
 
 export interface IdentitasDesa {
   id: number;
-  desaId: number;
+  desaConfigId?: number;
   namaDesa: string;
   singkatanDesa?: string;
   kodeDesa?: string;
@@ -82,28 +82,12 @@ export interface IdentitasDesa {
   faviconUrl?: string;
   kepalaDesa?: string;
   sekretarisDesa?: string;
+  facebook?: string;
+  instagram?: string;
+  twitter?: string;
+  youtube?: string;
   createdAt: string;
   updatedAt: string;
-  desa?: {
-    id: number;
-    kode: string;
-    nama: string;
-    kecamatan?: {
-      id: number;
-      nama: string;
-      kode: string;
-      kabupaten?: {
-        id: number;
-        nama: string;
-        kode: string;
-        provinsi?: {
-          id: number;
-          nama: string;
-          kode: string;
-        };
-      };
-    };
-  };
 }
 
 // ============================================

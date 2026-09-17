@@ -192,6 +192,69 @@ export class AuthService {
   }
 
   /**
+   * Register a new internal account
+   */
+  async registerInternal(
+    username: string,
+    email: string,
+    passwordHash: string,
+    ipAddress?: string,
+    userAgent?: string
+  ): Promise<AccountWithRoles> {
+    // Check if username or email already exists
+    const existingAccount = await prisma.account.findFirst({
+      where: {
+        OR: [
+          { username },
+          { email }
+        ]
+      }
+    });
+
+    if (existingAccount) {
+      throw ApiError.badRequest('Username or email already exists');
+    }
+
+    // Create account
+    const account = await prisma.account.create({
+      data: {
+        username,
+        email,
+        passwordHash,
+        status: 'ACTIVE',
+      },
+      include: {
+        accountRoles: {
+          include: {
+            role: {
+              include: {
+                rolePermissions: {
+                  include: {
+                    permission: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    await this.auditService.log({
+      entityType: 'account',
+      entityId: account.id,
+      action: 'CREATE_ACCOUNT',
+      actorId: account.id,
+      actorType: 'USER',
+      actorIp: ipAddress,
+      actorAgent: userAgent,
+    });
+
+    const { passwordHash: _passwordHash, ...accountWithoutPassword } = account;
+    return accountWithoutPassword as unknown as AccountWithRoles;
+  }
+
+  /**
    * Verify internal token
    */
   async verifyInternalToken(token: string): Promise<{

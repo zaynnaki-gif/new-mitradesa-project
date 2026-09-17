@@ -1,10 +1,6 @@
-/**
- * useLayanan Hook
- * Fetches public services/layanan from the API
- */
-
-import { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { API_URL } from '@/lib/constants';
+import type { FieldDefinition } from '@/components/forms/DynamicForm';
 
 export interface Layanan {
   id: string;
@@ -14,23 +10,30 @@ export interface Layanan {
   kategori?: string;
   deskripsi?: string;
   isActive: boolean;
+  requiresDocument?: boolean;
+  requiresApproval?: boolean;
   _count?: {
     permintaan: number;
   };
 }
 
-interface LayananResponse {
+interface PaginationMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface LayananResponse {
   success: boolean;
   data: Layanan[];
   message: string;
-  meta?: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-  };
+  meta: PaginationMeta;
 }
 
+// ============================================
+// Public Hooks
+// ============================================
 interface UseLayananOptions {
   limit?: number;
   page?: number;
@@ -38,122 +41,319 @@ interface UseLayananOptions {
   search?: string;
 }
 
-interface UseLayananResult {
-  data: Layanan[];
-  loading: boolean;
-  error: string | null;
-  refetch: () => void;
-  meta?: LayananResponse['meta'];
-}
+export const useLayananList = (options: UseLayananOptions = {}) => {
+  const { data, isLoading, error, refetch } = useQuery<LayananResponse, Error>({
+    queryKey: ['public-layanan', options],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        limit: String(options.limit || 20),
+        page: String(options.page || 1),
+      });
 
-export function useLayananList(options: UseLayananOptions = {}): UseLayananResult {
-  const [data, setData] = useState<Layanan[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [meta, setMeta] = useState<LayananResponse['meta']>();
-  const [refreshKey, setRefreshKey] = useState(0);
+      if (options.kategori) params.set('kategori', options.kategori);
+      if (options.search) params.set('search', options.search);
 
-  useEffect(() => {
-    const fetchLayanan = async () => {
-      setLoading(true);
-      setError(null);
+      const res = await fetch(`${API_URL}/public/layanan?${params}`);
+      
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || 'Gagal memuat layanan');
+      return json;
+    },
+  });
 
-      try {
-        const params = new URLSearchParams({
-          limit: String(options.limit || 20),
-          page: String(options.page || 1),
-        });
+  return {
+    data: data?.data || [],
+    loading: isLoading,
+    error: error?.message || null,
+    refetch,
+    meta: data?.meta,
+  };
+};
 
-        if (options.kategori) {
-          params.set('kategori', options.kategori);
-        }
+export const useLayananDetail = (slug: string | null) => {
+  const { data, isLoading, error, refetch } = useQuery<Layanan, Error>({
+    queryKey: ['public-layanan-detail', slug],
+    queryFn: async () => {
+      if (!slug) throw new Error('Slug is required');
 
-        if (options.search) {
-          params.set('search', options.search);
-        }
-
-        const res = await fetch(`${API_URL}/public/layanan?${params}`);
-
-        if (!res.ok) {
-          throw new Error('Gagal memuat layanan');
-        }
-
-        const result: LayananResponse = await res.json();
-
-        if (result.success) {
-          setData(result.data || []);
-          setMeta(result.meta);
-        } else {
-          setData([]);
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Terjadi kesalahan');
-        setData([]);
-      } finally {
-        setLoading(false);
+      const res = await fetch(`${API_URL}/public/layanan/${encodeURIComponent(slug)}`);
+      
+      const json = await res.json();
+      if (!res.ok) {
+        if (res.status === 404) throw new Error('Layanan tidak ditemukan');
+        throw new Error(json.message || 'Gagal memuat layanan');
       }
-    };
+      return json.data;
+    },
+    enabled: !!slug,
+  });
 
-    fetchLayanan();
-  }, [options.limit, options.page, options.kategori, options.search, refreshKey]);
+  return {
+    data: data || null,
+    loading: isLoading,
+    error: error?.message || null,
+    refetch,
+  };
+};
 
-  const refetch = () => setRefreshKey((k) => k + 1);
+// ============================================
+// Admin Hooks
+// ============================================
 
-  return { data, loading, error, refetch, meta };
-}
+export const useAdminLayananList = (page: number, token: string, filter?: { search?: string; kategori?: string; isActive?: string }) => {
+  return useQuery<LayananResponse, Error>({
+    queryKey: ['admin-layanan', { page, ...filter }],
+    queryFn: async () => {
+      if (!token) throw new Error('No token provided');
 
-export function useLayananDetail(slug: string | null): {
-  data: Layanan | null;
-  loading: boolean;
-  error: string | null;
-  refetch: () => void;
-} {
-  const [data, setData] = useState<Layanan | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
+      const params = new URLSearchParams({
+        limit: '20',
+        page: String(page),
+      });
 
-  useEffect(() => {
-    if (!slug) {
-      setData(null);
-      setLoading(false);
-      return;
-    }
+      if (filter?.search) params.set('search', filter.search);
+      if (filter?.kategori) params.set('kategori', filter.kategori);
+      if (filter?.isActive) params.set('isActive', filter.isActive);
 
-    const fetchDetail = async () => {
-      setLoading(true);
-      setError(null);
+      const response = await fetch(`${API_URL}/services?${params}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
 
-      try {
-        const res = await fetch(`${API_URL}/public/layanan/${encodeURIComponent(slug)}`);
-
-        if (!res.ok) {
-          if (res.status === 404) {
-            throw new Error('Layanan tidak ditemukan');
-          }
-          throw new Error('Gagal memuat layanan');
-        }
-
-        const result = await res.json();
-
-        if (result.success) {
-          setData(result.data);
-        } else {
-          setError('Gagal memuat layanan');
-          setData(null);
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Terjadi kesalahan');
-        setData(null);
-      } finally {
-        setLoading(false);
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || 'Gagal memuat layanan');
       }
-    };
 
-    fetchDetail();
-  }, [slug, refreshKey]);
+      return data;
+    },
+    enabled: !!token,
+  });
+};
 
-  const refetch = () => setRefreshKey((k) => k + 1);
+export const useAdminLayananDetailById = (id: string | null, token: string) => {
+  return useQuery<{ data: Layanan }, Error>({
+    queryKey: ['admin-layanan-detail', id],
+    queryFn: async () => {
+      if (!id || !token) throw new Error('ID or Token is missing');
 
-  return { data, loading, error, refetch };
-}
+      const response = await fetch(`${API_URL}/services/${id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || 'Gagal memuat layanan');
+      }
+
+      return data;
+    },
+    enabled: !!id && !!token,
+  });
+};
+
+export const useCreateLayanan = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ data, token }: { data: Partial<Layanan>; token: string }) => {
+      const response = await fetch(`${API_URL}/services`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || 'Gagal menambah layanan');
+      }
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-layanan'] });
+      queryClient.invalidateQueries({ queryKey: ['public-layanan'] });
+    },
+  });
+};
+
+export const useUpdateLayanan = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, data, token }: { id: string; data: Partial<Layanan>; token: string }) => {
+      const response = await fetch(`${API_URL}/services/${id}`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || 'Gagal memperbarui layanan');
+      }
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-layanan'] });
+      queryClient.invalidateQueries({ queryKey: ['public-layanan'] });
+      queryClient.invalidateQueries({ queryKey: ['public-layanan-detail'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-layanan-detail'] });
+    },
+  });
+};
+
+export const useDeleteLayanan = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, token }: { id: string; token: string }) => {
+      const response = await fetch(`${API_URL}/services/${id}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || 'Gagal menghapus layanan');
+      }
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-layanan'] });
+      queryClient.invalidateQueries({ queryKey: ['public-layanan'] });
+    },
+  });
+};
+
+// ============================================
+// Field Hooks
+// ============================================
+
+export const useLayananFields = (layananId: string | null, token: string) => {
+  return useQuery<{ data: FieldDefinition[] }, Error>({
+    queryKey: ['layanan-fields', layananId],
+    queryFn: async () => {
+      if (!layananId || !token) throw new Error('ID or Token is missing');
+
+      const response = await fetch(`${API_URL}/services/${layananId}/fields`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || 'Gagal memuat fields');
+      }
+
+      return data;
+    },
+    enabled: !!layananId && !!token,
+  });
+};
+
+export const useSaveField = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ 
+      layananId, 
+      fieldId, 
+      data, 
+      token 
+    }: { 
+      layananId: string; 
+      fieldId?: string | null; 
+      data: Partial<FieldDefinition>; 
+      token: string; 
+    }) => {
+      const url = fieldId 
+        ? `${API_URL}/services/${layananId}/fields/${fieldId}`
+        : `${API_URL}/services/${layananId}/fields`;
+        
+      const method = fieldId ? 'PATCH' : 'POST';
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || 'Gagal menyimpan field');
+      }
+      return result;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['layanan-fields', variables.layananId] });
+      queryClient.invalidateQueries({ queryKey: ['admin-layanan'] }); // to update count
+    },
+  });
+};
+
+export const useDeleteField = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ layananId, fieldId, token }: { layananId: string; fieldId: string; token: string }) => {
+      const response = await fetch(`${API_URL}/services/${layananId}/fields/${fieldId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || 'Gagal menghapus field');
+      }
+      return result;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['layanan-fields', variables.layananId] });
+      queryClient.invalidateQueries({ queryKey: ['admin-layanan'] }); // to update count
+    },
+  });
+};
+
+export const useReorderFields = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ layananId, fields, token }: { layananId: string; fields: { id: string; orderIndex: number }[]; token: string }) => {
+      const response = await fetch(`${API_URL}/services/${layananId}/fields/reorder`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ fields }),
+      });
+
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || 'Gagal mengubah urutan fields');
+      }
+      return result;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['layanan-fields', variables.layananId] });
+    },
+  });
+};

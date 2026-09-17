@@ -1,8 +1,8 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+import { Prisma } from '@prisma/client';
 import { prisma } from './prisma.js';
 import { ApiError } from '../utils/response.js';
 import { CreateHalamanInput, UpdateHalamanInput, QueryHalamanInput } from '../dto/cms.dto.js';
-import { getInstanceContext } from '../config/instance.js';
+
 
 export class HalamanService {
   /**
@@ -35,13 +35,7 @@ export class HalamanService {
   async findAll(query: QueryHalamanInput) {
     const { page, limit, search, status, isMenu, urutan } = query;
     const skip = (page - 1) * limit;
-    const { desaId } = getInstanceContext();
-
-    const where: any = {};
-    if (desaId) {
-      where.desaId = desaId;
-    }
-
+    const where: Prisma.HalamanWhereInput = {};
     if (search) {
       where.OR = [
         { judul: { contains: search, mode: 'insensitive' } },
@@ -96,11 +90,7 @@ export class HalamanService {
    * Get published halaman (for public access)
    */
   async findPublished() {
-    const { desaId } = getInstanceContext();
     const where: any = { status: 'PUBLISHED' };
-    if (desaId) {
-      where.desaId = desaId;
-    }
     const halamans = await prisma.halaman.findMany({
       where,
       orderBy: {
@@ -122,11 +112,7 @@ export class HalamanService {
    * Get menu items
    */
   async findMenuItems() {
-    const { desaId } = getInstanceContext();
     const where: any = { status: 'PUBLISHED', isMenu: true };
-    if (desaId) {
-      where.desaId = desaId;
-    }
     return prisma.halaman.findMany({
       where,
       orderBy: {
@@ -145,9 +131,8 @@ export class HalamanService {
    * Get halaman by ID
    */
   async findById(id: bigint) {
-    const { desaId } = getInstanceContext();
     const where: any = { id };
-    if (desaId) where.desaId = desaId;
+    
     const halaman = await prisma.halaman.findFirst({
       where,
       include: {
@@ -171,9 +156,8 @@ export class HalamanService {
    * Get halaman by slug
    */
   async findBySlug(slug: string) {
-    const { desaId } = getInstanceContext();
     const where: any = { slug };
-    if (desaId) where.desaId = desaId;
+    
     const halaman = await prisma.halaman.findFirst({
       where,
       include: {
@@ -196,9 +180,8 @@ export class HalamanService {
    * Get published halaman by slug
    */
   async findPublishedBySlug(slug: string) {
-    const { desaId } = getInstanceContext();
     const where: any = { slug, status: 'PUBLISHED' };
-    if (desaId) where.desaId = desaId;
+    
     const halaman = await prisma.halaman.findFirst({
       where,
       include: {
@@ -221,7 +204,6 @@ export class HalamanService {
    * Create new halaman
    */
   async create(data: CreateHalamanInput, createdById?: bigint) {
-    const { desaId } = getInstanceContext();
     // Check for duplicate slug
     const existing = await prisma.halaman.findFirst({
       where: { slug: data.slug },
@@ -242,7 +224,6 @@ export class HalamanService {
         gambarUrl: data.gambarUrl,
         status: data.status ?? 'DRAFT',
         createdById: createdById ? BigInt(createdById) : null,
-        desaId: desaId ?? null,
         publishedAt: data.publishedAt ? new Date(data.publishedAt) : null,
         metaTitle: data.metaTitle,
         metaDeskripsi: data.metaDeskripsi,
@@ -266,9 +247,8 @@ export class HalamanService {
    * Update halaman
    */
   async update(id: bigint, data: UpdateHalamanInput) {
-    const { desaId } = getInstanceContext();
     const where: any = { id };
-    if (desaId) where.desaId = desaId;
+    
     const existing = await prisma.halaman.findFirst({
       where,
     });
@@ -323,9 +303,8 @@ export class HalamanService {
    * Publish halaman
    */
   async publish(id: bigint) {
-    const { desaId } = getInstanceContext();
     const where: any = { id };
-    if (desaId) where.desaId = desaId;
+    
     const existing = await prisma.halaman.findFirst({
       where,
     });
@@ -347,9 +326,8 @@ export class HalamanService {
    * Archive halaman
    */
   async archive(id: bigint) {
-    const { desaId } = getInstanceContext();
     const where: any = { id };
-    if (desaId) where.desaId = desaId;
+    
     const existing = await prisma.halaman.findFirst({
       where,
     });
@@ -370,9 +348,8 @@ export class HalamanService {
    * Soft delete halaman
    */
   async softDelete(id: bigint) {
-    const { desaId } = getInstanceContext();
     const where: any = { id };
-    if (desaId) where.desaId = desaId;
+    
     const existing = await prisma.halaman.findFirst({
       where,
     });
@@ -395,11 +372,7 @@ export class HalamanService {
    * Get halaman statistics
    */
   async getStats() {
-    const { desaId } = getInstanceContext();
-    const where: any = {};
-    if (desaId) {
-      where.desaId = desaId;
-    }
+    const where: Prisma.HalamanWhereInput = {};
     const [total, published, draft, archived] = await Promise.all([
       prisma.halaman.count({ where }),
       prisma.halaman.count({ where: { ...where, status: 'PUBLISHED' } }),

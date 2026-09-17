@@ -29,13 +29,12 @@ router.get(
     });
 
     if (!data) {
-      return response.notFound(res, 'Data APBDes tidak ditemukan');
+      return response.success(res, null, 'Data APBDes tidak ditemukan');
     }
 
     const serializedData = {
       ...data,
       id: data.id.toString(),
-      desaId: data.desaId.toString(),
       items: data.items.map(item => ({
         ...item,
         id: item.id.toString(),
@@ -61,6 +60,49 @@ router.get(
 
     const years = records.map(r => r.tahun);
     return response.success(res, years, 'Daftar Tahun APBDes');
+  })
+);
+
+/**
+ * GET /api/public/transparansi/rpjmdes - Get active RPJMDes with its Bidang and RKPDes
+ */
+router.get(
+  '/rpjmdes',
+  asyncHandler(async (_req, res) => {
+    const data = await prisma.rpjmdes.findFirst({
+      where: { status: 'AKTIF' },
+      include: {
+        bidangs: {
+          include: {
+            rkpdes: {
+              orderBy: { tahun: 'asc' }
+            }
+          }
+        }
+      }
+    });
+
+    if (!data) {
+      return response.success(res, null, 'Data RPJMDes aktif tidak ditemukan');
+    }
+
+    const serializedData = {
+      ...data,
+      id: data.id.toString(),
+      bidangs: data.bidangs.map(b => ({
+        ...b,
+        id: b.id.toString(),
+        rpjmdesId: b.rpjmdesId.toString(),
+        rkpdes: b.rkpdes.map(r => ({
+          ...r,
+          id: r.id.toString(),
+          rpjmdesBidangId: r.rpjmdesBidangId.toString(),
+          apbdesItemId: r.apbdesItemId?.toString() || null,
+        }))
+      }))
+    };
+
+    return response.success(res, serializedData, 'Data Transparansi RPJMDes');
   })
 );
 

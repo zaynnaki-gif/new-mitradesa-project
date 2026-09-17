@@ -50,6 +50,25 @@ export const authApi = {
   },
 
   /**
+   * Internal register
+   */
+  register: async (payload: any): Promise<LoginResponse> => {
+    const response = await fetch(`${API_URL}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error?.message || 'Register failed');
+    }
+
+    return data.data;
+  },
+
+  /**
    * Logout
    */
   logout: async (): Promise<void> => {
@@ -142,4 +161,70 @@ export const authApi = {
 
     localStorage.removeItem('citizen_token');
   },
+  /**
+   * Recover Access for citizen
+   */
+  recoverAccess: async (data: { nik: string, noKk: string, telepon: string }): Promise<CitizenOtpResponse> => {
+    const response = await fetch(`${API_URL}/auth/citizen/recover-access`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error?.message || 'Failed to recover access');
+    return result.data;
+  },
+
+  /**
+   * Cancel Recovery for citizen
+   */
+  cancelRecovery: async (data: { nik: string, cancellationCode: string }): Promise<{ message: string }> => {
+    const response = await fetch(`${API_URL}/auth/citizen/cancel-recovery`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error?.message || 'Failed to cancel recovery');
+    return result.data;
+  }
 };
+
+import { useMutation } from '@tanstack/react-query';
+
+export function useLogin() {
+  return useMutation({
+    mutationFn: (data: { username: string; password: string }) => authApi.login(data.username, data.password)
+  });
+}
+
+export function useRegister() {
+  return useMutation({
+    mutationFn: (data: any) => authApi.register(data)
+  });
+}
+
+export function useCitizenRequestOtp() {
+  return useMutation({
+    mutationFn: (nik: string) => authApi.requestOtp(nik)
+  });
+}
+
+export function useCitizenVerifyOtp() {
+  return useMutation({
+    mutationFn: (data: { challenge: string; otp: string }) => authApi.verifyOtp(data.challenge, data.otp)
+  });
+}
+
+export function useCitizenRecoverAccess() {
+  return useMutation({
+    mutationFn: (data: { nik: string, noKk: string, telepon: string }) => authApi.recoverAccess(data)
+  });
+}
+
+export function useCitizenCancelRecovery() {
+  return useMutation({
+    mutationFn: (data: { nik: string, cancellationCode: string }) => authApi.cancelRecovery(data)
+  });
+}
+

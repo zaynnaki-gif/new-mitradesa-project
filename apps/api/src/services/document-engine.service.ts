@@ -33,7 +33,7 @@ import { ApiError } from '../utils/response.js';
 import { config } from '../config/index.js';
 import { getStorageProvider } from './storage/index.js';
 import type { IStorageProvider } from './storage/index.js';
-import { getInstanceContext } from '../config/instance.js';
+
 
 // ============================================================
 // Types
@@ -106,14 +106,11 @@ export class DocumentEngineService {
       throw ApiError.badRequest('Template harus dalam status PUBLISHED');
     }
 
-    // 2. Get desaId from instance context (primary) or template relation (fallback)
-    const { desaId: ctxDesaId } = getInstanceContext();
-    const desaId = ctxDesaId ?? (await this.getDesaId(context, version.template.dokumen.layanan.desaId));
-
+    // 2. Fetch village identity configurations
+    
     // 3. Generate document number
     const nomorDokumen = await generateDocumentNumber(
       this.db,
-      desaId,
       version.template.dokumen.kode
     );
 
@@ -122,13 +119,13 @@ export class DocumentEngineService {
 
     // 5. Load default penanda tangan for the village
     const defaultSignatory = await this.db.penandaTangan.findFirst({
-      where: { desaId, isActive: true },
+      where: { isActive: true },
       orderBy: { createdAt: 'asc' },
     });
 
     // 5.5 Merge village & system context into context so standard village/signatory/system bindings resolve
     const { getVillageContext } = await import('../utils/binding-resolver.js');
-    const villageCtx = await getVillageContext(this.db, desaId);
+    const villageCtx = await getVillageContext(this.db);
 
     const now = new Date();
     const fullContext: BindingContext = {
@@ -144,7 +141,6 @@ export class DocumentEngineService {
         bulan: now.getMonth() + 1,
       },
       ...context,
-      desa: { ...villageCtx.desa, ...((context.desa as Record<string, unknown>) || {}) },
       kepala_desa: {
         nama: defaultSignatory?.nama || villageCtx.kepala_desa?.nama || 'H. Tajuddin',
         jabatan: defaultSignatory?.jabatan || villageCtx.kepala_desa?.jabatan || 'Kepala Desa',
@@ -475,17 +471,6 @@ export class DocumentEngineService {
   // ============================================================
   // Private Methods
   // ============================================================
-
-  private async getDesaId(context: BindingContext, fallback: bigint): Promise<bigint> {
-    // Try to get from context
-    if (context.desa && typeof context.desa === 'object') {
-      const desa = context.desa as Record<string, unknown>;
-      if (desa.id) {
-        return BigInt(String(desa.id));
-      }
-    }
-    return fallback;
-  }
 
   private processContent(
     content: Record<string, unknown>,

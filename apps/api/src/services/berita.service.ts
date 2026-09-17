@@ -2,7 +2,7 @@ import { prisma } from './prisma.js';
 import { ApiError } from '../utils/response.js';
 import { Prisma } from '@prisma/client';
 import { CreateBeritaInput, UpdateBeritaInput, QueryBeritaInput } from '../dto/cms.dto.js';
-import { getInstanceContext } from '../config/instance.js';
+
 export class BeritaService {
   /**
    * Helper to sanitize rich text
@@ -32,15 +32,14 @@ export class BeritaService {
    */
   async findAll(query: QueryBeritaInput) {
     const { page, limit, search, status, kategoriId, penulisId, urutan } = query;
-    const { desaId } = getInstanceContext();
     const skip = (page - 1) * limit;
 
     const where: Prisma.BeritaWhereInput = {
       AND: [
         {
           OR: [
-            { kategori: { desaId } },
-            { penulis: { perangkatDesa: { desaId } } },
+            { kategori: { } },
+            { penulis: { perangkatDesa: { } } },
             { AND: [{ kategoriId: null }, { penulisId: null }] },
           ],
         },
@@ -116,7 +115,6 @@ export class BeritaService {
    */
   async findPublished(query: QueryBeritaInput) {
     const { page, limit, search, kategoriId, urutan } = query;
-    const { desaId } = getInstanceContext();
     const skip = (page - 1) * limit;
 
     const where: Prisma.BeritaWhereInput = {
@@ -124,8 +122,8 @@ export class BeritaService {
       AND: [
         {
           OR: [
-            { kategori: { desaId } },
-            { penulis: { perangkatDesa: { desaId } } },
+            { kategori: { } },
+            { penulis: { perangkatDesa: { } } },
             { AND: [{ kategoriId: null }, { penulisId: null }] },
           ],
         },
@@ -192,14 +190,13 @@ export class BeritaService {
    * Get berita by ID
    */
   async findById(id: bigint) {
-    const { desaId } = getInstanceContext();
     const where: Prisma.BeritaWhereInput = {
       id,
       AND: [
         {
           OR: [
-            { kategori: { desaId } },
-            { penulis: { perangkatDesa: { desaId } } },
+            { kategori: { } },
+            { penulis: { perangkatDesa: { } } },
             { AND: [{ kategoriId: null }, { penulisId: null }] },
           ],
         },
@@ -236,14 +233,13 @@ export class BeritaService {
    * Get berita by slug
    */
   async findBySlug(slug: string) {
-    const { desaId } = getInstanceContext();
     const where: Prisma.BeritaWhereInput = {
       slug,
       AND: [
         {
           OR: [
-            { kategori: { desaId } },
-            { penulis: { perangkatDesa: { desaId } } },
+            { kategori: { } },
+            { penulis: { perangkatDesa: { } } },
             { AND: [{ kategoriId: null }, { penulisId: null }] },
           ],
         },
@@ -279,15 +275,14 @@ export class BeritaService {
    * Get published berita by slug
    */
   async findPublishedBySlug(slug: string) {
-    const { desaId } = getInstanceContext();
     const where: Prisma.BeritaWhereInput = {
       slug,
       status: 'PUBLISHED',
       AND: [
         {
           OR: [
-            { kategori: { desaId } },
-            { penulis: { perangkatDesa: { desaId } } },
+            { kategori: { } },
+            { penulis: { perangkatDesa: { } } },
             { AND: [{ kategoriId: null }, { penulisId: null }] },
           ],
         },
@@ -379,14 +374,13 @@ export class BeritaService {
    * Update berita
    */
   async update(id: bigint, data: UpdateBeritaInput) {
-    const { desaId } = getInstanceContext();
     const where: Prisma.BeritaWhereInput = {
       id,
       AND: [
         {
           OR: [
-            { kategori: { desaId } },
-            { penulis: { perangkatDesa: { desaId } } },
+            { kategori: { } },
+            { penulis: { perangkatDesa: { } } },
             { AND: [{ kategoriId: null }, { penulisId: null }] },
           ],
         },
@@ -463,14 +457,13 @@ export class BeritaService {
    * Publish berita
    */
   async publish(id: bigint) {
-    const { desaId } = getInstanceContext();
     const where: Prisma.BeritaWhereInput = {
       id,
       AND: [
         {
           OR: [
-            { kategori: { desaId } },
-            { penulis: { perangkatDesa: { desaId } } },
+            { kategori: { } },
+            { penulis: { perangkatDesa: { } } },
             { AND: [{ kategoriId: null }, { penulisId: null }] },
           ],
         },
@@ -497,14 +490,13 @@ export class BeritaService {
    * Archive berita
    */
   async archive(id: bigint) {
-    const { desaId } = getInstanceContext();
     const where: Prisma.BeritaWhereInput = {
       id,
       AND: [
         {
           OR: [
-            { kategori: { desaId } },
-            { penulis: { perangkatDesa: { desaId } } },
+            { kategori: { } },
+            { penulis: { perangkatDesa: { } } },
             { AND: [{ kategoriId: null }, { penulisId: null }] },
           ],
         },
@@ -530,14 +522,13 @@ export class BeritaService {
    * Soft delete berita
    */
   async softDelete(id: bigint) {
-    const { desaId } = getInstanceContext();
     const where: Prisma.BeritaWhereInput = {
       id,
       AND: [
         {
           OR: [
-            { kategori: { desaId } },
-            { penulis: { perangkatDesa: { desaId } } },
+            { kategori: { } },
+            { penulis: { perangkatDesa: { } } },
             { AND: [{ kategoriId: null }, { penulisId: null }] },
           ],
         },
@@ -565,13 +556,12 @@ export class BeritaService {
    * Get berita statistics
    */
   async getStats() {
-    const { desaId } = getInstanceContext();
     const where: Prisma.BeritaWhereInput = {
       AND: [
         {
           OR: [
-            { kategori: { desaId } },
-            { penulis: { perangkatDesa: { desaId } } },
+            { kategori: { } },
+            { penulis: { perangkatDesa: { } } },
             { AND: [{ kategoriId: null }, { penulisId: null }] },
           ],
         },

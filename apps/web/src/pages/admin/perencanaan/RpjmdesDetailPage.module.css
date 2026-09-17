@@ -1,0 +1,165 @@
+.container {
+  padding: 24px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.backButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  cursor: pointer;
+  color: #374151;
+  transition: all 0.2s;
+}
+
+.backButton:hover {
+  background: #f9fafb;
+}
+
+.headerInfo h1 {
+  font-size: 24px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.headerInfo p {
+  color: #6b7280;
+  margin-top: 4px;
+}
+
+.contentGrid {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 24px;
+}
+
+.card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  padding: 24px;
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.cardHeader h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.infoGroup {
+  margin-bottom: 16px;
+}
+
+.infoLabel {
+  font-size: 14px;
+  font-weight: 500;
+  color: #6b7280;
+  margin-bottom: 4px;
+}
+
+.infoValue {
+  font-size: 15px;
+  color: #111827;
+  white-space: pre-wrap;
+}
+
+/* Accordion Styles */
+.bidangList {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.bidangCard {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.bidangHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: #f9fafb;
+  cursor: pointer;
+}
+
+.bidangHeader:hover {
+  background: #f3f4f6;
+}
+
+.bidangTitle {
+  font-weight: 600;
+  color: #111827;
+}
+
+.bidangActions {
+  display: flex;
+  gap: 8px;
+}
+
+.bidangContent {
+  padding: 16px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.rkpdesTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 16px;
+}
+
+.rkpdesTable th,
+.rkpdesTable td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 14px;
+}
+
+.rkpdesTable th {
+  font-weight: 500;
+  color: #6b7280;
+  background: #f9fafb;
+}
+
+.emptyRkpdes {
+  padding: 24px;
+  text-align: center;
+  color: #6b7280;
+  background: #f9fafb;
+  border-radius: 8px;
+  margin-top: 16px;
+}
+
+.formGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}

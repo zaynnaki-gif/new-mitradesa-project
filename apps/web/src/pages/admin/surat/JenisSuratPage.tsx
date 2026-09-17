@@ -8,12 +8,16 @@ import shared from '@/styles/AdminShared.module.css';
 import s from '@/pages/admin/layanan/LayananListPage.module.css';
 import { Button, Input, Modal, Select } from '@/components/ui';
 import { safeFetchJson } from '@/lib/fetch';
+import { useConfirm } from '@/hooks/useConfirm';
 
 export default function JenisSuratPage() {
   const { token } = useAuthStore();
+  const { confirm, ConfirmElement } = useConfirm();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
-  const { data, loading, error, meta, refetch } = useDokumen({ page, limit: 15, search });
+  const { data: response, isLoading: loading, error, refetch } = useDokumen({ page, limit: 15, search });
+  const data = response?.data || [];
+  const meta = response?.meta;
   const { data: layananData } = useLayananList({ limit: 100 });
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -30,11 +34,11 @@ export default function JenisSuratPage() {
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState('');
 
-  const handlePageChange = (newPage: number) => {
+  const handlePageChange = async (newPage: number) => {
     setPage(newPage);
   };
 
-  const handleOpenModal = (item?: DokumenDefinition) => {
+  const handleOpenModal = async (item?: DokumenDefinition) => {
     if (item) {
       setEditingData(item);
       setFormData({
@@ -60,7 +64,7 @@ export default function JenisSuratPage() {
     setIsModalOpen(true);
   };
 
-  const handleSlugify = (text: string) => {
+  const handleSlugify = async (text: string) => {
     const slug = text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
     setFormData(prev => ({ ...prev, slug }));
   };
@@ -109,7 +113,8 @@ export default function JenisSuratPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!token || !window.confirm('Apakah Anda yakin ingin menghapus jenis surat ini?')) return;
+    if (!token) return;
+    const _ok = await confirm({ message: 'Apakah Anda yakin ingin menghapus jenis surat ini?', title: 'Konfirmasi' }); if (!_ok) return;
 
     try {
       const result = await safeFetchJson(`${API_URL}/documents/${id}`, {
@@ -132,6 +137,7 @@ export default function JenisSuratPage() {
 
   return (
     <AdminLayout>
+      {ConfirmElement}
       <div className={shared.container}>
         <div className={shared.header}>
           <div className={shared.searchBox}>
@@ -148,7 +154,7 @@ export default function JenisSuratPage() {
           </Button>
         </div>
 
-        {error && <div className={shared.errorMessage}>{error}</div>}
+        {error && <div className={shared.errorMessage}>{error.message}</div>}
 
         <div className={shared.tableWrapper}>
           <table className={shared.table}>

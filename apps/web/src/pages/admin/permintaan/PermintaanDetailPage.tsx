@@ -1,176 +1,66 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { AdminLayout } from '@/layouts';
 import { useAuthStore } from '@/stores/auth.store';
-import { API_URL } from '@/lib/constants';
 import styles from './PermintaanDetailPage.module.css';
-
-interface TemplateVersion {
-  id: string;
-  version: number;
-  status: string;
-  template?: {
-    id: string;
-    nama: string;
-  };
-}
-
-interface GeneratedDocument {
-  id: string;
-  nomorDokumen: string;
-  status: string;
-  fileUrl?: string;
-  verificationToken?: string;
-}
-
-interface RequestDetail {
-  id: string;
-  layananId: string;
-  layanan?: {
-    nama: string;
-    kode: string;
-  };
-  pendudukId?: string;
-  penduduk?: {
-    namaLengkap?: string;
-    nik?: string;
-    tempatLahir?: string;
-    tanggalLahir?: string;
-    alamat?: string;
-    rt?: string;
-    rw?: string;
-    dusun?: string;
-  };
-  nomorPermintaan: string;
-  status: string;
-  dataJson?: Record<string, unknown>;
-  catatan?: string;
-  createdAt: string;
-  submittedAt?: string;
-  processedAt?: string;
-  completedAt?: string;
-  updatedAt: string;
-  creator?: { username: string };
-  processor?: { username: string };
-  approver?: { username: string };
-  dokumen?: GeneratedDocument[];
-}
+import { 
+  usePermintaanDetail, 
+  usePermintaanTemplates, 
+  usePermintaanAction, 
+  useGenerateDocument 
+} from '@/hooks/usePermintaan';
 
 export default function PermintaanDetailPage() {
   const { token } = useAuthStore();
   const { id } = useParams<{ id: string }>();
-  const [request, setRequest] = useState<RequestDetail | null>(null);
-  const [templates, setTemplates] = useState<TemplateVersion[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [actionLoading, setActionLoading] = useState(false);
+
   const [catatan, setCatatan] = useState('');
   const [showGenerateModal, setShowGenerateModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState('');
-  const [generateLoading, setGenerateLoading] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  const { data: requestResponse, isLoading: loading, error: queryError } = usePermintaanDetail(id || null, token || '');
+  const request = requestResponse?.data;
+  
+  const { data: templates = [], refetch: fetchTemplates } = usePermintaanTemplates(
+    request?.layananId || null, 
+    token || '', 
+    request?.status
+  );
+
+  const actionMutation = usePermintaanAction();
+  const generateMutation = useGenerateDocument();
+
+  const error = queryError?.message;
+  const actionLoading = actionMutation.isPending;
+  const generateLoading = generateMutation.isPending;
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 4000);
   };
 
-  const fetchDetail = async () => {
-    if (!id) return;
-    try {
-      const res = await fetch(`${API_URL}/service-requests/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error('Gagal memuat detail');
-      const data = await res.json();
-      setRequest(data.data);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Terjadi kesalahan');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchDetail();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
-
-  const fetchTemplates = async () => {
-    if (!request?.layananId) return;
-    try {
-      const res = await fetch(`${API_URL}/services/${request.layananId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const allTemplates: TemplateVersion[] = [];
-        for (const doc of data.data.dokumen || []) {
-          const docRes = await fetch(`${API_URL}/documents/${doc.id}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (docRes.ok) {
-            const docData = await docRes.json();
-            for (const template of docData.data.templates || []) {
-              for (const version of template.versions || []) {
-                if (version.status === 'PUBLISHED') {
-                  allTemplates.push({
-                    ...version,
-                    template: { ...template, id: String(template.id) },
-                  });
-                }
-              }
-            }
-          }
-        }
-        setTemplates(allTemplates);
-      }
-    } catch (e) {
-      console.error('Failed to fetch templates:', e);
-    }
-  };
-
-  useEffect(() => {
-    if (request?.layananId && request.status === 'APPROVED') {
-      fetchTemplates();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [request?.layananId, request?.status]);
-
   const handleAction = async (action: string) => {
-    if (!id) return;
-    setActionLoading(true);
+    if (!id || !token) return;
     try {
-      const res = await fetch(`${API_URL}/service-requests/${id}/${action}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ catatan }),
+      await actionMutation.mutateAsync({
+        id,
+        action,
+        catatan,
+        token
       });
-      if (!res.ok) throw new Error(`Gagal melakukan ${action}`);
       setCatatan('');
-      await fetchDetail();
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'Terjadi kesalahan', 'error');
-    } finally {
-      setActionLoading(false);
     }
   };
 
   const handleGenerateDocument = async () => {
-    if (!id || !selectedTemplate) return;
-    setGenerateLoading(true);
+    if (!id || !selectedTemplate || !token) return;
     try {
-      const res = await fetch(`${API_URL}/documents/generate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+      await generateMutation.mutateAsync({
+        payload: {
           templateVersionId: selectedTemplate,
           context: {
             request: {
@@ -183,22 +73,15 @@ export default function PermintaanDetailPage() {
           },
           judul: `${request?.layanan?.nama} - ${request?.nomorPermintaan}`,
           permintaanId: id,
-        }),
+        },
+        token
       });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || 'Gagal generate dokumen');
-      }
 
       setShowGenerateModal(false);
       setSelectedTemplate('');
-      await fetchDetail();
       showToast('Dokumen berhasil dibuat!');
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'Terjadi kesalahan', 'error');
-    } finally {
-      setGenerateLoading(false);
     }
   };
 
@@ -304,7 +187,7 @@ export default function PermintaanDetailPage() {
           <div
             className={`${styles.toast} ${toast.type === 'error' ? styles.toastError : styles.toastSuccess}`}
           >
-            {toast.type === 'success' ? '✅' : '⚠️'} {toast.message}
+            {toast.type === 'success' ? '✓' : '⚠️'} {toast.message}
           </div>
         )}
 
@@ -552,6 +435,7 @@ export default function PermintaanDetailPage() {
             </div>
           </div>
         )}
+        
         {/* Reject Modal */}
         {showRejectModal && (
           <div className={styles.modal} onClick={() => setShowRejectModal(false)}>

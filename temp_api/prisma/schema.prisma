@@ -1,0 +1,1657 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Provinsi {
+  id         BigInt      @id @default(autoincrement())
+  kode       String      @unique @db.VarChar(10)
+  nama       String      @db.VarChar(100)
+  createdAt  DateTime    @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt  DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  kabupatens Kabupaten[]
+
+  @@index([nama])
+  @@map("provinsi")
+}
+
+model Kabupaten {
+  id         BigInt      @id @default(autoincrement())
+  provinsiId BigInt      @map("provinsi_id")
+  kode       String      @db.VarChar(10)
+  nama       String      @db.VarChar(100)
+  createdAt  DateTime    @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt  DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  provinsi   Provinsi    @relation(fields: [provinsiId], references: [id], onUpdate: NoAction, map: "kabupaten_provinsi_id_foreign")
+  kecamatans Kecamatan[]
+
+  @@unique([provinsiId, kode])
+  @@index([provinsiId])
+  @@index([kode])
+  @@index([nama])
+  @@map("kabupaten")
+}
+
+model Kecamatan {
+  id          BigInt    @id @default(autoincrement())
+  kabupatenId BigInt    @map("kabupaten_id")
+  kode        String    @db.VarChar(10)
+  nama        String    @db.VarChar(100)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  desas       Desa[]
+  kabupaten   Kabupaten @relation(fields: [kabupatenId], references: [id], onUpdate: NoAction, map: "kecamatan_kabupaten_id_foreign")
+
+  @@unique([kabupatenId, kode])
+  @@index([kabupatenId])
+  @@index([kode])
+  @@index([nama])
+  @@map("kecamatan")
+}
+
+model Desa {
+  id             BigInt          @id @default(autoincrement())
+  kecamatanId    BigInt          @map("kecamatan_id")
+  kode           String          @db.VarChar(20)
+  nama           String          @db.VarChar(100)
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt      DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  kecamatan      Kecamatan       @relation(fields: [kecamatanId], references: [id], onUpdate: NoAction, map: "desa_kecamatan_id_foreign")
+  identitasDesa  IdentitasDesa?
+  keluargas      Keluarga[]
+  penduduks      Penduduk[]
+  perangkatDesas PerangkatDesa[]
+  kategoris      Kategori[]
+  halamans       Halaman[]
+  layanans       Layanan[]
+  penandaTangans PenandaTangan[]
+  nomorDokumen   NomorDokumen[]
+  umkms          Umkm[]
+  apbdes         Apbdes[]
+  agenda         Agenda[]
+  SuratMasuk     SuratMasuk[]
+  PotensiDesa    PotensiDesa[]
+  gubugs         Gubug[]
+  banners        Banner[]
+  Blanko         Blanko[]
+  posyanduKunjungans PosyanduKunjungan[]
+  bumils         Bumil[]
+  kasUmums       KasUmum[]
+  bukuBanks      BukuBank[]
+  bansos         Bansos[]
+  saranAduans    SaranAduan[]
+  mutasiPenduduks MutasiPenduduk[]
+
+  @@unique([kecamatanId, kode])
+  @@index([kecamatanId])
+  @@index([kode])
+  @@index([nama])
+  @@map("desa")
+}
+
+model Gubug {
+  id                    BigInt           @id @default(autoincrement())
+  desaId                BigInt           @map("desa_id")
+  kode                  String           @db.VarChar(20)
+  nama                  String           @db.VarChar(100)
+  createdAt             DateTime         @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt             DateTime         @updatedAt @map("updated_at") @db.Timestamp(6)
+  rws                   Rw[]
+  // Reverse relations
+  penduduksFromGubug    Penduduk[]       @relation("GubugToPenduduk")
+  keluargaFromGubug     Keluarga[]       @relation("GubugToKeluarga")
+  bumilFromGubug        Bumil[]          @relation("GubugToBumil")
+  mutasiAsalFromGubug   MutasiPenduduk[] @relation("GubugAsal")
+  mutasiTujuanFromGubug MutasiPenduduk[] @relation("GubugTujuan")
+  desa                  Desa             @relation(fields: [desaId], references: [id], onUpdate: NoAction, map: "gubug_desa_id_foreign")
+
+  @@unique([desaId, kode])
+  @@index([desaId])
+  @@map("gubug")
+}
+
+model Rw {
+  id                 BigInt           @id @default(autoincrement())
+  gubugId            BigInt           @map("gubug_id")
+  kode               String           @db.VarChar(20)
+  nama               String           @db.VarChar(100)
+  createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt          DateTime         @updatedAt @map("updated_at") @db.Timestamp(6)
+  rts                Rt[]
+  // Reverse relations
+  penduduksFromRw    Penduduk[]       @relation("RwToPenduduk")
+  keluargaFromRw     Keluarga[]       @relation("RwToKeluarga")
+  bumilFromRw        Bumil[]          @relation("RwToBumil")
+  mutasiAsalFromRw   MutasiPenduduk[] @relation("RwAsal")
+  mutasiTujuanFromRw MutasiPenduduk[] @relation("RwTujuan")
+  gubug              Gubug            @relation(fields: [gubugId], references: [id], onUpdate: NoAction, map: "rw_gubug_id_foreign")
+
+  @@unique([gubugId, kode])
+  @@index([gubugId])
+}
+
+model Rt {
+  id                 BigInt           @id @default(autoincrement())
+  rwId               BigInt           @map("rw_id")
+  kode               String           @db.VarChar(20)
+  createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt          DateTime         @updatedAt @map("updated_at") @db.Timestamp(6)
+  rw                 Rw               @relation(fields: [rwId], references: [id], onUpdate: NoAction, map: "rt_rw_id_foreign")
+  // Reverse relations
+  penduduksFromRt    Penduduk[]       @relation("RtToPenduduk")
+  keluargaFromRt     Keluarga[]       @relation("RtToKeluarga")
+  bumilFromRt        Bumil[]          @relation("RtToBumil")
+  mutasiAsalFromRt   MutasiPenduduk[] @relation("RtAsal")
+  mutasiTujuanFromRt MutasiPenduduk[] @relation("RtTujuan")
+
+  @@unique([rwId, kode])
+  @@index([rwId])
+}
+
+/// Lembaga - Organisasi kemasyarakatan: BPD, PKK, KADER, RT, RW, dll
+model Lembaga {
+  id         BigInt   @id @default(autoincrement())
+  desaId     BigInt   @map("desa_id")
+  jenis      String   @db.VarChar(50) // BPD, PKK, KADER, RT, RW, dll
+  nama       String   @db.VarChar(255)
+  deskripsi  String?  @db.Text
+  pimpinanId BigInt?  @map("penduduk_id") // Foreign key to Penduduk (nullable - leader optional)
+  gubugId    BigInt?  @map("gubug_id")
+  rwId       BigInt?  @map("rw_id")
+  rtId       BigInt?  @map("rt_id")
+  status     String   @default("AKTIF") @map("status") @db.VarChar(20)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  @@index([desaId])
+  @@index([jenis])
+  @@index([gubugId])
+  @@index([rwId])
+  @@index([rtId])
+  @@map("lembaga")
+}
+
+model IdentitasDesa {
+  id               BigInt   @id @default(autoincrement())
+  desaId           BigInt   @unique @map("desa_id")
+  namaDesa         String   @map("nama_desa") @db.VarChar(100)
+  singkatanDesa    String?  @map("singkatan_desa") @db.VarChar(20)
+  kodeDesa         String?  @map("kode_desa") @db.VarChar(10)
+  alamat           String?
+  kodepos          String?  @map("kodepos") @db.VarChar(10)
+  telepon          String?  @map("telepon") @db.VarChar(20)
+  whatsapp         String?  @db.VarChar(20)
+  email            String?  @db.VarChar(255)
+  website          String?  @db.VarChar(255)
+  logoDesaUrl      String?  @map("logo_desa_url") @db.VarChar(500)
+  logoKabupatenUrl String?  @map("logo_kabupaten_url") @db.VarChar(500)
+  faviconUrl       String?  @map("favicon_url") @db.VarChar(500)
+  kepalaDesa       String?  @map("kepala_desa") @db.VarChar(100)
+  sekretarisDesa   String?  @map("sekretaris_desa") @db.VarChar(100)
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  desa             Desa     @relation(fields: [desaId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "identitas_desa_desa_id_foreign")
+
+  @@index([desaId])
+  @@map("identitas_desa")
+}
+
+model Account {
+  id                BigInt              @id @default(autoincrement())
+  username          String              @unique @db.VarChar(50)
+  email             String              @unique @db.VarChar(255)
+  passwordHash      String              @map("password_hash") @db.VarChar(255)
+  status            AccountStatus?      @default(ACTIVE)
+  lastLoginAt       DateTime?           @map("last_login_at") @db.Timestamp(6)
+  createdAt         DateTime            @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt         DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  accountRoles      AccountRole[]
+  internalSessions  InternalSession[]
+  perangkatDesa     PerangkatDesa?
+  beritas           Berita[]            @relation("BeritaPenulis")
+  halamans          Halaman[]           @relation("HalamanCreatedBy")
+  medias            Media[]             @relation("MediaUploadedBy")
+  createdRequests   PermintaanLayanan[] @relation("RequestCreatedBy")
+  processedRequests PermintaanLayanan[] @relation("RequestProcessedBy")
+  approvedRequests  PermintaanLayanan[] @relation("RequestApprovedBy")
+  templateVersions  TemplateVersion[]
+  penandaTangans    PenandaTangan[]
+
+  @@map("account")
+}
+
+model Role {
+  id              BigInt           @id @default(autoincrement())
+  name            String           @db.VarChar(100)
+  code            String           @unique(map: "role_code_key") @map("role_code") @db.VarChar(50)
+  description     String?
+  isSystem        Boolean?         @default(false) @map("is_system")
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt       DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  accountRoles    AccountRole[]
+  rolePermissions RolePermission[]
+
+  @@map("role")
+}
+
+model Permission {
+  id              BigInt           @id @default(autoincrement())
+  name            String           @db.VarChar(100)
+  code            String           @unique(map: "permission_code_key") @map("permission_code") @db.VarChar(100)
+  description     String?
+  groupName       String?          @map("group_name") @db.VarChar(50)
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt       DateTime         @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  rolePermissions RolePermission[]
+
+  @@map("permission")
+}
+
+model AccountRole {
+  id        BigInt   @id @default(autoincrement())
+  accountId BigInt   @map("account_id")
+  roleId    BigInt   @map("role_id")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "account_role_account_id_foreign")
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "account_role_role_id_foreign")
+
+  @@unique([accountId, roleId])
+  @@map("account_role")
+}
+
+model RolePermission {
+  id           BigInt     @id @default(autoincrement())
+  roleId       BigInt     @map("role_id")
+  permissionId BigInt     @map("permission_id")
+  createdAt    DateTime   @default(now()) @map("created_at") @db.Timestamp(6)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "role_permission_permission_id_foreign")
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "role_permission_role_id_foreign")
+
+  @@unique([roleId, permissionId])
+  @@map("role_permission")
+}
+
+model CitizenVerification {
+  id            BigInt              @id @default(autoincrement())
+  pendudukId    BigInt              @map("penduduk_id")
+  challenge     String              @unique @map("verification_challenge") @db.VarChar(100)
+  status        VerificationStatus? @default(PENDING)
+  attempts      Int?                @default(0)
+  expiresAt     DateTime            @map("expires_at") @db.Timestamp(6)
+  verifiedAt    DateTime?           @map("verified_at") @db.Timestamp(6)
+  createdAt     DateTime            @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt     DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  penduduk      Penduduk            @relation(fields: [pendudukId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "citizen_verification_penduduk_id_foreign")
+  otpChallenges OtpChallenge[]
+
+  @@index([pendudukId])
+  @@map("citizen_verification")
+}
+
+model OtpChallenge {
+  id             BigInt              @id @default(autoincrement())
+  verificationId BigInt              @map("verification_id")
+  otpHash        String              @map("otp_hash") @db.VarChar(255)
+  challenge      String              @unique @map("otp_challenge") @db.VarChar(100)
+  status         OtpStatus?          @default(ACTIVE)
+  attempts       Int?                @default(0)
+  expiresAt      DateTime            @map("expires_at") @db.Timestamp(6)
+  usedAt         DateTime?           @map("used_at") @db.Timestamp(6)
+  createdAt      DateTime            @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt      DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  verification   CitizenVerification @relation(fields: [verificationId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "otp_challenge_verification_id_foreign")
+
+  @@index([verificationId])
+  @@map("otp_challenge")
+}
+
+model CitizenSession {
+  id         BigInt    @id @default(autoincrement())
+  pendudukId BigInt    @map("penduduk_id")
+  token      String    @unique @db.VarChar(255)
+  expiresAt  DateTime  @map("expires_at") @db.Timestamp(6)
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamp(6)
+  ipAddress  String?   @map("ip_address") @db.VarChar(45)
+  userAgent  String?   @map("user_agent") @db.VarChar(500)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  penduduk   Penduduk  @relation(fields: [pendudukId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "citizen_session_penduduk_id_foreign")
+
+  @@index([pendudukId])
+  @@map("citizen_session")
+}
+
+model InternalSession {
+  id        BigInt    @id @default(autoincrement())
+  accountId BigInt    @map("account_id")
+  token     String    @unique @db.VarChar(255)
+  expiresAt DateTime  @map("expires_at") @db.Timestamp(6)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamp(6)
+  ipAddress String?   @map("ip_address") @db.VarChar(45)
+  userAgent String?   @map("user_agent") @db.VarChar(500)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  account   Account   @relation(fields: [accountId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "internal_session_account_id_foreign")
+
+  @@index([accountId])
+  @@map("internal_session")
+}
+
+model AuditLog {
+  id         BigInt      @id @default(autoincrement())
+  entityType String      @map("entity_type") @db.VarChar(100)
+  entityId   BigInt      @map("entity_id")
+  action     AuditAction
+  actorId    BigInt?     @map("actor_id")
+  actorType  ActorType?  @default(USER)
+  actorIp    String?     @map("actor_ip") @db.VarChar(45)
+  actorAgent String?     @map("actor_agent") @db.VarChar(500)
+  beforeData Json?       @map("before_data")
+  afterData  Json?       @map("after_data")
+  reason     String?
+  metadata   Json?
+  createdAt  DateTime    @default(now()) @map("created_at") @db.Timestamp(6)
+
+  @@index([entityType, entityId])
+  @@index([actorId])
+  @@index([createdAt])
+  @@map("audit_log")
+}
+
+model Configuration {
+  id          BigInt      @id @default(autoincrement())
+  groupName   String      @map("group_name") @db.VarChar(100)
+  key         String      @db.VarChar(100)
+  value       String?
+  value_type  ConfigType? @default(STRING)
+  description String?
+  isSystem    Boolean?    @default(false) @map("is_system")
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt   DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+
+  @@unique([groupName, key])
+  @@map("configuration")
+}
+
+model Penduduk {
+  id                  BigInt    @id @default(autoincrement())
+  nik                 String    @unique @db.VarChar(16)
+  namaLengkap         String    @map("nama_lengkap") @db.VarChar(255)
+  tempatLahir         String    @map("tempat_lahir") @db.VarChar(100)
+  tanggalLahir        DateTime  @map("tanggal_lahir") @db.Date
+  jenisKelamin        String    @map("jenis_kelamin") @db.VarChar(1)
+  golDarah            String?   @map("gol_darah") @db.VarChar(3)
+  agama               String?   @map("agama") @db.VarChar(50)
+  pendidikan          String?   @db.VarChar(100)
+  pekerjaan           String?   @db.VarChar(100)
+  suku                String?   @db.VarChar(50)
+  statusPerkawinan    String    @map("status_perkawinan") @db.VarChar(50)
+  hubunganKeluarga    String?   @map("hubungan_keluarga") @db.VarChar(50)
+  alamat              String?
+  kodePos             String?   @map("kode_pos") @db.VarChar(10)
+  telepon             String?   @map("telepon") @db.VarChar(20)
+  email               String?   @db.VarChar(255)
+  wargaNegara         String?   @default("Indonesia") @map("warga_negara") @db.VarChar(50)
+  nikAyah             String?   @map("nik_ayah") @db.VarChar(16)
+  nikIbu              String?   @map("nik_ibu") @db.VarChar(16)
+  namaAyahLengkap     String?   @map("nama_ayah_lengkap") @db.VarChar(255)
+  namaIbuLengkap      String?   @map("nama_ibu_lengkap") @db.VarChar(255)
+  pendapatan          String?   @db.VarChar(50)
+  kepemilikanRumah    String?   @map("kepemilikan_rumah") @db.VarChar(50)
+  luasRumah           String?   @map("luas_rumah") @db.VarChar(50)
+  jumlahLantai        String?   @map("jumlah_lantai") @db.VarChar(50)
+  jenisLantai         String?   @map("jenis_lantai") @db.VarChar(50)
+  jenisDinding        String?   @map("jenis_dinding") @db.VarChar(50)
+  jenisAtap           String?   @map("jenis_atap") @db.VarChar(50)
+  kepemilikanTanah    String?   @map("kepemilikan_tanah") @db.VarChar(50)
+  luasTanah           String?   @map("luas_tanah") @db.VarChar(50)
+  penerangan          String?   @db.VarChar(50)
+  sumberEnergiMasak   String?   @map("sumber_energi_masak") @db.VarChar(50)
+  mck                 String?   @db.VarChar(50)
+  sumberAir           String?   @map("sumber_air") @db.VarChar(50)
+  bantuanSosial       String?   @map("bantuan_sosial") @db.VarChar(255)
+  bantuanExtra        String?   @map("bantuan_extra") @db.VarChar(255)
+  bpjsKesehatan       String?   @map("bpjs_kesehatan") @db.VarChar(50)
+  bpjsKetenagakerjaan String?   @map("bpjs_ketenagakerjaan") @db.VarChar(50)
+  kepemilikanAset     String?   @map("kepemilikan_aset") @db.VarChar(255)
+  kondisiFisik        String?   @map("kondisi_fisik") @db.VarChar(100)
+  isAktif             Boolean?  @default(true) @map("is_aktif")
+  statusKepindahan    String?   @map("status_kepindahan") @db.VarChar(50)
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt           DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  deletedAt           DateTime? @map("deleted_at") @db.Timestamp(6)
+  desaId              BigInt?   @map("desa_id")
+  // FK references to wilayah hierarchy
+  gubugId             BigInt?   @map("gubug_id")
+  rwId                BigInt?   @map("rw_id")
+  rtId                BigInt?   @map("rt_id")
+
+  anggotaKeluarga      AnggotaKeluarga[]
+  citizenSessions      CitizenSession[]
+  citizenVerifications CitizenVerification[]
+  keluargaAsKepala     Keluarga?             @relation("KeluargaKepala")
+  desa                 Desa?                 @relation(fields: [desaId], references: [id], onUpdate: NoAction, map: "penduduk_desa_id_foreign")
+  gubug                Gubug?                @relation("GubugToPenduduk", fields: [gubugId], references: [id], onUpdate: NoAction, map: "penduduk_gubug_id_foreign")
+  rwRel                Rw?                   @relation("RwToPenduduk", fields: [rwId], references: [id], onUpdate: NoAction, map: "penduduk_rw_id_foreign")
+  rtRel                Rt?                   @relation("RtToPenduduk", fields: [rtId], references: [id], onUpdate: NoAction, map: "penduduk_rt_id_foreign")
+  perangkatDesas       PerangkatDesa[]
+  permintaan           PermintaanLayanan[]
+
+  @@index([nik])
+  @@index([desaId])
+  @@index([namaLengkap])
+  @@index([gubugId])
+  @@index([rwId])
+  @@index([rtId])
+  @@map("penduduk")
+}
+
+model Keluarga {
+  id        BigInt    @id @default(autoincrement())
+  noKk      String    @unique @map("no_kk") @db.VarChar(16)
+  kepalaId  BigInt    @unique @map("kepala_id")
+  alamat    String?
+  kodePos   String?   @map("kode_pos") @db.VarChar(10)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamp(6)
+  desaId    BigInt?   @map("desa_id")
+  // FK references to wilayah hierarchy
+  gubugId   BigInt?   @map("gubug_id")
+  rwId      BigInt?   @map("rw_id")
+  rtId      BigInt?   @map("rt_id")
+
+  anggota AnggotaKeluarga[]
+  desa    Desa?             @relation(fields: [desaId], references: [id], onUpdate: NoAction, map: "keluarga_desa_id_foreign")
+  kepala  Penduduk          @relation("KeluargaKepala", fields: [kepalaId], references: [id], onUpdate: NoAction, map: "keluarga_kepala_id_foreign")
+  gubug   Gubug?            @relation("GubugToKeluarga", fields: [gubugId], references: [id], onUpdate: NoAction, map: "keluarga_gubug_id_foreign")
+  rwRel   Rw?               @relation("RwToKeluarga", fields: [rwId], references: [id], onUpdate: NoAction, map: "keluarga_rw_id_foreign")
+  rtRel   Rt?               @relation("RtToKeluarga", fields: [rtId], references: [id], onUpdate: NoAction, map: "keluarga_rt_id_foreign")
+
+  @@index([noKk])
+  @@index([kepalaId])
+  @@index([desaId])
+  @@index([gubugId])
+  @@index([rwId])
+  @@index([rtId])
+  @@map("keluarga")
+}
+
+model AnggotaKeluarga {
+  id         BigInt   @id @default(autoincrement())
+  keluargaId BigInt   @map("keluarga_id")
+  pendudukId BigInt   @map("penduduk_id")
+  hubungan   String   @map("hubungan") @db.VarChar(50)
+  isAktif    Boolean? @default(true) @map("is_aktif")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  keluarga   Keluarga @relation(fields: [keluargaId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "anggota_keluarga_keluarga_id_foreign")
+  penduduk   Penduduk @relation(fields: [pendudukId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "anggota_keluarga_penduduk_id_foreign")
+
+  @@unique([keluargaId, pendudukId])
+  @@index([keluargaId])
+  @@index([pendudukId])
+  @@map("anggota_keluarga")
+}
+
+model PerangkatDesa {
+  id         BigInt    @id @default(autoincrement())
+  pendudukId BigInt    @map("penduduk_id")
+  desaId     BigInt    @map("desa_id")
+  jabatan    String    @map("jabatan") @db.VarChar(100)
+  status     String    @default("AKTIF") @map("status") @db.VarChar(50)
+  fotoUrl    String?   @map("foto_url") @db.VarChar(500)
+  accountId  BigInt?   @unique @map("account_id")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+  deletedAt  DateTime? @map("deleted_at")
+  account    Account?  @relation(fields: [accountId], references: [id], onUpdate: NoAction)
+  desa       Desa      @relation(fields: [desaId], references: [id], onUpdate: NoAction)
+  penduduk   Penduduk  @relation(fields: [pendudukId], references: [id], onUpdate: NoAction)
+
+  @@index([pendudukId])
+  @@index([desaId])
+  @@index([jabatan])
+  @@index([status])
+  @@map("perangkat_desa")
+}
+
+model RefAgama {
+  id        BigInt   @id @default(autoincrement())
+  kode      String   @unique @map("kode") @db.VarChar(10)
+  nama      String   @map("nama") @db.VarChar(100)
+  isAktif   Boolean  @default(true) @map("is_aktif")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([kode])
+  @@index([nama])
+  @@map("ref_agama")
+}
+
+model RefGolonganDarah {
+  id        BigInt   @id @default(autoincrement())
+  kode      String   @unique @map("kode") @db.VarChar(5)
+  nama      String   @map("nama") @db.VarChar(20)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("ref_gol_darah")
+}
+
+model RefStatusPerkawinan {
+  id        BigInt   @id @default(autoincrement())
+  kode      String   @unique @map("kode") @db.VarChar(10)
+  nama      String   @map("nama") @db.VarChar(50)
+  isAktif   Boolean  @default(true) @map("is_aktif")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([kode])
+  @@map("ref_status_perkawinan")
+}
+
+model RefHubunganKeluarga {
+  id        BigInt   @id @default(autoincrement())
+  kode      String   @unique @map("kode") @db.VarChar(20)
+  nama      String   @map("nama") @db.VarChar(50)
+  kategori  String   @map("kategori") @db.VarChar(20)
+  isAktif   Boolean  @default(true) @map("is_aktif")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([kode])
+  @@index([kategori])
+  @@map("ref_hubungan_keluarga")
+}
+
+model RefStatusKependudukan {
+  id        BigInt   @id @default(autoincrement())
+  kode      String   @unique @map("kode") @db.VarChar(20)
+  nama      String   @map("nama") @db.VarChar(100)
+  isAktif   Boolean  @default(true) @map("is_aktif")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([kode])
+  @@map("ref_status_kependudukan")
+}
+
+model RefPendidikan {
+  id        BigInt   @id @default(autoincrement())
+  kode      String   @unique @map("kode") @db.VarChar(10)
+  nama      String   @map("nama") @db.VarChar(100)
+  jenjang   Int      @map("jenjang")
+  isAktif   Boolean  @default(true) @map("is_aktif")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([kode])
+  @@index([jenjang])
+  @@map("ref_pendidikan")
+}
+
+model RefPekerjaan {
+  id        BigInt   @id @default(autoincrement())
+  kode      String   @unique @map("kode") @db.VarChar(10)
+  nama      String   @map("nama") @db.VarChar(100)
+  kategori  String?  @map("kategori") @db.VarChar(50)
+  isAktif   Boolean  @default(true) @map("is_aktif")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([kode])
+  @@index([kategori])
+  @@map("ref_pekerjaan")
+}
+
+model RefJabatanPerangkat {
+  id        BigInt   @id @default(autoincrement())
+  kode      String   @unique @map("kode") @db.VarChar(20)
+  nama      String   @map("nama") @db.VarChar(100)
+  kategori  String   @map("kategori") @db.VarChar(50)
+  urutan    Int      @default(0) @map("urutan")
+  isAktif   Boolean  @default(true) @map("is_aktif")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([kode])
+  @@index([kategori])
+  @@index([urutan])
+  @@map("ref_jabatan_perangkat")
+}
+
+model RefStatusPerangkat {
+  id        BigInt   @id @default(autoincrement())
+  kode      String   @unique @map("kode") @db.VarChar(20)
+  nama      String   @map("nama") @db.VarChar(50)
+  isAktif   Boolean  @default(true) @map("is_aktif")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("ref_status_perangkat")
+}
+
+// ============================================================
+// CMS Models
+// ============================================================
+
+/// News/Article category
+model Kategori {
+  id        BigInt   @id @default(autoincrement())
+  nama      String   @db.VarChar(100)
+  slug      String   @unique @db.VarChar(100)
+  deskripsi String?  @db.VarChar(500)
+  ikon      String?  @db.VarChar(50)
+  warna     String?  @map("warna") @db.VarChar(20)
+  urutan    Int      @default(0)
+  isAktif   Boolean  @default(true) @map("is_aktif")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  desaId    BigInt?  @map("desa_id")
+  desa      Desa?    @relation(fields: [desaId], references: [id], onUpdate: NoAction, map: "kategori_desa_id_foreign")
+  berita    Berita[]
+
+  @@index([slug])
+  @@index([urutan])
+  @@index([desaId])
+  @@map("kategori")
+}
+
+/// News/Article
+model Berita {
+  id          BigInt       @id @default(autoincrement())
+  judul       String       @db.VarChar(255)
+  slug        String       @unique @db.VarChar(255)
+  excerpt     String?      @db.VarChar(500)
+  konten      String       @db.Text
+  gambarUrl   String?      @map("gambar_url") @db.VarChar(500)
+  status      BeritaStatus @default(DRAFT)
+  penulisId   BigInt?      @map("penulis_id")
+  kategoriId  BigInt?      @map("kategori_id")
+  publishedAt DateTime?    @map("published_at") @db.Timestamp(6)
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+  deletedAt   DateTime?    @map("deleted_at") @db.Timestamp(6)
+  penulis     Account?     @relation("BeritaPenulis", fields: [penulisId], references: [id], onUpdate: NoAction, map: "berita_penulis_id_foreign")
+  kategori    Kategori?    @relation(fields: [kategoriId], references: [id], onUpdate: NoAction, map: "berita_kategori_id_foreign")
+
+  // SEO fields
+  metaTitle     String? @map("meta_title") @db.VarChar(255)
+  metaDeskripsi String? @map("meta_deskripsi") @db.VarChar(500)
+  metaKeywords  String? @map("meta_keywords") @db.VarChar(255)
+  ogImageUrl    String? @map("og_image_url") @db.VarChar(500)
+
+  @@index([slug])
+  @@index([status])
+  @@index([publishedAt])
+  @@index([kategoriId])
+  @@index([penulisId])
+  @@map("berita")
+}
+
+/// Static page
+model Halaman {
+  id          BigInt        @id @default(autoincrement())
+  judul       String        @db.VarChar(255)
+  slug        String        @unique @db.VarChar(255)
+  konten      String        @db.Text
+  excerpt     String?       @db.VarChar(500)
+  gambarUrl   String?       @map("gambar_url") @db.VarChar(500)
+  status      HalamanStatus @default(DRAFT)
+  createdById BigInt?       @map("created_by_id")
+  publishedAt DateTime?     @map("published_at") @db.Timestamp(6)
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  deletedAt   DateTime?     @map("deleted_at") @db.Timestamp(6)
+  createdBy   Account?      @relation("HalamanCreatedBy", fields: [createdById], references: [id], onUpdate: NoAction, map: "halaman_created_by_id_foreign")
+  desaId      BigInt?       @map("desa_id")
+  desa        Desa?         @relation(fields: [desaId], references: [id], onUpdate: NoAction, map: "halaman_desa_id_foreign")
+
+  // SEO fields
+  metaTitle     String? @map("meta_title") @db.VarChar(255)
+  metaDeskripsi String? @map("meta_deskripsi") @db.VarChar(500)
+  metaKeywords  String? @map("meta_keywords") @db.VarChar(255)
+
+  // Page settings
+  urutan Int     @default(0)
+  isMenu Boolean @default(false) @map("is_menu")
+
+  @@index([slug])
+  @@index([status])
+  @@index([urutan])
+  @@index([isMenu])
+  @@index([desaId])
+  @@map("halaman")
+}
+
+/// Media file
+model Media {
+  id           BigInt    @id @default(autoincrement())
+  nama         String    @db.VarChar(255)
+  slug         String    @unique @db.VarChar(255)
+  deskripsi    String?   @db.VarChar(500)
+  fileUrl      String    @map("file_url") @db.VarChar(500)
+  fileType     String    @map("file_type") @db.VarChar(50)
+  fileSize     Int       @map("file_size")
+  mimeType     String    @map("mime_type") @db.VarChar(100)
+  width        Int?      @map("width")
+  height       Int?      @map("height")
+  alt          String?   @db.VarChar(255)
+  kategori     String?   @map("kategori") @db.VarChar(50)
+  uploadedById BigInt?   @map("uploaded_by_id")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamp(6)
+  uploadedBy   Account?  @relation("MediaUploadedBy", fields: [uploadedById], references: [id], onUpdate: NoAction, map: "media_uploaded_by_id_foreign")
+
+  @@index([slug])
+  @@index([fileType])
+  @@index([kategori])
+  @@index([uploadedById])
+  @@map("media")
+}
+
+/// UMKM & Potensi Desa
+model Umkm {
+  id        BigInt   @id @default(autoincrement())
+  desaId    BigInt   @map("desa_id")
+  nama      String   @db.VarChar(255)
+  slug      String   @unique @db.VarChar(255)
+  deskripsi String   @db.Text
+  kategori  String   @db.VarChar(100)
+  gambarUrl String?  @map("gambar_url") @db.VarChar(500)
+  harga     String?  @db.VarChar(100)
+  kontak    String   @db.VarChar(50)
+  pemilik   String   @db.VarChar(100)
+  isAktif   Boolean  @default(true) @map("is_aktif")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  desa Desa @relation(fields: [desaId], references: [id], onUpdate: NoAction)
+
+  @@index([desaId])
+  @@index([slug])
+  @@index([kategori])
+  @@map("umkm")
+}
+
+enum BeritaStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum HalamanStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum AccountStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  EXPIRED
+  CANCELLED
+}
+
+enum OtpStatus {
+  ACTIVE
+  USED
+  EXPIRED
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN_SUCCESS
+  LOGIN_FAILED
+  LOGOUT
+  OTP_REQUESTED
+  OTP_VERIFIED
+  OTP_FAILED
+  SESSION_CREATED
+  SESSION_EXPIRED
+  SESSION_REVOKED
+  ACCOUNT_DISABLED
+  ACCOUNT_ENABLED
+  PASSWORD_CHANGED
+  IDENTITY_CREATED
+  IDENTITY_UPDATED
+  WILAYAH_CREATED
+  WILAYAH_UPDATED
+  WILAYAH_DELETED
+  GUBUG_CREATED
+  GUBUG_UPDATED
+  GUBUG_DELETED
+  RW_CREATED
+  RW_UPDATED
+  RW_DELETED
+  RT_CREATED
+  RT_UPDATED
+  RT_DELETED
+  LEMBAGA_CREATED
+  LEMBAGA_UPDATED
+  LEMBAGA_DELETED
+  PENDUDUK_CREATED
+  PENDUDUK_UPDATED
+  PENDUDUK_DELETED
+  KELUARGA_CREATED
+  KELUARGA_UPDATED
+  KELUARGA_DELETED
+  ANGGOTA_ADDED
+  ANGGOTA_REMOVED
+  // CMS Actions
+  KATEGORI_CREATED
+  KATEGORI_UPDATED
+  KATEGORI_DELETED
+  BERITA_CREATED
+  BERITA_UPDATED
+  BERITA_DELETED
+  BERITA_PUBLISHED
+  BERITA_ARCHIVED
+  HALAMAN_CREATED
+  HALAMAN_UPDATED
+  HALAMAN_DELETED
+  HALAMAN_PUBLISHED
+  HALAMAN_ARCHIVED
+  MEDIA_UPLOADED
+  MEDIA_DELETED
+}
+
+enum ActorType {
+  USER
+  SYSTEM
+  API
+}
+
+enum ConfigType {
+  STRING
+  NUMBER
+  BOOLEAN
+  JSON
+}
+
+// ============================================================
+// Service Document Engine Models
+// ============================================================
+
+/// Service Definition - Administrative services offered by village
+model Layanan {
+  id               BigInt    @id @default(autoincrement())
+  desaId           BigInt    @map("desa_id")
+  kode             String    @db.VarChar(20)
+  nama             String    @db.VarChar(255)
+  slug             String    @unique @db.VarChar(255)
+  deskripsi        String?   @db.Text
+  kategori         String?   @map("kategori") @db.VarChar(100)
+  requiresDocument Boolean   @default(false) @map("requires_document")
+  requiresApproval Boolean   @default(true) @map("requires_approval")
+  isActive         Boolean   @default(true) @map("is_active")
+  isMandiri        Boolean   @default(false) @map("is_mandiri")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  deletedAt        DateTime? @map("deleted_at") @db.Timestamp(6)
+
+  fields      FieldDefinition[]
+  dokumen     DokumenDefinition[]
+  permintaan  PermintaanLayanan[]
+  nomorConfig NomorSuratConfig[]
+  desa        Desa                @relation(fields: [desaId], references: [id], onUpdate: NoAction)
+
+  @@unique([desaId, kode])
+  @@index([desaId])
+  @@index([slug])
+  @@index([kategori])
+  @@index([isActive])
+  @@map("layanan")
+}
+
+/// Field Definition - Reusable field registry for services and templates
+model FieldDefinition {
+  id           BigInt    @id @default(autoincrement())
+  layananId    BigInt?   @map("layanan_id")
+  templateId   BigInt?   @map("template_id")
+  key          String    @db.VarChar(100)
+  label        String    @db.VarChar(255)
+  type         FieldType
+  source       String?   @db.VarChar(100)
+  required     Boolean   @default(false)
+  validation   Json?     @map("validation")
+  defaultValue String?   @map("default_value") @db.VarChar(500)
+  description  String?   @db.Text
+  options      Json?
+  placeholder  String?   @db.VarChar(255)
+  orderIndex   Int       @default(0) @map("order_index")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  layanan  Layanan?       @relation(fields: [layananId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  template TemplateSurat? @relation(fields: [templateId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([layananId, key])
+  @@unique([templateId, key])
+  @@index([layananId])
+  @@index([templateId])
+  @@map("field_definition")
+}
+
+/// Service Request - Instance of a service request
+model PermintaanLayanan {
+  id              BigInt        @id @default(autoincrement())
+  layananId       BigInt        @map("layanan_id")
+  pendudukId      BigInt?       @map("penduduk_id")
+  desaId          BigInt        @map("desa_id")
+  nomorPermintaan String        @unique @map("nomor_permintaan") @db.VarChar(50)
+  status          RequestStatus @default(DRAFT)
+  dataJson        Json?         @map("data_json")
+  catatan         String?       @db.Text
+  submittedAt     DateTime?     @map("submitted_at") @db.Timestamp(6)
+  processedAt     DateTime?     @map("processed_at") @db.Timestamp(6)
+  completedAt     DateTime?     @map("completed_at") @db.Timestamp(6)
+  createdBy       BigInt?       @map("created_by")
+  processedBy     BigInt?       @map("processed_by")
+  approvedBy      BigInt?       @map("approved_by")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+  deletedAt       DateTime?     @map("deleted_at") @db.Timestamp(6)
+
+  dokumen   InstanDokumen[]
+  layanan   Layanan         @relation(fields: [layananId], references: [id], onUpdate: NoAction)
+  penduduk  Penduduk?       @relation(fields: [pendudukId], references: [id], onUpdate: NoAction)
+  creator   Account?        @relation("RequestCreatedBy", fields: [createdBy], references: [id], onUpdate: NoAction)
+  processor Account?        @relation("RequestProcessedBy", fields: [processedBy], references: [id], onUpdate: NoAction)
+  approver  Account?        @relation("RequestApprovedBy", fields: [approvedBy], references: [id], onUpdate: NoAction)
+
+  @@index([desaId])
+  @@index([layananId])
+  @@index([pendudukId])
+  @@index([status])
+  @@index([nomorPermintaan])
+  @@index([createdBy])
+  @@map("permintaan_layanan")
+}
+
+/// Document Definition - Document types generated from services
+model DokumenDefinition {
+  id        BigInt   @id @default(autoincrement())
+  layananId BigInt   @map("layanan_id")
+  kode      String   @db.VarChar(20)
+  nama      String   @db.VarChar(255)
+  slug      String   @unique @db.VarChar(255)
+  deskripsi String?  @db.Text
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  templates TemplateSurat[]
+  instan    InstanDokumen[]
+  layanan   Layanan         @relation(fields: [layananId], references: [id], onUpdate: NoAction)
+
+  @@unique([layananId, kode])
+  @@index([layananId])
+  @@map("dokumen_definition")
+}
+
+/// Blanko - Letterhead template definitions
+model Blanko {
+  id        BigInt   @id @default(autoincrement())
+  desaId    BigInt   @map("desa_id")
+  nama      String   @db.VarChar(255)
+  paperSize String   @default("F4") @map("paper_size") @db.VarChar(50)
+  margin    Json
+  layout    Json
+  isDefault Boolean  @default(false) @map("is_default")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  desa      Desa            @relation(fields: [desaId], references: [id], onUpdate: NoAction)
+  templates TemplateSurat[]
+
+  @@index([desaId])
+  @@map("blanko")
+}
+
+/// Master list of codes for placeholders
+model KodeIsianMaster {
+  id         BigInt   @id @default(autoincrement())
+  kode       String   @unique @db.VarChar(100)
+  kategori   String   @db.VarChar(100)
+  sumberData String   @map("sumber_data") @db.VarChar(255)
+  keterangan String?  @db.Text
+  isAktif    Boolean  @default(true) @map("is_aktif")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("kode_isian_master")
+}
+
+/// Template - Template master record
+model TemplateSurat {
+  id        BigInt   @id @default(autoincrement())
+  dokumenId BigInt   @map("dokumen_id")
+  blankoId  BigInt?  @map("blanko_id")
+  nama      String   @db.VarChar(255)
+  slug      String   @unique @db.VarChar(255)
+  deskripsi String?  @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  versions TemplateVersion[]
+  fields   FieldDefinition[]
+  dokumen  DokumenDefinition @relation(fields: [dokumenId], references: [id], onUpdate: NoAction)
+  blanko   Blanko?           @relation(fields: [blankoId], references: [id], onUpdate: NoAction)
+
+  @@index([dokumenId])
+  @@map("template_surat")
+}
+
+/// Template Version - Versioned template content
+model TemplateVersion {
+  id              BigInt        @id @default(autoincrement())
+  templateId      BigInt        @map("template_id")
+  version         Int           @map("version")
+  content         Json // Template layout and elements
+  kopConfig       Json?         @map("kop_config")
+  signatureConfig Json?         @map("signature_config")
+  status          VersionStatus @default(DRAFT)
+  changelog       String?       @db.Text
+  createdBy       BigInt?       @map("created_by")
+  publishedAt     DateTime?     @map("published_at") @db.Timestamp(6)
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  instan   InstanDokumen[]
+  template TemplateSurat   @relation(fields: [templateId], references: [id], onUpdate: NoAction)
+  creator  Account?        @relation(fields: [createdBy], references: [id], onUpdate: NoAction)
+
+  @@unique([templateId, version])
+  @@index([templateId])
+  @@index([status])
+  @@map("template_version")
+}
+
+/// Document Instance - Immutable snapshot of generated document
+model InstanDokumen {
+  id                BigInt         @id @default(autoincrement())
+  dokumenId         BigInt         @map("dokumen_id")
+  permintaanId      BigInt?        @map("permintaan_id")
+  templateVersionId BigInt         @map("template_version_id")
+  nomorDokumen      String         @unique @map("nomor_dokumen") @db.VarChar(50)
+  judul             String         @db.VarChar(255)
+  dataSnapshot      Json           @map("data_snapshot")
+  contentSnapshot   Json           @map("content_snapshot")
+  status            DocumentStatus @default(GENERATED)
+  generatedAt       DateTime       @default(now()) @map("generated_at")
+  signedAt          DateTime?      @map("signed_at") @db.Timestamp(6)
+  qrCode            String?        @map("qr_code") @db.VarChar(500)
+  verificationToken String?        @unique @map("verification_token") @db.VarChar(100)
+  fileUrl           String?        @map("file_url") @db.VarChar(500)
+  tujuan            String?        @db.VarChar(255)
+  createdAt         DateTime       @default(now()) @map("created_at")
+  updatedAt         DateTime       @updatedAt @map("updated_at")
+
+  signature       DokumenSignature?
+  verifikasi      VerifikasiDokumen?
+  dokumen         DokumenDefinition  @relation(fields: [dokumenId], references: [id], onUpdate: NoAction)
+  permintaan      PermintaanLayanan? @relation(fields: [permintaanId], references: [id], onUpdate: NoAction)
+  templateVersion TemplateVersion    @relation(fields: [templateVersionId], references: [id], onUpdate: NoAction)
+
+  @@index([dokumenId])
+  @@index([permintaanId])
+  @@index([templateVersionId])
+  @@index([nomorDokumen])
+  @@index([verificationToken])
+  @@map("instan_dokumen")
+}
+
+/// Document Number Sequence - Per-village sequence counter
+model NomorDokumen {
+  id           BigInt   @id @default(autoincrement())
+  desaId       BigInt   @unique @map("desa_id")
+  lastSequence BigInt   @default(0) @map("last_sequence")
+  lastYear     Int      @default(0) @map("last_year")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  desa Desa @relation(fields: [desaId], references: [id], onUpdate: NoAction)
+
+  @@map("nomor_dokumen")
+}
+
+/// Numbering Configuration - Per-service numbering format
+model NomorSuratConfig {
+  id             BigInt   @id @default(autoincrement())
+  layananId      BigInt   @unique @map("layanan_id")
+  formatTemplate String   @map("format_template") @db.VarChar(255)
+  startingNumber BigInt   @default(1) @map("starting_number")
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  layanan Layanan @relation(fields: [layananId], references: [id], onUpdate: NoAction)
+
+  @@index([layananId])
+  @@map("nomor_surat_config")
+}
+
+/// Signatory - Authorized signatories for documents
+model PenandaTangan {
+  id             BigInt   @id @default(autoincrement())
+  desaId         BigInt   @map("desa_id")
+  accountId      BigInt?  @map("account_id")
+  pinHash        String?  @map("pin_hash") @db.VarChar(255)
+  nama           String   @db.VarChar(255)
+  jabatan        String   @db.VarChar(255)
+  nip            String?  @db.VarChar(50)
+  tandaTanganUrl String?  @map("tanda_tangan_url") @db.VarChar(500)
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  signatures DokumenSignature[]
+  desa       Desa               @relation(fields: [desaId], references: [id], onUpdate: NoAction)
+  account    Account?           @relation(fields: [accountId], references: [id], onUpdate: NoAction)
+
+  @@index([desaId])
+  @@index([accountId])
+  @@map("penanda_tangan")
+}
+
+/// Document Signature - Signature record for documents
+model DokumenSignature {
+  id              BigInt        @id @default(autoincrement())
+  dokumenId       BigInt        @unique @map("dokumen_id")
+  penandatanganId BigInt        @map("penandatangan_id")
+  tandaTanganUrl  String?       @map("tanda_tangan_url") @db.VarChar(500)
+  tandaTanganType SignatureType @default(IMAGE)
+  signedAt        DateTime      @default(now()) @map("signed_at")
+  ipAddress       String?       @map("ip_address") @db.VarChar(45)
+  createdAt       DateTime      @default(now()) @map("created_at")
+
+  dokumen       InstanDokumen @relation(fields: [dokumenId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  penandatangan PenandaTangan @relation(fields: [penandatanganId], references: [id], onUpdate: NoAction)
+
+  @@index([dokumenId])
+  @@index([penandatanganId])
+  @@map("dokumen_signature")
+}
+
+/// Document Verification - Public verification records
+model VerifikasiDokumen {
+  id           BigInt             @id @default(autoincrement())
+  dokumenId    BigInt             @unique @map("dokumen_id")
+  token        String             @unique @db.VarChar(100)
+  qrCodeUrl    String?            @map("qr_code_url") @db.VarChar(500)
+  status       VerificationStatus @default(PENDING)
+  verifiedAt   DateTime?          @map("verified_at") @db.Timestamp(6)
+  verifyCount  Int                @default(0) @map("verify_count")
+  lastVerifyAt DateTime?          @map("last_verify_at") @db.Timestamp(6)
+  createdAt    DateTime           @default(now()) @map("created_at")
+
+  dokumen InstanDokumen @relation(fields: [dokumenId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([token])
+  @@index([dokumenId])
+  @@map("verifikasi_dokumen")
+}
+
+// ============================================================
+// Enums for Service Document Engine
+// ============================================================
+
+enum FieldType {
+  TEXT
+  NUMBER
+  DATE
+  DATETIME
+  SELECT
+  MULTISELECT
+  RADIO
+  CHECKBOX
+  TEXTAREA
+  FILE
+  NIK
+  EMAIL
+  PHONE
+  ADDRESS
+}
+
+enum RequestStatus {
+  DRAFT
+  SUBMITTED
+  VERIFICATION
+  PROCESSING
+  APPROVED
+  REJECTED
+  COMPLETED
+  CANCELLED
+}
+
+enum VersionStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum DocumentStatus {
+  GENERATED
+  PENDING_SIGNATURE
+  SIGNED
+  VERIFIED
+  ARCHIVED
+  REVOKED
+}
+
+enum SignatureType {
+  IMAGE
+}
+
+/// Transparansi Desa - APBDes
+model Apbdes {
+  id              BigInt   @id @default(autoincrement())
+  desaId          BigInt   @map("desa_id")
+  tahun           Int
+  totalPendapatan Float    @default(0) @map("total_pendapatan")
+  totalBelanja    Float    @default(0) @map("total_belanja")
+  totalPembiayaan Float    @default(0) @map("total_pembiayaan")
+  isAktif         Boolean  @default(true) @map("is_aktif")
+  dokumenUrl      String?  @map("dokumen_url") @db.VarChar(500)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  desa  Desa         @relation(fields: [desaId], references: [id], onUpdate: NoAction)
+  items ApbdesItem[]
+
+  @@unique([desaId, tahun])
+  @@map("apbdes")
+}
+
+model ApbdesItem {
+  id           BigInt         @id @default(autoincrement())
+  apbdesId     BigInt         @map("apbdes_id")
+  kategori     ApbdesKategori
+  kodeRekening String?        @map("kode_rekening") @db.VarChar(50)
+  nama         String         @db.VarChar(255)
+  anggaran     Float          @default(0)
+  realization  Float          @default(0) @map("realisasi")
+  createdAt    DateTime       @default(now()) @map("created_at")
+
+  apbdes     Apbdes    @relation(fields: [apbdesId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  kasEntries KasUmum[]
+
+  @@index([apbdesId])
+  @@index([kodeRekening])
+  @@map("apbdes_item")
+}
+
+enum ApbdesKategori {
+  PENDAPATAN
+  BELANJA
+  PEMBIAYAAN
+}
+
+/// Agenda Desa
+model Agenda {
+  id             BigInt       @id @default(autoincrement())
+  desaId         BigInt       @map("desa_id")
+  judul          String       @db.VarChar(255)
+  slug           String       @unique @db.VarChar(255)
+  deskripsi      String       @db.Text
+  lokasi         String       @db.VarChar(255)
+  penyelenggara  String       @db.VarChar(255)
+  tanggalMulai   DateTime     @map("tanggal_mulai") @db.Timestamp(6)
+  tanggalSelesai DateTime     @map("tanggal_selesai") @db.Timestamp(6)
+  status         AgendaStatus @default(MENDATANG)
+  isAktif        Boolean      @default(true) @map("is_aktif")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  desa Desa @relation(fields: [desaId], references: [id], onUpdate: NoAction)
+
+  @@index([desaId])
+  @@index([tanggalMulai])
+  @@index([status])
+  @@map("agenda")
+}
+
+enum AgendaStatus {
+  MENDATANG
+  BERLANGSUNG
+  SELESAI
+  BATAL
+}
+
+/// Arsip Surat Masuk
+model SuratMasuk {
+  id              BigInt           @id @default(autoincrement())
+  desaId          BigInt           @map("desa_id")
+  nomorSurat      String           @map("nomor_surat") @db.VarChar(100)
+  tanggalSurat    DateTime         @map("tanggal_surat") @db.Date
+  tanggalDiterima DateTime         @map("tanggal_diterima") @db.Date
+  pengirim        String           @db.VarChar(255)
+  perihal         String           @db.VarChar(500)
+  lampiran        String?          @db.VarChar(255)
+  fileScanUrl     String?          @map("file_scan_url") @db.VarChar(500)
+  status          SuratMasukStatus @default(DITERIMA)
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+
+  desa      Desa        @relation(fields: [desaId], references: [id], onUpdate: NoAction)
+  disposisi Disposisi[]
+
+  @@index([desaId])
+  @@index([nomorSurat])
+  @@map("surat_masuk")
+}
+
+model Disposisi {
+  id             BigInt          @id @default(autoincrement())
+  suratMasukId   BigInt          @map("surat_masuk_id")
+  tujuan         String          @db.VarChar(255)
+  instruksi      String          @db.Text
+  tanggalSelesai DateTime?       @map("tanggal_selesai") @db.Date
+  status         DisposisiStatus @default(PENDING)
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+
+  suratMasuk SuratMasuk @relation(fields: [suratMasukId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([suratMasukId])
+  @@map("disposisi")
+}
+
+enum SuratMasukStatus {
+  DITERIMA
+  DIPROSES
+  SELESAI
+  DIARSIPKAN
+}
+
+enum DisposisiStatus {
+  PENDING
+  DIPROSES
+  SELESAI
+}
+
+/// Potensi Desa
+model PotensiDesa {
+  id        BigInt   @id @default(autoincrement())
+  desaId    BigInt   @map("desa_id")
+  nama      String   @db.VarChar(255)
+  slug      String   @unique @db.VarChar(255)
+  deskripsi String   @db.Text
+  kategori  String   @db.VarChar(100)
+  gambarUrl String?  @map("gambar_url") @db.VarChar(500)
+  lokasi    String?  @db.VarChar(255)
+  kontak    String?  @db.VarChar(50)
+  isAktif   Boolean  @default(true) @map("is_aktif")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  desa Desa @relation(fields: [desaId], references: [id], onUpdate: NoAction)
+
+  @@index([desaId])
+  @@index([slug])
+  @@index([kategori])
+  @@map("potensi_desa")
+}
+
+model Banner {
+  id        BigInt   @id @default(autoincrement())
+  judul     String   @db.VarChar(255)
+  deskripsi String?  @db.VarChar(500)
+  gambarUrl String   @map("gambar_url") @db.VarChar(500)
+  linkUrl   String?  @map("link_url") @db.VarChar(255)
+  urutan    Int      @default(0)
+  isAktif   Boolean  @default(true) @map("is_aktif")
+  desaId    BigInt?  @map("desa_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  desa Desa? @relation(fields: [desaId], references: [id], onUpdate: NoAction)
+
+  @@index([desaId])
+  @@index([urutan])
+  @@map("banner")
+}
+
+// ============================================================
+// Posyandu Kesehatan
+// ============================================================
+
+model PosyanduKunjungan {
+  id               String   @id @default(cuid())
+  desaId           BigInt?  @map("desa_id")
+  pendudukId       BigInt   @map("penduduk_id")
+  tanggalKunjungan DateTime @map("tanggal_kunjungan") @db.Date
+  kategori         String   @db.VarChar(30) // IBU_HAMIL, BALITA, LANSIA, UMUM
+  mingguKehamilan  Int?
+  tekananDarah     String?  @map("tekanan_darah") @db.VarChar(20)
+  beratBadanIbu    Float?
+  beratBadan       Float?
+  panjangBadan     Float?
+  lingkarKepala    Float?
+  statusGizi       String?
+  gulaDarah        Float?
+  imunisasi        String?
+  vitamin          String?
+  catatan          String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  desa             Desa?    @relation(fields: [desaId], references: [id], onUpdate: NoAction)
+
+  @@index([desaId])
+  @@index([pendudukId])
+  @@index([tanggalKunjungan])
+  @@index([kategori])
+  @@map("posyandu_kunjungan")
+}
+
+model Bumil {
+  id          String   @id @default(cuid())
+  desaId      BigInt?  @map("desa_id")
+  pendudukId  BigInt   @unique @map("penduduk_id")
+  namaLengkap String   @map("nama_lengkap") @db.VarChar(255)
+  nik         String   @map("nik") @db.VarChar(16)
+  telepon     String?
+  alamat      String?
+  trimester   Int?     @default(1)
+  // FK references to wilayah hierarchy
+  gubugId     BigInt?  @map("gubug_id")
+  rwId        BigInt?  @map("rw_id")
+  rtId        BigInt?  @map("rt_id")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  desa  Desa?  @relation(fields: [desaId], references: [id], onUpdate: NoAction)
+  gubug Gubug? @relation("GubugToBumil", fields: [gubugId], references: [id], onUpdate: NoAction, map: "bumil_gubug_id_foreign")
+  rwRel Rw?    @relation("RwToBumil", fields: [rwId], references: [id], onUpdate: NoAction, map: "bumil_rw_id_foreign")
+  rtRel Rt?    @relation("RtToBumil", fields: [rtId], references: [id], onUpdate: NoAction, map: "bumil_rt_id_foreign")
+
+  @@index([desaId])
+  @@index([pendudukId])
+  @@index([gubugId])
+  @@index([rwId])
+  @@index([rtId])
+  @@map("bumil")
+}
+
+model KasUmum {
+  id           String      @id @default(cuid())
+  desaId       BigInt?     @map("desa_id")
+  tanggal      DateTime    @db.Date
+  jenis        String      @db.VarChar(20) // KAS_MASUK, KAS_KELUAR
+  uraian       String      @db.VarChar(500)
+  jumlah       Float
+  saldo        Float
+  kodeRekening String?     @map("kode_rekening") @db.VarChar(50)
+  apbdesItemId BigInt?     @map("apbdes_item_id")
+  createdAt    DateTime    @default(now())
+
+  desa         Desa?       @relation(fields: [desaId], references: [id], onUpdate: NoAction)
+  apbdesItem   ApbdesItem? @relation(fields: [apbdesItemId], references: [id], onUpdate: NoAction)
+
+  @@index([desaId])
+  @@index([apbdesItemId])
+  @@index([kodeRekening])
+  @@map("kas_umum")
+}
+
+model BukuBank {
+  id           String   @id @default(cuid())
+  desaId       BigInt?  @map("desa_id")
+  bank         String   @db.VarChar(100)
+  tanggal      DateTime @db.Date
+  uraian       String   @map("uraian") @db.VarChar(500)
+  kodeBukti    String?  @map("kode_bukti") @db.VarChar(50)
+  debit        Float    @default(0)
+  kredit       Float    @default(0)
+  saldo        Float
+  rekonsiliasi Boolean  @default(false) @map("rekonsiliasi")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  desa         Desa?    @relation(fields: [desaId], references: [id], onUpdate: NoAction)
+
+  @@index([desaId])
+  @@map("buku_bank")
+}
+
+model Bansos {
+  id             String   @id @default(cuid())
+  desaId         BigInt?  @map("desa_id")
+  nama           String   @db.VarChar(255)
+  jenis          String   @db.VarChar(100) // BLT, PKH, BPNT, dll
+  tahun          Int
+  periode        String?  @db.VarChar(50)
+  jumlahPenerima Int      @default(0) @map("jumlah_penerima")
+  jumlahDana     Float    @default(0) @map("jumlah_dana")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  desa           Desa?    @relation(fields: [desaId], references: [id], onUpdate: NoAction)
+
+  @@index([desaId])
+  @@map("bansos")
+}
+
+// ============================================================
+// Saran / Aspirasi / Aduan
+// ============================================================
+
+model SaranAduan {
+  id              String           @id @default(cuid())
+  desaId          BigInt?          @map("desa_id")
+  judul           String           @map("judul") @db.VarChar(255)
+  isi             String           @map("isi") @db.Text
+  kategori        String           @map("kategori") @db.VarChar(50) // SARAN, ADUAN, ASPIRASI
+  status          SaranAduanStatus @default(BARU)
+  namaPengirim    String?          @map("nama_pengirim") @db.VarChar(255)
+  emailPengirim   String?          @map("email_pengirim") @db.VarChar(255)
+  teleponPengirim String?          @map("telepon_pengirim") @db.VarChar(20)
+  jawaban         String?          @map("jawaban") @db.Text
+  dijawabOleh     String?          @map("dijawab_oleh") @db.VarChar(255)
+  dijawabPada     DateTime?        @map("dijawab_pada") @db.Timestamp(6)
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+
+  desa            Desa?            @relation(fields: [desaId], references: [id], onUpdate: NoAction)
+
+  @@index([desaId])
+  @@index([kategori])
+  @@index([status])
+  @@index([createdAt])
+  @@map("saran_aduan")
+}
+
+enum SaranAduanStatus {
+  BARU
+  DIPROSES
+  SELESAI
+  DITOLAK
+}
+
+// ============================================================
+// Mutasi Penduduk
+// ============================================================
+
+model MutasiPenduduk {
+  id              String      @id @default(cuid())
+  desaId          BigInt?     @map("desa_id")
+  jenisMutasi     MutasiJenis @map("jenis_mutasi")
+  tanggalMutasi   DateTime    @map("tanggal_mutasi") @db.Date
+  nik             String      @map("nik") @db.VarChar(16)
+  namaLengkap     String      @map("nama_lengkap") @db.VarChar(255)
+  jenisKelamin    String?     @map("jenis_kelamin") @db.VarChar(1)
+  tanggalLahir    DateTime?   @map("tanggal_lahir") @db.Date
+  // Data tambahan berdasarkan jenis mutasi
+  tempatLahir     String?     @map("tempat_lahir") @db.VarChar(100)
+  // Untuk Lahir
+  nikAyah         String?     @map("nik_ayah") @db.VarChar(16)
+  nikIbu          String?     @map("nik_ibu") @db.VarChar(16)
+  // Untuk Mati
+  penyebabMati    String?     @map("penyebab_mati") @db.VarChar(255)
+  // Untuk Pindah Datang
+  alamatAsal      String?     @map("alamat_asal") @db.VarChar(500)
+  desaAsal        String?     @map("desa_asal") @db.VarChar(255)
+  kecamatanAsal   String?     @map("kecamatan_asal") @db.VarChar(255)
+  kabupatenAsal   String?     @map("kabupaten_asal") @db.VarChar(255)
+  // Untuk Pindah Pergi
+  alamatTujuan    String?     @map("alamat_tujuan") @db.VarChar(500)
+  desaTujuan      String?     @map("desa_tujuan") @db.VarChar(255)
+  kecamatanTujuan String?     @map("kecamatan_tujuan") @db.VarChar(255)
+  kabupatenTujuan String?     @map("kabupaten_tujuan") @db.VarChar(255)
+  // FK references to wilayah hierarchy (for origin)
+  gubugAsalId     BigInt?     @map("gubug_asal_id")
+  rwAsalId        BigInt?     @map("rw_asal_id")
+  rtAsalId        BigInt?     @map("rt_asal_id")
+  // FK references to wilayah hierarchy (for destination)
+  gubugTujuanId   BigInt?     @map("gubug_tujuan_id")
+  rwTujuanId      BigInt?     @map("rw_tujuan_id")
+  rtTujuanId      BigInt?     @map("rt_tujuan_id")
+  // Info tambahan
+  keterangan      String?     @db.VarChar(500)
+  dokumenUrl      String?     @map("dokumen_url") @db.VarChar(500)
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  // Relations
+  desa        Desa?  @relation(fields: [desaId], references: [id], onUpdate: NoAction)
+  // Relations for origin wilayah
+  gubugAsal   Gubug? @relation("GubugAsal", fields: [gubugAsalId], references: [id], onUpdate: NoAction, map: "mutasi_gubug_asal_id_foreign")
+  rwAsal      Rw?    @relation("RwAsal", fields: [rwAsalId], references: [id], onUpdate: NoAction, map: "mutasi_rw_asal_id_foreign")
+  rtAsal      Rt?    @relation("RtAsal", fields: [rtAsalId], references: [id], onUpdate: NoAction, map: "mutasi_rt_asal_id_foreign")
+  // Relations for destination wilayah
+  gubugTujuan Gubug? @relation("GubugTujuan", fields: [gubugTujuanId], references: [id], onUpdate: NoAction, map: "mutasi_gubug_tujuan_id_foreign")
+  rwTujuan    Rw?    @relation("RwTujuan", fields: [rwTujuanId], references: [id], onUpdate: NoAction, map: "mutasi_rw_tujuan_id_foreign")
+  rtTujuan    Rt?    @relation("RtTujuan", fields: [rtTujuanId], references: [id], onUpdate: NoAction, map: "mutasi_rt_tujuan_id_foreign")
+
+  @@index([desaId])
+  @@index([jenisMutasi])
+  @@index([tanggalMutasi])
+  @@index([nik])
+  @@index([gubugAsalId])
+  @@index([rwAsalId])
+  @@index([rtAsalId])
+  @@index([gubugTujuanId])
+  @@index([rwTujuanId])
+  @@index([rtTujuanId])
+  @@map("mutasi_penduduk")
+}
+
+enum MutasiJenis {
+  LAHIR
+  MATI
+  PINDAH_DATANG
+  PINDAH_PERGI
+}

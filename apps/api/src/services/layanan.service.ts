@@ -9,7 +9,7 @@ import {
   QueryFieldDefinitionInput,
 } from '../dto/service-document.dto.js';
 import { ApiError } from '../utils/response.js';
-import { getInstanceContext } from '../config/instance.js';
+
 
 export class LayananService {
   constructor(private readonly db: PrismaClient = prisma) {}
@@ -21,12 +21,9 @@ export class LayananService {
     data: CreateLayananInput,
     _createdBy?: bigint
   ): Promise<Prisma.LayananGetPayload<object>> {
-    const { desaId } = getInstanceContext();
-
     // Check if kode already exists for this desa
     const existing = await this.db.layanan.findFirst({
       where: {
-        desaId,
         kode: data.kode,
       },
     });
@@ -46,7 +43,6 @@ export class LayananService {
 
     const layanan = await this.db.layanan.create({
       data: {
-        desaId,
         kode: data.kode,
         nama: data.nama,
         slug: data.slug,
@@ -73,10 +69,7 @@ export class LayananService {
     const page = query.page || 1;
     const limit = query.limit || 20;
     const skip = (page - 1) * limit;
-    const { desaId } = getInstanceContext();
-
     const where: Prisma.LayananWhereInput = {
-      desaId,
       deletedAt: null,
     };
 
@@ -132,9 +125,8 @@ export class LayananService {
    * Find layanan by ID
    */
   async findById(id: bigint): Promise<Prisma.LayananGetPayload<object> | null> {
-    const { desaId } = getInstanceContext();
     return this.db.layanan.findFirst({
-      where: { id, desaId },
+      where: { id },
       include: {
         fields: {
           orderBy: { orderIndex: 'asc' },
@@ -167,9 +159,8 @@ export class LayananService {
    * Find layanan by slug
    */
   async findBySlug(slug: string): Promise<Prisma.LayananGetPayload<object> | null> {
-    const { desaId } = getInstanceContext();
     return this.db.layanan.findFirst({
-      where: { slug, desaId },
+      where: { slug },
       include: {
         fields: {
           orderBy: { orderIndex: 'asc' },
@@ -186,10 +177,9 @@ export class LayananService {
     id: bigint,
     data: UpdateLayananInput
   ): Promise<Prisma.LayananGetPayload<object>> {
-    const { desaId } = getInstanceContext();
     // Verify ownership
     const existing = await this.db.layanan.findFirst({
-      where: { id, desaId },
+      where: { id },
     });
 
     if (!existing) {
@@ -200,7 +190,6 @@ export class LayananService {
     if (data.kode && data.kode !== existing.kode) {
       const kodeConflict = await this.db.layanan.findFirst({
         where: {
-          desaId,
           kode: data.kode,
           id: { not: id },
         },
@@ -241,9 +230,8 @@ export class LayananService {
    * Soft delete layanan
    */
   async softDelete(id: bigint): Promise<void> {
-    const { desaId } = getInstanceContext();
     const existing = await this.db.layanan.findFirst({
-      where: { id, desaId },
+      where: { id },
     });
 
     if (!existing) {
@@ -265,22 +253,21 @@ export class LayananService {
     nonAktif: number;
     perKategori: Record<string, number>;
   }> {
-    const { desaId } = getInstanceContext();
     const [total, aktif, nonAktif] = await Promise.all([
       this.db.layanan.count({
-        where: { desaId, deletedAt: null },
+        where: { deletedAt: null },
       }),
       this.db.layanan.count({
-        where: { desaId, isActive: true, deletedAt: null },
+        where: { isActive: true, deletedAt: null },
       }),
       this.db.layanan.count({
-        where: { desaId, isActive: false, deletedAt: null },
+        where: { isActive: false, deletedAt: null },
       }),
     ]);
 
     // Group by kategori
     const allLayanan = await this.db.layanan.findMany({
-      where: { desaId, deletedAt: null },
+      where: { deletedAt: null },
       select: { kategori: true },
     });
 
@@ -308,13 +295,10 @@ export class LayananService {
     const page = query.page || 1;
     const limit = query.limit || 20;
     const skip = (page - 1) * limit;
-    const { desaId } = getInstanceContext();
-
     // For public catalog, we show only active services
     // In single-desa setup, this filters by isActive
     // In multi-desa setup, this could be filtered by instance
     const where: Prisma.LayananWhereInput = {
-      desaId,
       isActive: true,
       deletedAt: null,
     };
@@ -368,10 +352,8 @@ export class LayananService {
    * Includes fields, document definitions, and published templates
    */
   async findBySlugPublic(slug: string): Promise<Prisma.LayananGetPayload<object> | null> {
-    const { desaId } = getInstanceContext();
     return this.db.layanan.findFirst({
       where: {
-        desaId,
         slug,
         isActive: true,
         deletedAt: null,

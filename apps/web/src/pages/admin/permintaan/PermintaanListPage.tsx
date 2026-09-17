@@ -1,32 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AdminLayout } from '@/layouts';
 import { useAuthStore } from '@/stores/auth.store';
-import { API_URL } from '@/lib/constants';
+import { usePermintaanList } from '@/hooks/usePermintaan';
 import styles from './PermintaanListPage.module.css';
-
-interface RequestItem {
-  id: string;
-  layananId: string;
-  layananNama?: string;
-  pendudukId?: string;
-  pendudukNama?: string;
-  nomorPermintaan: string;
-  status: string;
-  dataJson?: Record<string, unknown>;
-  catatan?: string;
-  createdAt: string;
-  submittedAt?: string;
-  processedAt?: string;
-  completedAt?: string;
-}
-
-interface PaginationMeta {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-}
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Semua Status' },
@@ -54,19 +31,23 @@ const STATUS_LABEL: Record<string, string> = {
 export default function PermintaanListPage() {
   const { token } = useAuthStore();
   const navigate = useNavigate();
-  const [requests, setRequests] = useState<RequestItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [pagination, setPagination] = useState<PaginationMeta>({
-    page: 1,
-    limit: 20,
-    total: 0,
-    totalPages: 0,
-  });
+
+  const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const { data: listResponse, isLoading: loading, error: queryError, refetch } = usePermintaanList(
+    page,
+    statusFilter,
+    debouncedSearch,
+    token || ''
+  );
+
+  const requests = listResponse?.data || [];
+  const pagination = listResponse?.meta || { page: 1, limit: 20, total: 0, totalPages: 0 };
+  const error = queryError?.message || '';
 
   // Debounce search input
   const handleSearchChange = (value: string) => {
@@ -74,40 +55,13 @@ export default function PermintaanListPage() {
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     searchTimerRef.current = setTimeout(() => {
       setDebouncedSearch(value);
-      setPagination((p) => ({ ...p, page: 1 }));
+      setPage(1);
     }, 400);
   };
 
-  const fetchRequests = useCallback(async (page: number, status: string, q: string) => {
-    setLoading(true);
-    setError('');
-    try {
-      const params = new URLSearchParams({ page: String(page), limit: '20' });
-      if (status) params.set('status', status);
-      if (q) params.set('search', q);
-
-      const res = await fetch(`${API_URL}/service-requests?${params}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error('Gagal memuat permintaan');
-      const data = await res.json();
-      setRequests(data.data || []);
-      setPagination(data.meta || { page: 1, limit: 20, total: 0, totalPages: 0 });
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Terjadi kesalahan');
-    } finally {
-      setLoading(false);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    fetchRequests(pagination.page, statusFilter, debouncedSearch);
-  }, [pagination.page, statusFilter, debouncedSearch, fetchRequests]);
-
   const handleStatusChange = (value: string) => {
     setStatusFilter(value);
-    setPagination((p) => ({ ...p, page: 1 }));
+    setPage(1);
   };
 
   const getStatusClass = (status: string) => {
@@ -146,7 +100,7 @@ export default function PermintaanListPage() {
           </div>
           <button
             className={styles.refreshButton}
-            onClick={() => fetchRequests(pagination.page, statusFilter, debouncedSearch)}
+            onClick={() => refetch()}
             disabled={loading}
           >
             🔄 Refresh
@@ -179,7 +133,7 @@ export default function PermintaanListPage() {
                 onClick={() => {
                   setSearch('');
                   setDebouncedSearch('');
-                  setPagination((p) => ({ ...p, page: 1 }));
+                  setPage(1);
                 }}
               >
                 ✕
@@ -204,7 +158,7 @@ export default function PermintaanListPage() {
           <div className={styles.errorBanner}>
             <span>⚠️ {error}</span>
             <button
-              onClick={() => fetchRequests(pagination.page, statusFilter, debouncedSearch)}
+              onClick={() => refetch()}
               className={styles.retryButton}
             >
               Coba Lagi
@@ -221,7 +175,7 @@ export default function PermintaanListPage() {
             </div>
           ) : requests.length === 0 ? (
             <div className={styles.emptyState}>
-              <span className={styles.emptyIcon}>📋</span>
+              <span className={styles.emptyIcon}>📭</span>
               <p>Tidak ada permintaan{statusFilter ? ` dengan status "${STATUS_LABEL[statusFilter]}"` : ''}{debouncedSearch ? ` yang cocok dengan pencarian "${debouncedSearch}"` : ''}</p>
               {(statusFilter || debouncedSearch) && (
                 <button
@@ -286,19 +240,19 @@ export default function PermintaanListPage() {
           <div className={styles.pagination}>
             <button
               className={styles.pageButton}
-              disabled={pagination.page <= 1 || loading}
-              onClick={() => setPagination((p) => ({ ...p, page: p.page - 1 }))}
+              disabled={page <= 1 || loading}
+              onClick={() => setPage(page - 1)}
             >
               ← Sebelumnya
             </button>
             <span className={styles.pageInfo}>
-              Halaman {pagination.page} dari {pagination.totalPages}
+              Halaman {page} dari {pagination.totalPages}
               <span className={styles.pageTotalItems}> ({pagination.total} total)</span>
             </span>
             <button
               className={styles.pageButton}
-              disabled={pagination.page >= pagination.totalPages || loading}
-              onClick={() => setPagination((p) => ({ ...p, page: p.page + 1 }))}
+              disabled={page >= pagination.totalPages || loading}
+              onClick={() => setPage(page + 1)}
             >
               Berikutnya →
             </button>

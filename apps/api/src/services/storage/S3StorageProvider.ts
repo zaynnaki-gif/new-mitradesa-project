@@ -2,6 +2,7 @@ import path from 'path';
 import { S3Client, PutObjectCommand, DeleteObjectCommand, HeadObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { IStorageProvider, StorageFile, UploadOptions } from './types.js';
+import { NodeHttpHandler } from '@smithy/node-http-handler';
 
 /**
  * S3-compatible storage provider
@@ -51,12 +52,17 @@ export class S3StorageProvider implements IStorageProvider {
       credentials: { accessKeyId: string; secretAccessKey: string };
       endpoint?: string;
       forcePathStyle?: boolean;
+      requestHandler?: any;
     } = {
       region: this.region,
       credentials: {
         accessKeyId,
         secretAccessKey,
       },
+      requestHandler: new NodeHttpHandler({
+        connectionTimeout: 5000,
+        socketTimeout: 5000,
+      }),
     };
 
     // For S3-compatible services like R2 and MinIO, we need forcePathStyle

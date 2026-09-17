@@ -83,11 +83,9 @@ export function parseFormatTemplate(
  */
 async function getVillageInfo(
   prisma: PrismaClient | Prisma.TransactionClient,
-  desaId: bigint
+  
 ): Promise<{ nama: string; singkatan?: string | null }> {
-  const identitasDesa = await prisma.identitasDesa.findUnique({
-    where: { desaId },
-  });
+  const identitasDesa = await (prisma as PrismaClient).identitasDesa.findFirst();
 
   return {
     nama: identitasDesa?.namaDesa || 'Desa',
@@ -100,11 +98,11 @@ async function getVillageInfo(
  */
 async function getJabatanInfo(
   prisma: PrismaClient | Prisma.TransactionClient,
-  desaId: bigint
+  
 ): Promise<{ inisial: string; nama: string }> {
   await prisma.perangkatDesa.findFirst({
     where: {
-      desaId,
+      
       jabatan: {
         contains: 'Kepala Desa',
         mode: 'insensitive',
@@ -123,34 +121,35 @@ async function getJabatanInfo(
  */
 export async function generateDocumentNumber(
   db: PrismaClient | Prisma.TransactionClient,
-  desaId: bigint,
+  
   kode?: string
 ): Promise<string> {
   const now = new Date();
   const tahun = now.getFullYear();
   const bulan = now.getMonth() + 1;
 
+  const NOMOR_DOKUMEN_SINGLETON_ID = 1n;
+
   const updateLogic = async (tx: PrismaClient | Prisma.TransactionClient) => {
-    let nd = await tx.nomorDokumen.findUnique({
-      where: { desaId },
+    let nd = await (tx as PrismaClient).nomorDokumen.findUnique({
+      where: { id: NOMOR_DOKUMEN_SINGLETON_ID },
     });
 
     if (!nd || nd.lastYear !== tahun) {
-      nd = await tx.nomorDokumen.upsert({
-        where: { desaId },
+      nd = await (tx as PrismaClient).nomorDokumen.upsert({
+        where: { id: NOMOR_DOKUMEN_SINGLETON_ID },
         update: {
           lastSequence: 1,
           lastYear: tahun,
         },
         create: {
-          desaId,
           lastSequence: 1,
           lastYear: tahun,
         },
       });
     } else {
-      nd = await tx.nomorDokumen.update({
-        where: { desaId },
+      nd = await (tx as PrismaClient).nomorDokumen.update({
+        where: { id: NOMOR_DOKUMEN_SINGLETON_ID },
         data: {
           lastSequence: { increment: 1 },
         },
@@ -168,8 +167,8 @@ export async function generateDocumentNumber(
 
   // Get village info for replacements
   const [villageInfo, jabatanInfo] = await Promise.all([
-    getVillageInfo(db, desaId),
-    getJabatanInfo(db, desaId),
+    getVillageInfo(db, ),
+    getJabatanInfo(db, ),
   ]);
 
   // Use config format if config is set (assuming config logic is handled by caller in the future)
@@ -193,7 +192,7 @@ export async function generateDocumentNumber(
  */
 export async function generateRequestNumber(
   db: PrismaClient | Prisma.TransactionClient,
-  desaId: bigint,
+  
   layananKode: string
 ): Promise<string> {
   const now = new Date();
@@ -202,13 +201,13 @@ export async function generateRequestNumber(
 
   // Get numbering config for this service
   const config = await db.nomorSuratConfig.findUnique({
-    where: { layananId: (await db.layanan.findFirst({ where: { kode: layananKode, desaId } }))?.id },
+    where: { layananId: (await db.layanan.findFirst({ where: { kode: layananKode, } }))?.id },
   });
 
   const format = config?.formatTemplate || `REQ-{kode}/{tahun}/{seq}`;
 
   // Get village info
-  const villageInfo = await getVillageInfo(db, desaId);
+  const villageInfo = await getVillageInfo(db, );
 
   // For simplicity, use layananKode as the klasifikasi code
   const klasifikasi = layananKode;
@@ -216,7 +215,7 @@ export async function generateRequestNumber(
   // Get count of existing requests for this service in this year to determine next sequence
   const count = await db.permintaanLayanan.count({
     where: {
-      desaId,
+      
       createdAt: {
         gte: new Date(tahun, 0, 1),
         lt: new Date(tahun + 1, 0, 1),

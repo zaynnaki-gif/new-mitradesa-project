@@ -1,42 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import shared from '@/styles/AdminShared.module.css';
 import s from '@/pages/admin/layanan/LayananListPage.module.css';
 import { AdminLayout } from '@/layouts';
-import { API_URL } from '@/lib/constants';
 import { useAuthStore } from '@/stores/auth.store';
-
-interface DocumentInstance {
-  id: string;
-  dokumenId: string;
-  permintaanId?: string;
-  templateVersionId: string;
-  nomorDokumen: string;
-  judul: string;
-  status: string;
-  fileUrl?: string;
-  verificationToken?: string;
-  generatedAt: string;
-  signedAt?: string;
-  dokumen?: { id: string; kode: string; nama: string };
-  templateVersion?: {
-    id: string;
-    version: number;
-    template?: { id: string; nama: string };
-  };
-  signature?: {
-    id: string;
-    penandatangan?: { nama: string; jabatan: string };
-    signedAt: string;
-  };
-}
-
-interface PaginationMeta {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-}
+import { useDokumenInstances } from '@/hooks/useDokumen';
+import { ErrorState, LoadingState } from '@/components/states';
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   GENERATED: { bg: '#f3f4f6', text: '#374151' },
@@ -57,41 +26,27 @@ const STATUS_LABELS: Record<string, string> = {
 export default function DokumenListPage() {
   const navigate = useNavigate();
   const { token } = useAuthStore();
-  const [documents, setDocuments] = useState<DocumentInstance[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [pagination, setPagination] = useState<PaginationMeta>({
-    page: 1, limit: 20, total: 0, totalPages: 0,
-  });
+  const [page, setPage] = useState(1);
   const [filter, setFilter] = useState({ search: '', status: '' });
+  const [searchInput, setSearchInput] = useState('');
 
-  const fetchDocuments = useCallback(async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const params = new URLSearchParams({
-        page: String(pagination.page),
-        limit: String(pagination.limit),
-      });
-      if (filter.search) params.set('search', filter.search);
-      if (filter.status) params.set('status', filter.status);
+  const { data: queryData, isLoading: loading, error, refetch } = useDokumenInstances(
+    { page, limit: 20, search: filter.search, status: filter.status },
+    token || ''
+  );
 
-      const res = await fetch(`${API_URL}/api/documents/instances?${params.toString()}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error('Gagal memuat data');
-      const json = await res.json();
-      setDocuments(json.data || []);
-      setPagination(json.meta || pagination);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Error');
-    } finally {
-      setLoading(false);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pagination.page, pagination.limit, filter, token]);
+  const documents = queryData?.data || [];
+  const meta = queryData?.meta || { page: 1, limit: 20, total: 0, totalPages: 0 };
 
-  useEffect(() => { fetchDocuments(); }, [fetchDocuments]);
+  const handleSearch = () => {
+    setFilter(prev => ({ ...prev, search: searchInput }));
+    setPage(1);
+  };
+
+  const handleStatusChange = (status: string) => {
+    setFilter(prev => ({ ...prev, status }));
+    setPage(1);
+  };
 
   const formatDate = (date: string) =>
     new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -101,6 +56,16 @@ export default function DokumenListPage() {
     navigator.clipboard.writeText(url);
     alert('Link verifikasi berhasil disalin!');
   };
+
+  if (error && documents.length === 0) {
+    return (
+      <AdminLayout>
+        <div style={{ padding: '2rem' }}>
+          <ErrorState message={error.message || 'Gagal'} onRetry={() => refetch()} />
+        </div>
+      </AdminLayout>
+    );
+  }
 
   return (
     <AdminLayout>
@@ -123,14 +88,14 @@ export default function DokumenListPage() {
             type="text"
             placeholder="Cari nomor dokumen, judul..."
             className={shared.searchInput}
-            value={filter.search}
-            onChange={(e) => setFilter({ ...filter, search: e.target.value })}
-            onKeyDown={(e) => e.key === 'Enter' && fetchDocuments()}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
           />
           <select
             className={shared.selectInput}
             value={filter.status}
-            onChange={(e) => setFilter({ ...filter, status: e.target.value })}
+            onChange={(e) => handleStatusChange(e.target.value)}
           >
             <option value="">Semua Status</option>
             <option value="GENERATED">Dibuat</option>
@@ -143,32 +108,36 @@ export default function DokumenListPage() {
 
         {/* Table */}
         <div className={shared.tableContainer}>
-          {loading ? (
-            <div className={shared.emptyState}>Memuat...</div>
-          ) : error ? (
-            <div className={shared.emptyState} style={{ color: 'var(--color-error)' }}>{error}</div>
-          ) : documents.length === 0 ? (
-            <div className={shared.emptyState}>
-              <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>📄</div>
-              <p style={{ margin: '0 0 0.25rem' }}>Belum ada dokumen</p>
-              <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
-                Dokumen akan muncul setelah ada permintaan yang disetujui
-              </p>
-            </div>
-          ) : (
-            <table className={shared.table}>
-              <thead>
+          <table className={shared.table}>
+            <thead>
+              <tr>
+                <th className={shared.th}>Nomor Dokumen</th>
+                <th className={shared.th}>Judul</th>
+                <th className={shared.th}>Template</th>
+                <th className={`${shared.th} ${shared.thCenter}`}>Status</th>
+                <th className={shared.th}>Tanggal</th>
+                <th className={`${shared.th} ${shared.thRight}`}>Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading && documents.length === 0 ? (
                 <tr>
-                  <th className={shared.th}>Nomor Dokumen</th>
-                  <th className={shared.th}>Judul</th>
-                  <th className={shared.th}>Template</th>
-                  <th className={`${shared.th} ${shared.thCenter}`}>Status</th>
-                  <th className={shared.th}>Tanggal</th>
-                  <th className={`${shared.th} ${shared.thRight}`}>Aksi</th>
+                  <td colSpan={6} className={shared.emptyState}>
+                    <LoadingState message="Memuat data dokumen..." />
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {documents.map((doc) => (
+              ) : documents.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className={shared.emptyState}>
+                    <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>📄</div>
+                    <p style={{ margin: '0 0 0.25rem' }}>Belum ada dokumen</p>
+                    <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
+                      Dokumen akan muncul setelah ada permintaan yang disetujui
+                    </p>
+                  </td>
+                </tr>
+              ) : (
+                documents.map((doc) => (
                   <tr key={doc.id} className={shared.tr}>
                     <td className={shared.td}>
                       <code className={s.codeBadge}>{doc.nomorDokumen}</code>
@@ -237,44 +206,44 @@ export default function DokumenListPage() {
                       </div>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
 
         {/* Pagination */}
-        {pagination.totalPages > 1 && (
+        {meta.totalPages > 1 && (
           <div className={shared.pagination}>
             <span className={shared.pageInfo}>
-              Halaman {pagination.page} dari {pagination.totalPages}
+              Menampilkan {((meta.page - 1) * meta.limit) + 1} - {Math.min(meta.page * meta.limit, meta.total)} dari {meta.total}
             </span>
             <div className={shared.paginationControls}>
               <button
-                disabled={pagination.page <= 1}
-                onClick={() => setPagination({ ...pagination, page: pagination.page - 1 })}
+                disabled={meta.page <= 1}
+                onClick={() => setPage(meta.page - 1)}
                 style={{
                   padding: '0.375rem 0.75rem',
                   border: '1px solid var(--color-border)',
                   borderRadius: 'var(--radius-md)',
                   background: 'var(--color-bg-base)',
-                  cursor: pagination.page <= 1 ? 'not-allowed' : 'pointer',
-                  opacity: pagination.page <= 1 ? 0.5 : 1,
+                  cursor: meta.page <= 1 ? 'not-allowed' : 'pointer',
+                  opacity: meta.page <= 1 ? 0.5 : 1,
                   fontSize: '0.875rem',
                 }}
               >
                 ← Sebelumnya
               </button>
               <button
-                disabled={pagination.page >= pagination.totalPages}
-                onClick={() => setPagination({ ...pagination, page: pagination.page + 1 })}
+                disabled={meta.page >= meta.totalPages}
+                onClick={() => setPage(meta.page + 1)}
                 style={{
                   padding: '0.375rem 0.75rem',
                   border: '1px solid var(--color-border)',
                   borderRadius: 'var(--radius-md)',
                   background: 'var(--color-bg-base)',
-                  cursor: pagination.page >= pagination.totalPages ? 'not-allowed' : 'pointer',
-                  opacity: pagination.page >= pagination.totalPages ? 0.5 : 1,
+                  cursor: meta.page >= meta.totalPages ? 'not-allowed' : 'pointer',
+                  opacity: meta.page >= meta.totalPages ? 0.5 : 1,
                   fontSize: '0.875rem',
                 }}
               >

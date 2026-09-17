@@ -345,9 +345,8 @@ router.delete(
  * @access  Public
  */
 router.get('/gubug', asyncHandler(async (req, res) => {
-  const { desaId } = req.query;
-  const gubugs = await wilayahService.getGubugAll(
-    desaId ? BigInt(desaId as string) : undefined
+    const gubugs = await wilayahService.getGubugAll(
+    
   );
   return response.success(res, gubugs);
 }));
@@ -372,9 +371,9 @@ router.post(
   authenticateInternal(),
   authorize('wilayah.create'),
   asyncHandler(async (req, res) => {
-    const { desaId, kode, nama } = req.body;
+    const { kode, nama } = req.body;
     const gubug = await wilayahService.createGubug(
-      { desaId: BigInt(desaId), kode, nama },
+      { kode, nama },
       req.user?.accountId,
       req.ip,
       req.headers['user-agent']
@@ -632,11 +631,8 @@ router.delete(
  * @access  Public
  */
 router.get('/tree', asyncHandler(async (req, res) => {
-  const { desaId } = req.query;
-  if (!desaId) {
-    throw ApiError.badRequest('desaId diperlukan');
-  }
-  const tree = await wilayahService.getTree(BigInt(desaId as string));
+    
+  const tree = await wilayahService.getTree();
   return response.success(res, tree);
 }));
 
@@ -646,9 +642,8 @@ router.get('/tree', asyncHandler(async (req, res) => {
  * @access  Public
  */
 router.get('/dropdown', asyncHandler(async (req, res) => {
-  const { desaId } = req.query;
-  const dropdown = await wilayahService.getDropdown(
-    desaId ? BigInt(desaId as string) : undefined
+    const dropdown = await wilayahService.getDropdown(
+    
   );
   return response.success(res, dropdown);
 }));

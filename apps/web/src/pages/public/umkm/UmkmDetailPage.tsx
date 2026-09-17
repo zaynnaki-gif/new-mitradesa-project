@@ -9,8 +9,9 @@ import styles from './UmkmDetailPage.module.css';
 
 export default function UmkmDetailPage() {
   const { slug } = useParams<{ slug: string }>();
-  const { data: umkm, loading, error, refetch } = useUmkmDetail(slug || '');
-  const { data: relatedUmkms } = useUmkmList({ limit: 4 });
+  const { data: umkm, isLoading: loading, error, refetch } = useUmkmDetail(slug || '');
+  const { data: relatedUmkmsData } = useUmkmList({ limit: 4 });
+  const relatedUmkms = relatedUmkmsData?.data || [];
 
   useSEO({
     title: getPageTitle(umkm?.nama || 'Detail UMKM'),
@@ -33,7 +34,7 @@ export default function UmkmDetailPage() {
         <div className={styles.errorContainer}>
           <ErrorState
             title="Gagal Memuat UMKM"
-            message={error}
+            message={error.message || 'Terjadi kesalahan'}
             onRetry={refetch}
           />
         </div>

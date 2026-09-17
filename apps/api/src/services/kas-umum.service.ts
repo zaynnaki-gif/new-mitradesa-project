@@ -16,14 +16,11 @@ export interface PaginatedResult<T> {
 }
 
 export class KasUmumService {
-  async findAll(query: QueryKasUmumInput, desaId?: bigint): Promise<PaginatedResult<unknown>> {
+  async findAll(query: QueryKasUmumInput): Promise<PaginatedResult<unknown>> {
     const { page, limit, tahun, bulan, jenis } = query;
     const skip = (page - 1) * limit;
 
     const where: Prisma.KasUmumWhereInput = {};
-    if (desaId !== undefined) {
-      where.desaId = desaId;
-    }
 
     if (tahun) {
       where.tanggal = {
@@ -67,11 +64,11 @@ export class KasUmumService {
     };
   }
 
-  async findById(id: string, desaId?: bigint) {
+  async findById(id: string) {
     const item = await prisma.kasUmum.findFirst({
       where: {
         id,
-        ...(desaId !== undefined ? { desaId } : {}),
+        
       },
     });
     if (!item) throw ApiError.notFound('Data tidak ditemukan');
@@ -82,11 +79,8 @@ export class KasUmumService {
    * Recalculates running balance for all entries chronologically from the earliest modified date.
    * Uses cent/sen precision (Math.round * 100 / 100) to prevent IEEE 754 floating-point drift.
    */
-  private async recalculateBalances(tx: Prisma.TransactionClient, desaId?: bigint, fromDate?: Date) {
+  private async recalculateBalances(tx: Prisma.TransactionClient, fromDate?: Date) {
     const where: Prisma.KasUmumWhereInput = {};
-    if (desaId !== undefined) {
-      where.desaId = desaId;
-    }
 
     // Get previous entry before fromDate to get starting balance
     let currentBalance = 0;
@@ -134,10 +128,10 @@ export class KasUmumService {
    * Uses two 32-bit integer keys: namespace (1001 for BKU Kas) and tenant ID modulo 2^31 - 1
    * to eliminate cross-domain hash collision and avoid cross-tenant lock bottlenecks.
    */
-  private async acquireTenantKasLock(tx: Prisma.TransactionClient, desaId?: bigint) {
+  private async acquireTenantKasLock(tx: Prisma.TransactionClient) {
     try {
       const NAMESPACE_BKU = 1001;
-      const tenantKey = desaId !== undefined ? Number(desaId & 0x7fffffffn) : 0;
+      const tenantKey = 1;
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(${NAMESPACE_BKU}::integer, ${tenantKey}::integer)`;
     } catch {
       // Fallback for non-Postgres test environments
@@ -155,11 +149,11 @@ export class KasUmumService {
     });
   }
 
-  async create(data: CreateKasUmumInput, desaId?: bigint) {
+  async create(data: CreateKasUmumInput) {
     const entryDate = new Date(data.tanggal);
 
     return prisma.$transaction(async (tx) => {
-      await this.acquireTenantKasLock(tx, desaId);
+      await this.acquireTenantKasLock(tx);
 
       // Verify ApbdesItem if provided
       let targetApbdesItem = null;
@@ -171,9 +165,7 @@ export class KasUmumService {
         if (!targetApbdesItem) {
           throw ApiError.badRequest('Item APBDes tidak ditemukan');
         }
-        if (desaId && targetApbdesItem.apbdes.desaId !== desaId) {
-          throw ApiError.forbidden('Item APBDes bukan milik desa ini');
-        }
+        
         // Budget year validation
         if (entryDate.getFullYear() !== targetApbdesItem.apbdes.tahun) {
           throw ApiError.badRequest(
@@ -185,7 +177,7 @@ export class KasUmumService {
       // Create with placeholder saldo
       const created = await tx.kasUmum.create({
         data: {
-          ...(desaId !== undefined ? { desaId } : {}),
+          
           tanggal: entryDate,
           jenis: data.jenis,
           uraian: data.uraian,
@@ -197,7 +189,7 @@ export class KasUmumService {
       });
 
       // Recalculate from entry date
-      await this.recalculateBalances(tx, desaId, entryDate);
+      await this.recalculateBalances(tx, entryDate);
 
       // Automatically sync realization on linked ApbdesItem
       if (targetApbdesItem) {
@@ -211,14 +203,14 @@ export class KasUmumService {
     });
   }
 
-  async update(id: string, data: UpdateKasUmumInput, desaId?: bigint) {
+  async update(id: string, data: UpdateKasUmumInput) {
     return prisma.$transaction(async (tx) => {
-      await this.acquireTenantKasLock(tx, desaId);
+      await this.acquireTenantKasLock(tx);
 
       const entry = await tx.kasUmum.findFirst({
         where: {
           id,
-          ...(desaId !== undefined ? { desaId } : {}),
+          
         },
       });
       if (!entry) throw ApiError.notFound('Data tidak ditemukan');
@@ -244,9 +236,7 @@ export class KasUmumService {
         if (!targetApbdesItem) {
           throw ApiError.badRequest('Item APBDes tidak ditemukan');
         }
-        if (desaId && targetApbdesItem.apbdes.desaId !== desaId) {
-          throw ApiError.forbidden('Item APBDes bukan milik desa ini');
-        }
+        
         if (newDate.getFullYear() !== targetApbdesItem.apbdes.tahun) {
           throw ApiError.badRequest(
             `Tahun transaksi kas (${newDate.getFullYear()}) tidak sesuai dengan tahun anggaran APBDes (${targetApbdesItem.apbdes.tahun})`
@@ -266,7 +256,7 @@ export class KasUmumService {
         },
       });
 
-      await this.recalculateBalances(tx, desaId, earliestDate);
+      await this.recalculateBalances(tx, earliestDate);
 
       // Resync realization for old item and new item
       if (oldApbdesItemId) {
@@ -283,14 +273,14 @@ export class KasUmumService {
     });
   }
 
-  async delete(id: string, desaId?: bigint) {
+  async delete(id: string) {
     return prisma.$transaction(async (tx) => {
-      await this.acquireTenantKasLock(tx, desaId);
+      await this.acquireTenantKasLock(tx);
 
       const entry = await tx.kasUmum.findFirst({
         where: {
           id,
-          ...(desaId !== undefined ? { desaId } : {}),
+          
         },
       });
       if (!entry) throw ApiError.notFound('Data tidak ditemukan');
@@ -300,7 +290,7 @@ export class KasUmumService {
 
       await tx.kasUmum.delete({ where: { id } });
 
-      await this.recalculateBalances(tx, desaId, deletedDate);
+      await this.recalculateBalances(tx, deletedDate);
 
       // Resync realization for linked item after deletion
       if (linkedApbdesItemId) {
@@ -309,11 +299,8 @@ export class KasUmumService {
     });
   }
 
-  async getSaldoAkhir(desaId?: bigint): Promise<number> {
+  async getSaldoAkhir(): Promise<number> {
     const where: Prisma.KasUmumWhereInput = {};
-    if (desaId !== undefined) {
-      where.desaId = desaId;
-    }
     const last = await prisma.kasUmum.findFirst({
       where,
       orderBy: [{ tanggal: 'desc' }, { createdAt: 'desc' }],

@@ -1,48 +1,19 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { AdminLayout } from '@/layouts';
 import { Button, Input, Select, Badge } from '@/components/ui';
 import { LoadingState, ErrorState } from '@/components/states';
 import { Pagination } from '@/components/Pagination';
 import { useAuthStore } from '@/stores/auth.store';
-import { API_URL } from '@/lib/constants';
-import { safeFetchJson } from '@/lib/fetch';
+import { useBumilList, useBumilStats, useSaveBumil, useDeleteBumil, Bumil } from '@/hooks/useKesehatan';
+import { RecordSelector } from '@/components/RecordSelector';
 import styles from './BumilPage.module.css';
+import { useConfirm } from '@/hooks/useConfirm';
 
 // ============================================
 // Types
 // ============================================
 
-interface Bumil {
-  id: string;
-  pendudukId: string;
-  namaLengkap: string;
-  nik: string;
-  telepon?: string;
-  alamat?: string;
-  trimester?: number;
-  dusun?: string;
-  rt?: string;
-  rw?: string;
-  createdAt: string;
-}
 
-interface PaginationMeta {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-}
-
-interface Stats {
-  total: number;
-  byTrimester: { trimester: number; count: number }[];
-}
-
-interface Penduduk {
-  id: string;
-  nik: string;
-  namaLengkap: string;
-}
 
 const TRIMESTER_OPTIONS = [
   { value: '', label: 'Semua Trimester' },
@@ -65,78 +36,29 @@ const defaultFormData = () => ({
 
 export default function BumilPage() {
   const { token } = useAuthStore();
+  const { confirm, ConfirmElement } = useConfirm();
 
   // ============================================
   // State
   // ============================================
-  const [items, setItems] = useState<Bumil[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [meta, setMeta] = useState<PaginationMeta | null>(null);
-  const [stats, setStats] = useState<Stats | null>(null);
-
-  // Penduduk list for dropdown
-  const [pendudukList, setPendudukList] = useState<Penduduk[]>([]);
-
-  // Filters
+  const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [trimester, setTrimester] = useState('');
+  
+  const { data: bumilData, isLoading: loading, error, refetch: refetchBumil } = useBumilList({ page, search, limit: 20, trimester }, token || '');
+  const items = bumilData?.data || [];
+  const meta = bumilData?.meta || { page: 1, limit: 20, total: 0, totalPages: 0 };
+  
+  const { data: stats } = useBumilStats(token || '');
 
   // Modal
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Bumil | null>(null);
-  const [formLoading, setFormLoading] = useState(false);
   const [formData, setFormData] = useState<ReturnType<typeof defaultFormData>>(defaultFormData());
-
-  // ============================================
-  // Fetch Helpers
-  // ============================================
-  const fetchBumil = useCallback(async (page = 1) => {
-    setLoading(true);
-    setError(null);
-    const params = new URLSearchParams({ page: String(page), limit: '20' });
-    if (search) params.set('search', search);
-    if (trimester) params.set('trimester', trimester);
-
-    try {
-      const data = await safeFetchJson(`${API_URL}/bumil?${params}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (data.success) {
-        setItems(data.data || []);
-        setMeta(data.meta);
-      } else {
-        throw new Error(data.error?.message || data.message || 'Gagal memuat data');
-      }
-    } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
-      setError(e.message || 'Terjadi kesalahan');
-    } finally {
-      setLoading(false);
-    }
-  }, [token, search, trimester]);
-
-  const fetchStats = useCallback(async () => {
-    try {
-      const data = await safeFetchJson(`${API_URL}/bumil/stats`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (data.success) setStats(data.data);
-    } catch { /* ignore */ }
-  }, [token]);
-
-  const fetchPendudukList = useCallback(async (q = '') => {
-    try {
-      const params = new URLSearchParams({ search: q, limit: '50' });
-      const data = await safeFetchJson(`${API_URL}/penduduk?${params}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (data.success) setPendudukList(data.data || []);
-    } catch { /* ignore */ }
-  }, [token]);
-
-  useEffect(() => { fetchBumil(); }, [fetchBumil]);
-  useEffect(() => { fetchStats(); }, [fetchStats]);
-  useEffect(() => { fetchPendudukList(); }, [fetchPendudukList]);
+  
+  const saveBumil = useSaveBumil();
+  const deleteBumil = useDeleteBumil();
+  const formLoading = saveBumil.isPending;
 
   // ============================================
   // Modal Handlers
@@ -168,62 +90,39 @@ export default function BumilPage() {
   // ============================================
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setFormLoading(true);
-
     const payload: Record<string, unknown> = {
       pendudukId: formData.pendudukId,
       namaLengkap: formData.namaLengkap,
       nik: formData.nik,
       telepon: formData.telepon || undefined,
       alamat: formData.alamat || undefined,
-      trimester: parseInt(formData.trimester) || 1,
+      trimester: parseInt(formData.trimester as string) || 1,
       dusun: formData.dusun || undefined,
       rt: formData.rt || undefined,
       rw: formData.rw || undefined,
     };
-
     try {
-      const url = editing
-        ? `${API_URL}/bumil/${editing.id}`
-        : `${API_URL}/bumil`;
-      const method = editing ? 'PATCH' : 'POST';
-
-      const data = await safeFetchJson(url, {
-        method,
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(payload),
+      await saveBumil.mutateAsync({
+        id: editing?.id,
+        payload,
+        token: token || '',
       });
-
-      if (data.success) {
-        setShowModal(false);
-        fetchBumil(meta?.page || 1);
-        fetchStats();
-      } else {
-        alert(data.error?.message || data.message || 'Terjadi kesalahan');
-      }
-    } catch {
-      alert('Terjadi kesalahan');
-    } finally {
-      setFormLoading(false);
+      setShowModal(false);
+    } catch (e: any) {
+      alert(e.message || 'Terjadi kesalahan');
     }
   };
 
   const handleDelete = async (item: Bumil) => {
-    if (!confirm(`Hapus data "${item.namaLengkap}" (NIK: ${maskNik(item.nik)})?`)) return;
+    const _ok = await confirm({ message: `Hapus data "${item.namaLengkap}" (NIK: ${maskNik(item.nik)})?`, title: 'Konfirmasi' }); if (!_ok) return;
 
     try {
-      const data = await safeFetchJson(`${API_URL}/bumil/${item.id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
+      await deleteBumil.mutateAsync({
+        id: item.id,
+        token: token || '',
       });
-      if (data.success) {
-        fetchBumil(meta?.page || 1);
-        fetchStats();
-      } else {
-        alert(data.error?.message || data.message || 'Gagal hapus');
-      }
-    } catch {
-      alert('Terjadi kesalahan');
+    } catch (e: any) {
+      alert(e.message || 'Terjadi kesalahan');
     }
   };
 
@@ -255,6 +154,7 @@ export default function BumilPage() {
   // ============================================
   return (
     <AdminLayout>
+      {ConfirmElement}
       <div className={styles.container}>
         {/* Header */}
         <div className={styles.header}>
@@ -303,7 +203,7 @@ export default function BumilPage() {
             >
               {TRIMESTER_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </Select>
-            <Button onClick={() => fetchBumil(1)}>Cari</Button>
+            <Button onClick={() => setPage(1)}>Cari</Button>
             <Button variant="outline" onClick={resetFilters}>Reset</Button>
           </div>
         </div>
@@ -312,7 +212,7 @@ export default function BumilPage() {
         {loading ? (
           <LoadingState message="Memuat data ibu hamil..." fullPage />
         ) : error ? (
-          <ErrorState title="Gagal Memuat Data" message={error} onRetry={() => fetchBumil()} />
+          <ErrorState title="Gagal Memuat Data" message={error.message || 'Gagal'} onRetry={() => refetchBumil()} />
         ) : (
           <>
             <div className={styles.tableWrapper}>
@@ -373,7 +273,7 @@ export default function BumilPage() {
               <Pagination
                 currentPage={meta.page}
                 totalPages={meta.totalPages}
-                onPageChange={fetchBumil}
+                onPageChange={setPage}
                 disabled={loading}
               />
             )}
@@ -394,40 +294,27 @@ export default function BumilPage() {
                 <div className={styles.formSection}>
                   <h3 className={styles.sectionTitle}>Data Penduduk</h3>
                   <div className={styles.formGrid}>
-                    <Select
-                      label="Pilih Penduduk *"
+                    <RecordSelector
+                      endpoint="/cms/penduduk"
+                      label="Cari Penduduk *"
                       value={formData.pendudukId}
-                      onChange={e => {
-                        const selected = pendudukList.find(p => p.id === e.target.value);
+                      defaultName={formData.namaLengkap}
+                      onChange={(id, record) => {
                         setFormData(f => ({
                           ...f,
-                          pendudukId: e.target.value,
-                          namaLengkap: selected?.namaLengkap || '',
-                          nik: selected?.nik || '',
+                          pendudukId: id,
+                          namaLengkap: record.namaLengkap,
+                          nik: record.nik,
+                          telepon: record.telepon || f.telepon,
                         }));
                       }}
-                      required
-                    >
-                      <option value="">Pilih Penduduk</option>
-                      {pendudukList.map(p => (
-                        <option key={p.id} value={p.id}>
-                          {p.namaLengkap} — NIK: {p.nik}
-                        </option>
-                      ))}
-                    </Select>
-                    <Input
-                      label="Nama Lengkap *"
-                      value={formData.namaLengkap}
-                      onChange={e => setFormData(f => ({ ...f, namaLengkap: e.target.value }))}
-                      required
-                    />
-                    <Input
-                      label="NIK *"
-                      value={formData.nik}
-                      onChange={e => setFormData(f => ({ ...f, nik: e.target.value }))}
-                      maxLength={16}
-                      required
-                      placeholder="16 digit NIK"
+                      renderItem={res => (
+                        <>
+                          <div style={{ fontWeight: 500 }}>{res.namaLengkap}</div>
+                          <div style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>NIK: {res.nik}</div>
+                        </>
+                      )}
+                      getDisplayValue={res => res.namaLengkap}
                     />
                     <Input
                       label="No. Telepon"

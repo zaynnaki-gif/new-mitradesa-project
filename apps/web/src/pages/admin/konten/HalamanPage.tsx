@@ -1,98 +1,64 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { AdminLayout } from '@/layouts';
 import { Typography, Button, Modal } from '@/components/ui';
 import { LoadingState, ErrorState } from '@/components/states';
 import { useAuthStore } from '@/stores/auth.store';
 import { HalamanForm } from '@/components/forms/HalamanForm';
-import { API_URL } from '@/lib/constants';
+import { useHalamanList, useDeleteHalaman, usePublishHalaman, Halaman } from '@/hooks/useKonten';
 import styles from './HalamanPage.module.css';
+import { useConfirm } from '@/hooks/useConfirm';
 
-interface Halaman {
-  id: string;
-  judul: string;
-  slug: string;
-  excerpt: string | null;
-  konten: string;
-  status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
-  isMenu: boolean;
-  urutan: number;
-  createdBy: { id: string; username: string } | null;
-  publishedAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
 
-interface PaginationMeta {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-}
 
 export function HalamanPage() {
   const { token } = useAuthStore();
-  const [data, setData] = useState<Halaman[]>([]);
-  const [meta, setMeta] = useState<PaginationMeta>({ page: 1, limit: 20, total: 0, totalPages: 0 });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { confirm, ConfirmElement } = useConfirm();
+  const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Partial<Halaman> | null>(null);
 
-  const fetchData = async (page = 1, searchQuery = '', status = '') => {
-    setLoading(true);
-    setError(null);
-    const params = new URLSearchParams({
-      page: page.toString(),
-      limit: '20',
-      ...(searchQuery && { search: searchQuery }),
-      ...(status && { status }),
-    });
-    const headers: HeadersInit = { 'Content-Type': 'application/json' };
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-    const res = await fetch(`${API_URL}/api/halaman?${params}`, { headers });
-    const result = await res.json();
-    if (result.success) {
-      setData(result.data || []);
-      if (result.meta) setMeta(result.meta);
-    } else {
-      throw new Error(result.error?.message || 'Failed to fetch');
-    }
+  const { data: queryData, isLoading: loading, error, refetch } = useHalamanList(page, search, statusFilter, token || '');
+  const data = queryData?.data || [];
+  const meta = queryData?.meta || { page: 1, limit: 20, total: 0, totalPages: 0 };
+
+  const deleteHalaman = useDeleteHalaman();
+  const publishHalaman = usePublishHalaman();
+
+  const handleSearch = () => {
+    setSearch(searchInput);
+    setPage(1);
   };
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { fetchData(1, search, statusFilter); }, []);
-
-  const handleSearch = () => fetchData(1, search, statusFilter);
   const handleStatusChange = (newStatus: string) => {
     setStatusFilter(newStatus);
-    fetchData(1, search, newStatus);
+    setPage(1);
   };
 
   const handlePublish = async (id: string) => {
-    const headers: HeadersInit = { 'Content-Type': 'application/json' };
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-    const res = await fetch(`${API_URL}/api/halaman/${id}/publish`, { method: 'POST', headers });
-    const result = await res.json();
-    if (result.success) fetchData(meta.page, search, statusFilter);
-    else alert(result.error?.message || 'Gagal mempublikasikan');
+    try {
+      await publishHalaman.mutateAsync({ id, token: token || '' });
+    } catch (err: any) {
+      alert(err.message || 'Gagal mempublikasikan');
+    }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Yakin ingin menghapus?')) return;
-    const headers: HeadersInit = { 'Content-Type': 'application/json' };
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-    const res = await fetch(`${API_URL}/api/halaman/${id}`, { method: 'DELETE', headers });
-    const result = await res.json();
-    if (result.success) fetchData(meta.page, search, statusFilter);
-    else alert(result.error?.message || 'Gagal menghapus');
+    const _ok = await confirm({ message: 'Yakin ingin menghapus?', title: 'Konfirmasi' }); 
+    if (!_ok) return;
+    try {
+      await deleteHalaman.mutateAsync({ id, token: token || '' });
+    } catch (err: any) {
+      alert(err.message || 'Gagal menghapus');
+    }
   };
 
-  const handleOpenCreate = () => { setEditingItem(null); setIsModalOpen(true); };
-  const handleOpenEdit = (item: Halaman) => { setEditingItem(item); setIsModalOpen(true); };
-  const handleCloseModal = () => { setIsModalOpen(false); setEditingItem(null); };
-  const handleFormSuccess = () => { handleCloseModal(); fetchData(meta.page, search, statusFilter); };
+  const handleOpenCreate = async () => { setEditingItem(null); setIsModalOpen(true); };
+  const handleOpenEdit = async (item: Halaman) => { setEditingItem(item); setIsModalOpen(true); };
+  const handleCloseModal = async () => { setIsModalOpen(false); setEditingItem(null); };
+  const handleFormSuccess = async () => { handleCloseModal(); refetch(); };
 
   const getStatusBadge = (status: string) => {
     if (status === 'PUBLISHED') return <span className={`${styles.badge} ${styles.badgeAktif}`}>Dipublikasikan</span>;
@@ -103,8 +69,9 @@ export function HalamanPage() {
   if (error) {
     return (
       <AdminLayout>
+      {ConfirmElement}
         <div className={styles.container}>
-          <ErrorState message={error} onRetry={() => fetchData()} />
+          <ErrorState message={error.message || 'Gagal'} onRetry={() => refetch()} />
         </div>
       </AdminLayout>
     );
@@ -127,8 +94,8 @@ export function HalamanPage() {
           <input
             type="text"
             placeholder="Cari halaman..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             className={styles.searchInput}
           />
@@ -207,8 +174,8 @@ export function HalamanPage() {
               Menampilkan {((meta.page - 1) * meta.limit) + 1} - {Math.min(meta.page * meta.limit, meta.total)} dari {meta.total}
             </span>
             <div className={styles.paginationControls}>
-              <Button variant="secondary" size="sm" disabled={meta.page <= 1} onClick={() => fetchData(meta.page - 1, search, statusFilter)}>Previous</Button>
-              <Button variant="secondary" size="sm" disabled={meta.page >= meta.totalPages} onClick={() => fetchData(meta.page + 1, search, statusFilter)}>Next</Button>
+              <Button variant="secondary" size="sm" disabled={meta.page <= 1} onClick={() => setPage(meta.page - 1)}>Previous</Button>
+              <Button variant="secondary" size="sm" disabled={meta.page >= meta.totalPages} onClick={() => setPage(meta.page + 1)}>Next</Button>
             </div>
           </div>
         )}

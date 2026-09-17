@@ -1,8 +1,7 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { prisma } from './prisma.js';
 import { AuditService } from './audit.service.js';
 import { ApiError } from '../utils/response.js';
-import { getInstanceContext } from '../config/instance.js';
+
 
 export class LembagaService {
   private auditService: AuditService;
@@ -34,7 +33,13 @@ export class LembagaService {
     }
 
     const [data, total] = await Promise.all([
-      prisma.lembaga.findMany({ where, skip, take: limitNum, orderBy: { createdAt: 'desc' } }),
+      prisma.lembaga.findMany({ 
+        where, 
+        skip, 
+        take: limitNum, 
+        orderBy: { createdAt: 'desc' },
+        include: { pimpinan: true }
+      }),
       prisma.lembaga.count({ where }),
     ]);
 
@@ -44,6 +49,8 @@ export class LembagaService {
         jenis: l.jenis,
         nama: l.nama,
         deskripsi: l.deskripsi,
+        pimpinanId: l.pimpinanId?.toString(),
+        pimpinanNama: l.pimpinan?.namaLengkap,
         status: l.status,
         createdAt: l.createdAt.toISOString(),
       })),
@@ -52,32 +59,36 @@ export class LembagaService {
   }
 
   async findById(id: bigint) {
-    const l = await prisma.lembaga.findUnique({ where: { id } });
+    const l = await prisma.lembaga.findUnique({ 
+      where: { id },
+      include: { pimpinan: true }
+    });
     if (!l) throw ApiError.notFound('Lembaga tidak ditemukan');
     return {
       id: l.id.toString(),
       jenis: l.jenis,
       nama: l.nama,
       deskripsi: l.deskripsi,
+      pimpinanId: l.pimpinanId?.toString(),
+      pimpinanNama: l.pimpinan?.namaLengkap,
       status: l.status,
       createdAt: l.createdAt.toISOString(),
     };
   }
 
   async create(
-    data: { jenis: string; nama: string; deskripsi?: string; status?: string },
+    data: { jenis: string; nama: string; deskripsi?: string; status?: string; pimpinanId?: string },
     actorId?: bigint,
     actorIp?: string,
     actorAgent?: string
   ) {
-    const { desaId } = getInstanceContext();
     const result = await prisma.lembaga.create({
       data: {
         jenis: data.jenis,
         nama: data.nama,
         deskripsi: data.deskripsi || null,
-        status: data.status || 'AKTIF',
-        desaId: desaId ? BigInt(desaId) : BigInt(1234567890), // fallback if needed, though desaId is usually injected
+        pimpinanId: data.pimpinanId ? BigInt(data.pimpinanId) : null,
+        status: data.status || 'AKTIF'
       },
     });
 
@@ -102,7 +113,7 @@ export class LembagaService {
 
   async update(
     id: bigint,
-    data: { nama?: string; jenis?: string; status?: string; deskripsi?: string },
+    data: { nama?: string; jenis?: string; status?: string; deskripsi?: string; pimpinanId?: string | null },
     actorId?: bigint,
     actorIp?: string,
     actorAgent?: string
@@ -117,6 +128,7 @@ export class LembagaService {
         ...(data.jenis && { jenis: data.jenis }),
         ...(data.status && { status: data.status }),
         ...(data.deskripsi !== undefined && { deskripsi: data.deskripsi || null }),
+        ...(data.pimpinanId !== undefined && { pimpinanId: data.pimpinanId ? BigInt(data.pimpinanId) : null }),
       },
     });
 

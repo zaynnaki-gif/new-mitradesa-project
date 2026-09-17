@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from '../ui';
 import { useAuthStore } from '../../stores/auth.store';
-import { API_URL } from '../../lib/constants';
+import { useCreateApbdes, useUpdateApbdes } from '../../hooks/useTransparansi';
 
 interface TransparansiFormProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -20,18 +20,18 @@ export function TransparansiForm({ initialData, onSuccess, onCancel }: Transpara
     dokumenUrl: initialData?.dokumenUrl || '',
     isAktif: initialData?.isAktif ?? true,
   });
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const createMutation = useCreateApbdes();
+  const updateMutation = useUpdateApbdes();
+
+  const loading = createMutation.isPending || updateMutation.isPending;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError(null);
 
     try {
-      const url = initialData ? `${API_URL}/transparansi/${initialData.id}` : `${API_URL}/transparansi`;
-      const method = initialData ? 'PATCH' : 'POST';
-
       const payload = {
         ...formData,
         tahun: Number(formData.tahun),
@@ -41,25 +41,21 @@ export function TransparansiForm({ initialData, onSuccess, onCancel }: Transpara
         dokumenUrl: formData.dokumenUrl || null,
       };
 
-      const res = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` })
-        },
-        body: JSON.stringify(payload)
-      });
-
-      const result = await res.json();
-      if (result.success) {
-        onSuccess();
+      if (initialData) {
+        await updateMutation.mutateAsync({
+          id: initialData.id,
+          payload,
+          token: token || ''
+        });
       } else {
-        throw new Error(result.error?.message || 'Gagal menyimpan data');
+        await createMutation.mutateAsync({
+          payload,
+          token: token || ''
+        });
       }
+      onSuccess();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
-    } finally {
-      setLoading(false);
     }
   };
 

@@ -2,7 +2,6 @@ import { prisma } from './prisma.js';
 import { ApiError } from '../utils/response.js';
 import { CreateUmkmInput, UpdateUmkmInput, QueryUmkmInput } from '../dto/umkm.dto.js';
 import { Prisma, Umkm } from '@prisma/client';
-import { getInstanceContext } from '../config/instance.js';
 
 export interface PaginationMeta {
   page: number;
@@ -17,12 +16,11 @@ export interface PaginatedResult<T> {
 }
 
 export class UmkmService {
-  async findAll(query: QueryUmkmInput): Promise<PaginatedResult<Omit<Umkm, 'id' | 'desaId'> & { id: string, desaId: string }>> {
+  async findAll(query: QueryUmkmInput): Promise<PaginatedResult<Omit<Umkm, 'id'> & { id: string }>> {
     const { page, limit, search, isAktif, kategori } = query;
-    const { desaId } = getInstanceContext();
     const skip = (page - 1) * limit;
 
-    const where: Prisma.UmkmWhereInput = { desaId };
+    const where: Prisma.UmkmWhereInput = {};
 
 
     if (search) {
@@ -59,7 +57,7 @@ export class UmkmService {
       data: umkmList.map(u => ({
         ...u,
         id: u.id.toString(),
-        desaId: u.desaId.toString()
+        
       })),
       meta: {
         page,
@@ -71,18 +69,15 @@ export class UmkmService {
   }
 
   async findById(id: bigint) {
-    const { desaId } = getInstanceContext();
-    const where: Prisma.UmkmWhereInput = { id, desaId };
+    const where: Prisma.UmkmWhereInput = { id };
     const umkm = await prisma.umkm.findFirst({ where });
     if (!umkm) throw ApiError.notFound('UMKM tidak ditemukan');
-    return { ...umkm, id: umkm.id.toString(), desaId: umkm.desaId.toString() };
+    return { ...umkm, id: umkm.id.toString() };
   }
 
   async create(data: CreateUmkmInput) {
-    const { desaId } = getInstanceContext();
     const newUmkm = await prisma.umkm.create({
       data: {
-        desaId,
         nama: data.nama,
         slug: data.slug,
         deskripsi: data.deskripsi,
@@ -94,12 +89,11 @@ export class UmkmService {
         isAktif: data.isAktif,
       },
     });
-    return { ...newUmkm, id: newUmkm.id.toString(), desaId: newUmkm.desaId.toString() };
+    return { ...newUmkm, id: newUmkm.id.toString() };
   }
 
   async update(id: bigint, data: UpdateUmkmInput) {
-    const { desaId } = getInstanceContext();
-    const where: Prisma.UmkmWhereInput = { id, desaId };
+    const where: Prisma.UmkmWhereInput = { id };
     
     const umkm = await prisma.umkm.findFirst({ where });
     if (!umkm) throw ApiError.notFound('UMKM tidak ditemukan');
@@ -118,12 +112,11 @@ export class UmkmService {
         isAktif: data.isAktif,
       },
     });
-    return { ...updated, id: updated.id.toString(), desaId: updated.desaId.toString() };
+    return { ...updated, id: updated.id.toString() };
   }
 
   async delete(id: bigint) {
-    const { desaId } = getInstanceContext();
-    const where: Prisma.UmkmWhereInput = { id, desaId };
+    const where: Prisma.UmkmWhereInput = { id };
     
     const umkm = await prisma.umkm.findFirst({ where });
     if (!umkm) throw ApiError.notFound('UMKM tidak ditemukan');

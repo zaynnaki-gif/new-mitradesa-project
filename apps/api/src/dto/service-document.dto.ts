@@ -455,12 +455,7 @@ export const ExtendedKopConfigSchema = z.object({
       visible: z.boolean().default(true),
       text: z.string().optional(),
       source: z.enum(['config', 'auto']).default('auto'),
-    }),
-    desa: z.object({
-      visible: z.boolean().default(true),
-      text: z.string().optional(),
-      source: z.enum(['config', 'auto']).default('auto'),
-    }),
+    })
   }),
   addressBlock: z.object({
     enabled: z.boolean().default(true),

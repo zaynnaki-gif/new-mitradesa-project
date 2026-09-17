@@ -82,18 +82,7 @@ export default function ProfilPage() {
                       <span className={styles.infoLabel}>Nama Desa</span>
                       <span className={styles.infoValue}>{identitas?.namaDesa || '-'}</span>
                     </div>
-                    {identitas?.singkatanDesa && (
-                      <div className={styles.infoItem}>
-                        <span className={styles.infoLabel}>Singkatan</span>
-                        <span className={styles.infoValue}>{identitas.singkatanDesa}</span>
-                      </div>
-                    )}
-                    {identitas?.kodeDesa && (
-                      <div className={styles.infoItem}>
-                        <span className={styles.infoLabel}>Kode Desa</span>
-                        <span className={styles.infoValue}>{identitas.kodeDesa}</span>
-                      </div>
-                    )}
+                    {/* Location fields removed */}
                     {identitas?.kepalaDesa && (
                       <div className={styles.infoItem}>
                         <span className={styles.infoLabel}>Kepala Desa</span>
@@ -110,54 +99,7 @@ export default function ProfilPage() {
                 </div>
               </ProfilCard>
 
-              {/* Wilayah */}
-              <ProfilCard delay={100}>
-                <div className={styles.cardHeader}>
-                  <div className={styles.cardIcon}>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                      <circle cx="12" cy="10" r="3" />
-                    </svg>
-                  </div>
-                  <Typography variant="h3" className={styles.cardTitle}>
-                    Wilayah
-                  </Typography>
-                </div>
-                <div className={styles.cardBody}>
-                  {identitas?.desa?.kecamatan ? (
-                    <div className={styles.infoGrid}>
-                      <div className={styles.infoItem}>
-                        <span className={styles.infoLabel}>Provinsi</span>
-                        <span className={styles.infoValue}>
-                          {identitas.desa.kecamatan.kabupaten?.provinsi?.nama || '-'}
-                        </span>
-                      </div>
-                      <div className={styles.infoItem}>
-                        <span className={styles.infoLabel}>Kabupaten/Kota</span>
-                        <span className={styles.infoValue}>
-                          {identitas.desa.kecamatan.kabupaten?.nama || '-'}
-                        </span>
-                      </div>
-                      <div className={styles.infoItem}>
-                        <span className={styles.infoLabel}>Kecamatan</span>
-                        <span className={styles.infoValue}>
-                          {identitas.desa.kecamatan.nama}
-                        </span>
-                      </div>
-                      <div className={styles.infoItem}>
-                        <span className={styles.infoLabel}>Desa</span>
-                        <span className={styles.infoValue}>
-                          {identitas.desa.nama}
-                        </span>
-                      </div>
-                    </div>
-                  ) : (
-                    <Typography variant="body2" color="secondary">
-                      Informasi wilayah belum tersedia.
-                    </Typography>
-                  )}
-                </div>
-              </ProfilCard>
+              {/* Wilayah removed from single-tenant IdentitasDesa */}
 
 
               <ProfilCard delay={200}>

@@ -10,19 +10,18 @@ import { config } from './config/index.js';
 import { app } from './app.js';
 import { prisma } from './services/prisma.js';
 import { setServerDraining } from './utils/lifecycle.js';
+import http from 'http';
 
-// Verify Desa ID against database
+// Verify instance identity against database (single-tenant: just check IdentitasDesa exists)
 async function verifyInstanceIdentity() {
-  console.info(`[VERIFICATION] Memverifikasi Instance Desa (ID: ${config.desaId})...`);
+  console.info(`[VERIFICATION] Memverifikasi Instance Desa (${config.desaNama})...`);
   try {
-    const desa = await prisma.desa.findUnique({
-      where: { id: config.desaId },
-    });
+    const desa = await prisma.identitasDesa.findFirst();
     
     if (!desa) {
-      console.error(`[FATAL ERROR] Instance Desa dengan ID ${config.desaId} tidak ditemukan di database.`);
+      console.warn(`[VERIFICATION] IdentitasDesa belum dikonfigurasi di database. Silakan isi data identitas desa melalui panel admin.`);
     } else {
-      console.info(`[VERIFICATION] Instance valid: ${desa.nama}`);
+      console.info(`[VERIFICATION] Instance valid: ${desa.namaDesa}`);
     }
   } catch (err) {
     console.error(`[FATAL ERROR] Gagal memverifikasi database:`, err);
@@ -73,16 +72,16 @@ const startServer = async () => {
     const forceTimer = setTimeout(() => {
       // eslint-disable-next-line no-console
       console.error('[SHUTDOWN] Force shutdown timeout reached (10s). Terminating active connections...');
-      if (typeof (server as any).closeAllConnections === 'function') {
-        (server as any).closeAllConnections();
+      if (typeof (server as http.Server).closeAllConnections === 'function') {
+        (server as http.Server).closeAllConnections();
       }
       process.exit(exitCode || 1);
     }, 10000);
     forceTimer.unref();
 
     // 2. Stop accepting new connections and close idle keep-alive sockets immediately
-    if (typeof (server as any).closeIdleConnections === 'function') {
-      (server as any).closeIdleConnections();
+    if (typeof (server as http.Server).closeIdleConnections === 'function') {
+      (server as http.Server).closeIdleConnections();
     }
 
     server.close(async (closeErr) => {

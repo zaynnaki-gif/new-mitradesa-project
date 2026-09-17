@@ -73,7 +73,6 @@ export interface PerangkatDesaResponse {
   pendudukId: string;
   pendudukNik: string;
   pendudukNama: string;
-  desaId: string;
   desaNama: string;
   jabatan: string;
   status: string;

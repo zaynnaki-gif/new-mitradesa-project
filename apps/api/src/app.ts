@@ -1,4 +1,5 @@
 import express from 'express';
+import path from 'path';
 import { config } from './config/index.js';
 import { configureSecurityMiddleware } from './middleware/security.js';
 import { notFoundHandler, errorHandler } from './middleware/index.js';
@@ -9,6 +10,7 @@ import dashboardRouter from './routes/dashboard.js';
 import authRouter from './routes/auth/index.js';
 import auditRouter from './routes/audit.js';
 import identitasRouter from './routes/identitas-desa.js';
+import setupRoutes from './routes/setup.js';
 import pendudukRouter from './routes/penduduk/index.js';
 import keluargaRouter from './routes/keluarga.js';
 import wilayahRouter from './routes/wilayah.js';
@@ -30,6 +32,8 @@ import publicBeritaRoutes from './routes/public/berita.js';
 import publicHalamanRoutes from './routes/public/halaman.js';
 import publicStatistikRoutes from './routes/public/statistik.js';
 import publicPotensiRoutes from './routes/public/potensi.js';
+import publicUsulanRoutes from './routes/public/usulan.js';
+import publicVotingRoutes from './routes/public/voting.js';
 import verifikasiRoutes from './routes/public/verifikasi.js';
 import webhookRoutes from './routes/public/webhook.js';
 import citizenRoutes from './routes/citizen/request.js';
@@ -38,9 +42,13 @@ import cmsUmkmRoutes from './routes/cms/umkm.js';
 import cmsTransparansiRoutes from './routes/cms/transparansi.js';
 import apbdesItemRoutes from './routes/cms/apbdes-item.js';
 import cmsPotensiRoutes from './routes/cms/potensi.js';
+import cmsPerencanaanRoutes from './routes/cms/perencanaan.js';
+import cmsUsulanRoutes from './routes/cms/usulan.js';
+import cmsVotingRoutes from './routes/cms/voting.js';
 import arsipSuratRoutes from './routes/arsip-surat.js';
 import accountsRoutes from './routes/sistem/accounts.js';
 import configRoutes from './routes/sistem/config.js';
+import backupRoutes from './routes/sistem/backup.js';
 import blankoRoutes from './routes/sistem/blanko.js';
 import kodeIsianRoutes from './routes/sistem/kode-isian.js';
 import bumilRoutes from './routes/kesehatan/bumil.js';
@@ -58,11 +66,18 @@ export function createApp(): express.Express {
   // 1. Mount centralized security, lifecycle draining, rate limiting, and static protection
   configureSecurityMiddleware(app);
 
+  // Serve static files from the uploads directory (for LocalStorageProvider)
+  app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads'), {
+    maxAge: '1d', // Cache for 1 day
+    fallthrough: false, // Return 404 immediately if not found
+  }));
+
   // 2. Health check (public, unauthenticated)
   app.use('/api/health', healthRouter);
 
   // 3. Auth routes
   app.use('/api/auth', authRouter);
+  app.use('/api/setup', setupRoutes);
 
   // 4. Core administrative & master routes
   app.use('/api/audit-log', auditRouter);
@@ -76,6 +91,7 @@ export function createApp(): express.Express {
   app.use('/api/dashboard', dashboardRouter);
   app.use('/api/accounts', accountsRoutes);
   app.use('/api/config', configRoutes);
+  app.use('/api/sistem/backup', backupRoutes);
   app.use('/api/blanko', blankoRoutes);
   app.use('/api/kode-isian', kodeIsianRoutes);
   app.use('/api/arsip-surat', arsipSuratRoutes);
@@ -91,6 +107,9 @@ export function createApp(): express.Express {
   app.use('/api/transparansi', cmsTransparansiRoutes);
   app.use('/api/transparansi', apbdesItemRoutes);
   app.use('/api/cms/potensi', cmsPotensiRoutes);
+  app.use('/api/perencanaan', cmsPerencanaanRoutes);
+  app.use('/api/cms/usulan', cmsUsulanRoutes);
+  app.use('/api/cms/voting', cmsVotingRoutes);
 
   // 6. Canonical routes with legacy aliases (both point to the identical router instance)
   // Kesehatan: Canonical is /api/kesehatan/*, legacy alias is /api/*
@@ -124,6 +143,8 @@ export function createApp(): express.Express {
   app.use('/api/public/berita', publicBeritaRoutes);
   app.use('/api/public/halaman', publicHalamanRoutes);
   app.use('/api/public/statistik', publicStatistikRoutes);
+  app.use('/api/public/usulan', publicUsulanRoutes);
+  app.use('/api/public/voting', publicVotingRoutes);
   app.use('/api/public/verify', verifikasiRoutes);
   app.use('/api/public/verifikasi', verifikasiRoutes);
   app.use('/api/public/webhook', webhookRoutes);

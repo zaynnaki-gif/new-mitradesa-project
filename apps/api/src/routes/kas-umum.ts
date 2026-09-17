@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { asyncHandler, response } from '../utils/response.js';
 import { authenticateInternal, authorize } from '../middleware/index.js';
 import { kasUmumService } from '../services/kas-umum.service.js';
-import { getInstanceContext } from '../config/instance.js';
+
 import {
   createKasUmumSchema,
   updateKasUmumSchema,
@@ -20,9 +20,8 @@ router.get(
   authenticateInternal(),
   authorize('kas_umum.view'),
   asyncHandler(async (req, res) => {
-    const { desaId } = getInstanceContext();
     const query = queryKasUmumSchema.parse(req.query);
-    const result = await kasUmumService.findAll(query, desaId);
+    const result = await kasUmumService.findAll(query);
     return response.success(res, result.data, 'Daftar kas umum', result.meta as unknown as Record<string, unknown>);
   })
 );
@@ -35,8 +34,7 @@ router.get(
   authenticateInternal(),
   authorize('kas_umum.view'),
   asyncHandler(async (req, res) => {
-    const { desaId } = getInstanceContext();
-    const saldo = await kasUmumService.getSaldoAkhir(desaId);
+    const saldo = await kasUmumService.getSaldoAkhir();
     return response.success(res, { saldo }, 'Saldo akhir');
   })
 );
@@ -49,9 +47,8 @@ router.get(
   authenticateInternal(),
   authorize('kas_umum.view'),
   asyncHandler(async (req, res) => {
-    const { desaId } = getInstanceContext();
     const { id } = idParamSchema.parse(req.params);
-    const item = await kasUmumService.findById(id, desaId);
+    const item = await kasUmumService.findById(id);
     return response.success(res, item, 'Detail kas umum');
   })
 );
@@ -64,9 +61,8 @@ router.post(
   authenticateInternal(),
   authorize('kas_umum.create'),
   asyncHandler(async (req, res) => {
-    const { desaId } = getInstanceContext();
     const data = createKasUmumSchema.parse(req.body);
-    const item = await kasUmumService.create(data, desaId);
+    const item = await kasUmumService.create(data);
     return response.created(res, item, 'Entri kas umum berhasil dibuat');
   })
 );
@@ -79,10 +75,9 @@ router.patch(
   authenticateInternal(),
   authorize('kas_umum.update'),
   asyncHandler(async (req, res) => {
-    const { desaId } = getInstanceContext();
     const { id } = idParamSchema.parse(req.params);
     const data = updateKasUmumSchema.parse(req.body);
-    const item = await kasUmumService.update(id, data, desaId);
+    const item = await kasUmumService.update(id, data);
     return response.success(res, item, 'Entri kas umum berhasil diperbarui');
   })
 );
@@ -95,9 +90,8 @@ router.delete(
   authenticateInternal(),
   authorize('kas_umum.delete'),
   asyncHandler(async (req, res) => {
-    const { desaId } = getInstanceContext();
     const { id } = idParamSchema.parse(req.params);
-    await kasUmumService.delete(id, desaId);
+    await kasUmumService.delete(id);
     return response.success(res, null, 'Entri kas umum berhasil dihapus');
   })
 );

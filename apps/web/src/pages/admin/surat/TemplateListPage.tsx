@@ -6,6 +6,7 @@ import { API_URL } from '@/lib/constants';
 import { Button, Input, Select, Modal, Badge } from '@/components/ui';
 import styles from './TemplateListPage.module.css';
 import { safeFetchJson } from '@/lib/fetch';
+import { useConfirm } from '@/hooks/useConfirm';
 
 interface TemplateVersion {
   id: string;
@@ -45,6 +46,7 @@ interface DokumenOption {
 export default function TemplateListPage() {
   const navigate = useNavigate();
   const { user, token, loading: authLoading } = useAuthStore();
+  const { confirm, ConfirmElement } = useConfirm();
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -164,7 +166,7 @@ export default function TemplateListPage() {
   };
 
   const handleArchive = async (versionId: string) => {
-    if (!confirm('Arsipkan versi ini?')) return;
+    const _ok = await confirm({ message: 'Arsipkan versi ini?', title: 'Konfirmasi' }); if (!_ok) return;
     try {
       const data = await safeFetchJson(`${API_URL}/template-designer/versions/${versionId}/archive`, {
         method: 'POST',
@@ -195,6 +197,7 @@ export default function TemplateListPage() {
   if (authLoading) {
     return (
       <AdminLayout>
+      {ConfirmElement}
         <div className={styles.loadingCenter}>Memuat data pengguna...</div>
       </AdminLayout>
     );

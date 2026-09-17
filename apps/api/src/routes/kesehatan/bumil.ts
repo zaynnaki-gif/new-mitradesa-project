@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../../services/prisma.js';
 import { authenticateInternal, authorize } from '../../middleware/index.js';
 import { response, asyncHandler, ApiError } from '../../utils/response.js';
+import { Prisma } from '@prisma/client';
 import { getInstanceContext } from '../../config/instance.js';
 
 const router = Router();
@@ -42,7 +43,7 @@ router.get('/', authorize('kesehatan.view'), asyncHandler(async (req: Request, r
   const { desaId } = getInstanceContext();
   const skip = (page - 1) * limit;
 
-  const where: any = { desaId }; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const where: Prisma.BumilWhereInput = { desaId };
   if (search) {
     where.AND = [
       {

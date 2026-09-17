@@ -1,56 +1,19 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { AdminLayout } from '@/layouts';
 import { Button, Input, Select, Badge } from '@/components/ui';
 import { LoadingState, ErrorState } from '@/components/states';
 import { Pagination } from '@/components/Pagination';
 import { useAuthStore } from '@/stores/auth.store';
-import { API_URL } from '@/lib/constants';
-import { safeFetchJson } from '@/lib/fetch';
+import { useKunjunganList, useSaveKunjungan, useDeleteKunjungan, Kunjungan } from '@/hooks/useKesehatan';
+import { RecordSelector } from '@/components/RecordSelector';
 import styles from './AdminPosyanduKunjungan.module.css';
+import { useConfirm } from '@/hooks/useConfirm';
 
 // ============================================
 // Types
 // ============================================
 
-interface Penduduk {
-  id: string;
-  nik: string;
-  namaLengkap: string;
-  tanggalLahir: string;
-  jenisKelamin: 'L' | 'P';
-}
 
-interface Kunjungan {
-  id: string;
-  tanggalKunjungan: string;
-  pendudukId: string;
-  penduduk?: Penduduk;
-  kategori: 'IBU_HAMIL' | 'BALITA' | 'LANSIA' | 'UMUM';
-  // Ibu Hamil
-  mingguKehamilan?: number;
-  tekananDarah?: string;
-  beratBadanIbu?: number;
-  // Balita
-  beratBadan?: number;
-  panjangBadan?: number;
-  lingkarKepala?: number;
-  statusGizi?: string;
-  // Umum
-  tekananDarahUmum?: string;
-  gulaDarah?: number;
-  // Imunisasi & Vitamin
-  imunisasi?: string;
-  vitamin?: string;
-  catatan?: string;
-  createdAt: string;
-}
-
-interface PaginationMeta {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-}
 
 const KATEGORI_OPTIONS = [
   { value: '', label: 'Semua Kategori' },
@@ -89,71 +52,33 @@ const defaultFormData = () => ({
 
 export default function AdminPosyanduKunjunganPage() {
   const { token } = useAuthStore();
+  const { confirm, ConfirmElement } = useConfirm();
 
   // ============================================
   // State
   // ============================================
-  const [items, setItems] = useState<Kunjungan[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [meta, setMeta] = useState<PaginationMeta | null>(null);
-
-  // Penduduk list for dropdown
-  const [pendudukList, setPendudukList] = useState<Penduduk[]>([]);
-
-  // Filters
+  // ============================================
+  // State
+  // ============================================
+  const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [kategori, setKategori] = useState('');
   const [tanggalMulai, setTanggalMulai] = useState('');
   const [tanggalSelesai, setTanggalSelesai] = useState('');
 
+  const { data: kunjunganData, isLoading: loading, error, refetch: fetchKunjungan } = useKunjunganList({ page, limit: 20, search, kategori, tanggalMulai, tanggalSelesai }, token || '');
+  const items = kunjunganData?.data || [];
+  const meta = kunjunganData?.meta || { page: 1, limit: 20, total: 0, totalPages: 0 };
+
   // Modal
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<Kunjungan | null>(null);
-  const [formLoading, setFormLoading] = useState(false);
   const [formData, setFormData] = useState<ReturnType<typeof defaultFormData>>(defaultFormData());
+  const [defaultSearchName, setDefaultSearchName] = useState('');
 
-  // ============================================
-  // Fetch Helpers
-  // ============================================
-  const fetchKunjungan = useCallback(async (page = 1) => {
-    setLoading(true);
-    setError(null);
-    const params = new URLSearchParams({ page: String(page), limit: '20' });
-    if (search) params.set('search', search);
-    if (kategori) params.set('kategori', kategori);
-    if (tanggalMulai) params.set('tanggalMulai', tanggalMulai);
-    if (tanggalSelesai) params.set('tanggalSelesai', tanggalSelesai);
-
-    try {
-      const data = await safeFetchJson(`${API_URL}/posyandu/kunjungan?${params}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (data.success) {
-        setItems(data.data || []);
-        setMeta(data.meta);
-      } else {
-        throw new Error(data.error?.message || data.message || 'Gagal memuat data');
-      }
-    } catch (e: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
-      setError(e.message || 'Terjadi kesalahan');
-    } finally {
-      setLoading(false);
-    }
-  }, [token, search, kategori, tanggalMulai, tanggalSelesai]);
-
-  const fetchPendudukList = useCallback(async (q = '') => {
-    try {
-      const params = new URLSearchParams({ search: q, limit: '50' });
-      const data = await safeFetchJson(`${API_URL}/penduduk?${params}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (data.success) setPendudukList(data.data || []);
-    } catch { /* ignore */ }
-  }, [token]);
-
-  useEffect(() => { fetchKunjungan(); }, [fetchKunjungan]);
-  useEffect(() => { fetchPendudukList(); }, [fetchPendudukList]);
+  const saveKunjungan = useSaveKunjungan();
+  const deleteKunjungan = useDeleteKunjungan();
+  const formLoading = saveKunjungan.isPending;
 
   // ============================================
   // Modal Handlers
@@ -161,6 +86,7 @@ export default function AdminPosyanduKunjunganPage() {
   const openCreate = () => {
     setEditing(null);
     setFormData(defaultFormData());
+    setDefaultSearchName('');
     setShowModal(true);
   };
 
@@ -183,6 +109,7 @@ export default function AdminPosyanduKunjunganPage() {
       vitamin: item.vitamin || '',
       catatan: item.catatan || '',
     });
+    setDefaultSearchName(item.penduduk?.namaLengkap || '');
     setShowModal(true);
   };
 
@@ -191,8 +118,6 @@ export default function AdminPosyanduKunjunganPage() {
   // ============================================
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setFormLoading(true);
-
     const payload: Record<string, unknown> = {
       pendudukId: formData.pendudukId,
       tanggalKunjungan: formData.tanggalKunjungan,
@@ -220,48 +145,29 @@ export default function AdminPosyanduKunjunganPage() {
 
     if (formData.imunisasi) payload.imunisasi = formData.imunisasi;
     if (formData.vitamin) payload.vitamin = formData.vitamin;
-
     try {
-      const url = editing
-        ? `${API_URL}/posyandu/kunjungan/${editing.id}`
-        : `${API_URL}/posyandu/kunjungan`;
-      const method = editing ? 'PATCH' : 'POST';
-
-      const data = await safeFetchJson(url, {
-        method,
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(payload),
+      await saveKunjungan.mutateAsync({
+        id: editing?.id,
+        payload,
+        token: token || '',
       });
-
-      if (data.success) {
-        setShowModal(false);
-        fetchKunjungan(meta?.page || 1);
-      } else {
-        alert(data.error?.message || data.message || 'Terjadi kesalahan');
-      }
-    } catch {
-      alert('Terjadi kesalahan');
-    } finally {
-      setFormLoading(false);
+      setShowModal(false);
+    } catch (e: any) {
+      alert(e.message || 'Terjadi kesalahan');
     }
   };
 
   const handleDelete = async (item: Kunjungan) => {
     const nama = item.penduduk?.namaLengkap || item.pendudukId;
-    if (!confirm(`Hapus kunjungan "${nama}" pada ${formatDate(item.tanggalKunjungan)}?`)) return;
+    const _ok = await confirm({ message: `Hapus kunjungan "${nama}" pada ${formatDate(item.tanggalKunjungan)}?`, title: 'Konfirmasi' }); if (!_ok) return;
 
     try {
-      const data = await safeFetchJson(`${API_URL}/posyandu/kunjungan/${item.id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
+      await deleteKunjungan.mutateAsync({
+        id: item.id,
+        token: token || '',
       });
-      if (data.success) {
-        fetchKunjungan(meta?.page || 1);
-      } else {
-        alert(data.error?.message || data.message || 'Gagal hapus');
-      }
-    } catch {
-      alert('Terjadi kesalahan');
+    } catch (e: any) {
+      alert(e.message || 'Terjadi kesalahan');
     }
   };
 
@@ -298,6 +204,7 @@ export default function AdminPosyanduKunjunganPage() {
   // ============================================
   return (
     <AdminLayout>
+      {ConfirmElement}
       <div className={styles.container}>
         {/* Header */}
         <div className={styles.header}>
@@ -344,7 +251,7 @@ export default function AdminPosyanduKunjunganPage() {
               style={{ width: 160 }}
               title="Tanggal Selesai"
             />
-            <Button onClick={() => fetchKunjungan(1)}>Cari</Button>
+            <Button onClick={() => setPage(1)}>Cari</Button>
             <Button variant="outline" onClick={resetFilters}>Reset</Button>
           </div>
         </div>
@@ -353,7 +260,7 @@ export default function AdminPosyanduKunjunganPage() {
         {loading ? (
           <LoadingState message="Memuat data kunjungan..." fullPage />
         ) : error ? (
-          <ErrorState title="Gagal Memuat Data" message={error} onRetry={() => fetchKunjungan()} />
+          <ErrorState title="Gagal Memuat Data" message={error.message || 'Gagal'} onRetry={() => fetchKunjungan()} />
         ) : (
           <>
             <div className={styles.tableWrapper}>
@@ -445,7 +352,7 @@ export default function AdminPosyanduKunjunganPage() {
               <Pagination
                 currentPage={meta.page}
                 totalPages={meta.totalPages}
-                onPageChange={fetchKunjungan}
+                onPageChange={setPage}
                 disabled={loading}
               />
             )}
@@ -466,19 +373,20 @@ export default function AdminPosyanduKunjunganPage() {
                 <div className={styles.formSection}>
                   <h3 className={styles.sectionTitle}>Identitas Kunjungan</h3>
                   <div className={styles.formGrid}>
-                    <Select
+                    <RecordSelector
+                      endpoint="/cms/penduduk"
                       label="Peserta *"
                       value={formData.pendudukId}
-                      onChange={e => setFormData(f => ({ ...f, pendudukId: e.target.value }))}
-                      required
-                    >
-                      <option value="">Pilih Peserta</option>
-                      {pendudukList.map(p => (
-                        <option key={p.id} value={p.id}>
-                          {p.namaLengkap} — NIK: {p.nik}
-                        </option>
-                      ))}
-                    </Select>
+                      defaultName={defaultSearchName}
+                      onChange={(id) => setFormData(f => ({ ...f, pendudukId: id }))}
+                      renderItem={res => (
+                        <>
+                          <div style={{ fontWeight: 500 }}>{res.namaLengkap}</div>
+                          <div style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>NIK: {res.nik}</div>
+                        </>
+                      )}
+                      getDisplayValue={res => res.namaLengkap}
+                    />
                     <Input
                       label="Tanggal Kunjungan *"
                       type="date"

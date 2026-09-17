@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { prisma } from './prisma.js';
 import { AuditService } from './audit.service.js';
 import { ApiError } from '../utils/response.js';
@@ -23,7 +22,7 @@ export class WilayahService {
   private toGubugResponse(g: any): GubugResponse {
     return {
       id: g.id.toString(),
-      desaId: g.desaId.toString(),
+      
       kode: g.kode,
       nama: g.nama,
       createdAt: g.createdAt.toISOString(),
@@ -55,8 +54,8 @@ export class WilayahService {
   // ============================================
   // Gubug (Dusun) CRUD
   // ============================================
-  async getGubugAll(desaId?: bigint) {
-    const where = desaId ? { desaId } : undefined;
+  async getGubugAll() {
+    const where = undefined;
     const data = await prisma.gubug.findMany({
       where,
       orderBy: [{ kode: 'asc' }],
@@ -71,14 +70,14 @@ export class WilayahService {
   }
 
   async createGubug(
-    data: { desaId: bigint; kode: string; nama: string },
+    data: { kode: string; nama: string },
     actorId?: bigint,
     actorIp?: string,
     actorAgent?: string
   ) {
     // Check duplicate
     const existing = await prisma.gubug.findFirst({
-      where: { desaId: data.desaId, kode: data.kode },
+      where: { kode: data.kode },
     });
     if (existing) throw ApiError.conflict('Kode gubug sudah ada');
 
@@ -111,7 +110,7 @@ export class WilayahService {
     // Check duplicate kode if changing
     if (data.kode && data.kode !== existing.kode) {
       const dup = await prisma.gubug.findFirst({
-        where: { desaId: existing.desaId, kode: data.kode, id: { not: id } },
+        where: { kode: data.kode, id: { not: id } },
       });
       if (dup) throw ApiError.conflict('Kode gubug sudah ada');
     }
@@ -401,9 +400,9 @@ export class WilayahService {
   // ============================================
   // Tree & Dropdown
   // ============================================
-  async getTree(desaId: bigint): Promise<WilayahTreeResponse[]> {
+  async getTree(): Promise<WilayahTreeResponse[]> {
     const gubugs = await prisma.gubug.findMany({
-      where: { desaId },
+      
       orderBy: { kode: 'asc' },
       include: {
         rws: {
@@ -434,20 +433,20 @@ export class WilayahService {
     }));
   }
 
-  async getDropdown(desaId?: bigint): Promise<WilayahDropdownResponse> {
+  async getDropdown(): Promise<WilayahDropdownResponse> {
     const [gubugs, rws, rts] = await Promise.all([
       prisma.gubug.findMany({
-        where: desaId ? { desaId } : undefined,
+        
         orderBy: { kode: 'asc' },
         select: { id: true, kode: true, nama: true },
       }),
       prisma.rw.findMany({
-        where: desaId ? { gubug: { desaId } } : undefined,
+        
         orderBy: { kode: 'asc' },
         select: { id: true, gubugId: true, kode: true, nama: true },
       }),
       prisma.rt.findMany({
-        where: desaId ? { rw: { gubug: { desaId } } } : undefined,
+        
         orderBy: { kode: 'asc' },
         select: { id: true, rwId: true, kode: true },
       }),

@@ -3,7 +3,7 @@ import { AuditAction, ActorType, Prisma } from '@prisma/client';
 import { prisma } from './prisma.js';
 import { ApiError } from '../utils/response.js';
 import { notificationService } from './notification.service.js';
-import { getInstanceContext } from '../config/instance.js';
+
 
 export interface CitizenInfo {
   id: bigint;
@@ -64,11 +64,9 @@ export class OtpService {
     userAgent?: string
   ): Promise<{ challenge: string }> {
     // 1. Search Penduduk by NIK in current village instance
-    const { desaId } = getInstanceContext();
     const penduduk = await prisma.penduduk.findFirst({
       where: {
         nik,
-        desaId,
         isAktif: true,
       },
     });
@@ -150,13 +148,10 @@ export class OtpService {
     gracePeriodMinutes: number;
     gracePeriodEndsAt: string;
   }> {
-    const { desaId } = getInstanceContext();
-
     // 1. Search Penduduk by NIK in current village instance
     const penduduk = await prisma.penduduk.findFirst({
       where: {
         nik,
-        desaId,
         isAktif: true,
       },
       include: {
@@ -177,7 +172,6 @@ export class OtpService {
     const highRiskRequest = await prisma.permintaanLayanan.findFirst({
       where: {
         pendudukId: penduduk.id,
-        desaId,
         layanan: {
           kode: { in: OtpService.HIGH_RISK_SERVICE_CODES },
         },
@@ -229,7 +223,6 @@ export class OtpService {
       const kkExists = await prisma.keluarga.findFirst({
         where: {
           noKk,
-          desaId,
           deletedAt: null,
           OR: [
             { kepalaId: penduduk.id },
@@ -384,10 +377,8 @@ export class OtpService {
     ipAddress?: string,
     userAgent?: string
   ): Promise<{ success: boolean; restoredPhone: string | null; message: string }> {
-    const { desaId } = getInstanceContext();
-
     const penduduk = await prisma.penduduk.findFirst({
-      where: { nik, desaId, isAktif: true },
+      where: { nik, isAktif: true },
     });
 
     if (!penduduk) {

@@ -73,7 +73,6 @@ export const config = {
   appVersion: '0.1.0',
 
   // Instance Identity
-  desaId: BigInt(process.env.DESA_ID as string),
   desaKode: process.env.DESA_KODE as string,
   desaNama: process.env.DESA_NAMA as string
 } as const;

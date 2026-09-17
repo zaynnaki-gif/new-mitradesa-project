@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from '../ui';
 import { useAuthStore } from '../../stores/auth.store';
+import { useSaveUmkm } from '../../hooks/useUmkm';
 
 interface UmkmFormProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -25,38 +26,29 @@ export function UmkmForm({ initialData, onSuccess, onCancel }: UmkmFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const saveUmkm = useSaveUmkm();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
     try {
-      const url = initialData ? `/api/umkm/${initialData.id}` : '/api/umkm';
-      const method = initialData ? 'PATCH' : 'POST';
-
       const payload = {
         ...formData,
         gambarUrl: formData.gambarUrl || null,
         harga: formData.harga || null,
       };
 
-      const res = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` })
-        },
-        body: JSON.stringify(payload)
+      await saveUmkm.mutateAsync({
+        id: initialData?.id,
+        payload,
+        token: token || '',
       });
 
-      const result = await res.json();
-      if (result.success) {
-        onSuccess();
-      } else {
-        throw new Error(result.error?.message || 'Gagal menyimpan data');
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      onSuccess();
+    } catch (err: any) {
+      setError(err.message || 'Unknown error');
     } finally {
       setLoading(false);
     }

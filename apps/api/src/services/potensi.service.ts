@@ -1,8 +1,7 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { prisma } from './prisma.js';
 import { ApiError } from '../utils/response.js';
 import { CreatePotensiInput, UpdatePotensiInput, QueryPotensiInput } from '../dto/potensi.dto.js';
-import { getInstanceContext } from '../config/instance.js';
+
 
 function slugify(text: string): string {
   return text
@@ -17,10 +16,9 @@ function slugify(text: string): string {
 export class PotensiService {
   async findAll(query: QueryPotensiInput) {
     const { page, limit, search, kategori, isAktif } = query;
-    const { desaId } = getInstanceContext();
     const skip = (page - 1) * limit;
 
-    const where: any = { desaId };
+    const where: any = { };
 
     if (search) {
       where.OR = [
@@ -59,8 +57,7 @@ export class PotensiService {
   }
 
   async findById(id: bigint) {
-    const { desaId } = getInstanceContext();
-    const where: any = { id, desaId };
+    const where: any = { id };
     const potensi = await prisma.potensiDesa.findFirst({ where });
 
     if (!potensi) {
@@ -83,7 +80,6 @@ export class PotensiService {
   }
 
   async create(data: CreatePotensiInput) {
-    const { desaId } = getInstanceContext();
     let slug = slugify(data.nama);
     
     // Ensure slug is unique
@@ -95,8 +91,7 @@ export class PotensiService {
     return prisma.potensiDesa.create({
       data: {
         ...data,
-        slug,
-        desa: { connect: { id: desaId } }
+        slug
       } as any,
     });
   }

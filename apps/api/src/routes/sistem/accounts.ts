@@ -1,8 +1,9 @@
 import { Router, Request, Response } from 'express';
-import { z } from 'zod';
+
 import { prisma } from '../../services/prisma.js';
 import { authenticateInternal, authorize, authorizeAny } from '../../middleware/index.js';
 import { response, asyncHandler, ApiError } from '../../utils/response.js';
+import { Prisma } from '@prisma/client';
 import bcrypt from 'bcrypt';
 
 const router = Router();
@@ -13,31 +14,7 @@ router.use(authorizeAny('account.view', 'account.view_all'));
 // Validation Schemas
 // ============================================
 
-const createSchema = z.object({
-  username: z.string().min(3).max(50),
-  email: z.string().email().max(255),
-  password: z.string().min(6).max(100),
-  roleIds: z.array(z.string()).optional(),
-});
-
-const updateSchema = z.object({
-  username: z.string().min(3).max(50).optional(),
-  email: z.string().email().max(255).optional(),
-  password: z.string().min(6).max(100).optional().nullable(),
-  status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
-  roleIds: z.array(z.string()).optional(),
-});
-
-const querySchema = z.object({
-  page: z.coerce.number().int().positive().default(1),
-  limit: z.coerce.number().int().positive().max(100).default(20),
-  search: z.string().optional(),
-  status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
-});
-
-const updateStatusSchema = z.object({
-  status: z.enum(['ACTIVE', 'INACTIVE']),
-});
+import { createSchema, updateSchema, querySchema, updateStatusSchema } from '../../dto/accounts.dto.js';
 
 // ============================================
 // List with pagination & filters
@@ -47,7 +24,7 @@ router.get('/', asyncHandler(async (req: Request, res: Response) => {
   const { page, limit, search, status } = querySchema.parse(req.query);
 
   const skip = (page - 1) * limit;
-  const where: any = {}; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const where: Prisma.AccountWhereInput = {};
 
   if (status) where.status = status;
   if (search) {
@@ -245,7 +222,7 @@ router.patch('/:id', authorize('account.update'), asyncHandler(async (req: Reque
   }
 
   // Prepare update data
-  const updateData: any = {}; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const updateData: Prisma.AccountUpdateInput = {};
   if (data.username !== undefined) updateData.username = data.username;
   if (data.email !== undefined) updateData.email = data.email;
   if (data.password !== undefined && data.password !== null) {
@@ -341,29 +318,22 @@ router.patch('/:id/status', authorize('account.update'), asyncHandler(async (req
 // ============================================
 
 router.delete('/:id', authorize('account.delete'), asyncHandler(async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
+  const { id } = req.params;
 
-    // Prevent self-delete
-    const currentUserId = req.user?.accountId?.toString();
-    if (currentUserId === id) {
-      throw ApiError.badRequest('Tidak dapat menghapus akun sendiri');
-    }
-
-    const existing = await prisma.account.findUnique({ where: { id: BigInt(id) } });
-    if (!existing) {
-      throw ApiError.notFound('Akun tidak ditemukan');
-    }
-
-    await prisma.account.delete({ where: { id: BigInt(id) } });
-
-    return response.success(res, null, 'Akun berhasil dihapus');
-  } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
-    if (err?.code === 'P2025') {
-      throw ApiError.notFound('Akun tidak ditemukan');
-    }
-    throw err;
+  // Prevent self-delete
+  const currentUserId = req.user?.accountId?.toString();
+  if (currentUserId === id) {
+    throw ApiError.badRequest('Tidak dapat menghapus akun sendiri');
   }
+
+  const existing = await prisma.account.findUnique({ where: { id: BigInt(id) } });
+  if (!existing) {
+    throw ApiError.notFound('Akun tidak ditemukan');
+  }
+
+  await prisma.account.delete({ where: { id: BigInt(id) } });
+
+  return response.success(res, null, 'Akun berhasil dihapus');
 }));
 
 export default router;

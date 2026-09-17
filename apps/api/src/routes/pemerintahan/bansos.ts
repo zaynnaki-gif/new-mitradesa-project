@@ -1,35 +1,13 @@
 import { Router } from 'express';
-import { z } from 'zod';
 import { prisma } from '../../services/prisma.js';
 import { authenticateInternal, authorize } from '../../middleware/index.js';
 import { asyncHandler, response, ApiError } from '../../utils/response.js';
+import { createBansosSchema as createSchema, updateBansosSchema as updateSchema, queryBansosSchema as querySchema } from '../../dto/bansos.dto.js';
+import { Prisma } from '@prisma/client';
 import { getInstanceContext } from '../../config/instance.js';
 
 const router = Router();
 router.use(authenticateInternal());
-
-// ============================================
-// Validation Schemas
-// ============================================
-
-const createSchema = z.object({
-  nama: z.string().min(1).max(255),
-  jenis: z.string().min(1).max(100),
-  tahun: z.number().int().positive().min(2000).max(2100),
-  periode: z.string().max(50).optional(),
-  jumlahPenerima: z.number().int().nonnegative().default(0),
-  jumlahDana: z.number().nonnegative().default(0),
-});
-
-const updateSchema = createSchema.partial();
-
-const querySchema = z.object({
-  page: z.coerce.number().int().positive().default(1),
-  limit: z.coerce.number().int().positive().max(100).default(20),
-  search: z.string().optional(),
-  tahun: z.coerce.number().int().optional(),
-  jenis: z.string().optional(),
-});
 
 // ============================================
 // List with pagination & filters
@@ -41,7 +19,7 @@ router.get('/', authorize('pemerintahan.view'), asyncHandler(async (req, res) =>
   const { page, limit, search, tahun, jenis } = querySchema.parse(req.query);
 
   const skip = (page - 1) * limit;
-  const where: any = {}; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const where: Prisma.BansosWhereInput = {};
 
   if (desaId !== undefined) where.desaId = desaId;
   if (tahun) where.tahun = tahun;

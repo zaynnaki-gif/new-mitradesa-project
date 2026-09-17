@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { asyncHandler, response } from '../utils/response.js';
 import { authenticateInternal } from '../middleware/index.js';
 import { prisma } from '../services/prisma.js';
-import { getInstanceContext } from '../config/instance.js';
+
 
 const router = Router();
 
@@ -15,8 +15,6 @@ router.get(
   '/stats',
   authenticateInternal(),
   asyncHandler(async (_req: Request, res: Response) => {
-    const { desaId } = getInstanceContext();
-
     // Fetch all stats in parallel
     const [
       requestsNew,
@@ -35,36 +33,36 @@ router.get(
     ] = await Promise.all([
       // Request stats
       prisma.permintaanLayanan.count({
-        where: { desaId, status: 'SUBMITTED', deletedAt: null },
+        where: { status: 'SUBMITTED', deletedAt: null },
       }),
       prisma.permintaanLayanan.count({
-        where: { desaId, status: 'PROCESSING', deletedAt: null },
+        where: { status: 'PROCESSING', deletedAt: null },
       }),
       prisma.permintaanLayanan.count({
-        where: { desaId, status: 'VERIFICATION', deletedAt: null },
+        where: { status: 'VERIFICATION', deletedAt: null },
       }),
       prisma.permintaanLayanan.count({
-        where: { desaId, status: 'COMPLETED', deletedAt: null },
+        where: { status: 'COMPLETED', deletedAt: null },
       }),
       // Document stats
       prisma.instanDokumen.count({
-        where: { templateVersion: { template: { dokumen: { layanan: { desaId } } } } },
+        where: { templateVersion: { template: { dokumen: { layanan: { } } } } },
       }),
       prisma.instanDokumen.count({
-        where: { status: 'SIGNED', templateVersion: { template: { dokumen: { layanan: { desaId } } } } },
+        where: { status: 'SIGNED', templateVersion: { template: { dokumen: { layanan: { } } } } },
       }),
       // Content stats
-      prisma.berita.count({ where: { penulis: { perangkatDesa: { desaId } }, status: 'PUBLISHED' } }),
-      prisma.berita.count({ where: { penulis: { perangkatDesa: { desaId } }, status: 'DRAFT' } }),
-      prisma.halaman.count({ where: { desaId, status: 'PUBLISHED' } }),
-      prisma.media.count({ where: { uploadedBy: { perangkatDesa: { desaId } } } }),
+      prisma.berita.count({ where: { penulis: { perangkatDesa: { } }, status: 'PUBLISHED' } }),
+      prisma.berita.count({ where: { penulis: { perangkatDesa: { } }, status: 'DRAFT' } }),
+      prisma.halaman.count({ where: { status: 'PUBLISHED' } }),
+      prisma.media.count({ where: { uploadedBy: { perangkatDesa: { } } } }),
       // UMKM stats — uses isAktif boolean (no status enum)
-      prisma.umkm.count({ where: { desaId, isAktif: true } }),
+      prisma.umkm.count({ where: { isAktif: true } }),
       // Agenda stats — active = MENDATANG or BERLANGSUNG
-      prisma.agenda.count({ where: { desaId, isAktif: true, status: { in: ['MENDATANG', 'BERLANGSUNG'] } } }),
+      prisma.agenda.count({ where: { isAktif: true, status: { in: ['MENDATANG', 'BERLANGSUNG'] } } }),
       // SLA Stats (Recent completed requests)
       prisma.permintaanLayanan.findMany({
-        where: { desaId, status: 'COMPLETED', completedAt: { not: null }, submittedAt: { not: null } },
+        where: { status: 'COMPLETED', completedAt: { not: null }, submittedAt: { not: null } },
         select: { submittedAt: true, completedAt: true },
         take: 100,
         orderBy: { completedAt: 'desc' }
@@ -118,12 +116,11 @@ router.get(
   '/recent-activity',
   authenticateInternal(),
   asyncHandler(async (req: Request, res: Response) => {
-    const { desaId } = getInstanceContext();
     const limit = Math.min(parseInt(String(req.query.limit || '10')), 50);
 
     // Fetch recent requests
     const recentRequests = await prisma.permintaanLayanan.findMany({
-      where: { desaId, deletedAt: null },
+      where: { deletedAt: null },
       orderBy: { updatedAt: 'desc' },
       take: limit,
       include: {
@@ -145,8 +142,6 @@ router.get(
   '/executive',
   authenticateInternal(),
   asyncHandler(async (_req: Request, res: Response) => {
-    const { desaId } = getInstanceContext();
-
     // Fetch all executive data in parallel
     const [
       totalPenduduk,
@@ -156,25 +151,24 @@ router.get(
     ] = await Promise.all([
       // 1. Total Penduduk
       prisma.penduduk.count({
-        where: { desaId }
+        where: { }
       }),
       // 2. Surat Menunggu Tanda Tangan
       prisma.instanDokumen.count({
         where: {
-          templateVersion: { template: { dokumen: { layanan: { desaId } } } },
+          templateVersion: { template: { dokumen: { layanan: { } } } },
           status: 'PENDING_SIGNATURE'
         }
       }),
       // 3. Surat Masuk belum didisposisi (Status NEW atau PENDING)
       prisma.suratMasuk.count({
         where: {
-          desaId,
           status: { in: ['DITERIMA', 'DIPROSES'] }
         }
       }),
       // 4. Realisasi APBDes (Total Anggaran vs Realisasi)
       prisma.apbdes.findFirst({
-        where: { desaId },
+        where: { },
         orderBy: { tahun: 'desc' },
         include: {
           items: true

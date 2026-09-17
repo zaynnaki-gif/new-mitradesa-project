@@ -141,6 +141,47 @@ export default function KontakPage() {
                 </div>
               </ContactCard>
             )}
+
+            {/* Social Media */}
+            {(identitas?.facebook || identitas?.instagram || identitas?.twitter || identitas?.youtube) && (
+              <ContactCard delay={300}>
+                <h2 className={styles.cardTitle}>
+                  <div className={styles.cardIcon}>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                    </svg>
+                  </div>
+                  Media Sosial
+                </h2>
+                <div className={styles.contactList}>
+                  {identitas?.facebook && (
+                    <div className={styles.contactItem}>
+                      <span className={styles.contactItemLabel}>Facebook</span>
+                      <a href={identitas.facebook} target="_blank" rel="noopener noreferrer" className={styles.contactItemLink}>Facebook Kami</a>
+                    </div>
+                  )}
+                  {identitas?.instagram && (
+                    <div className={styles.contactItem}>
+                      <span className={styles.contactItemLabel}>Instagram</span>
+                      <a href={identitas.instagram} target="_blank" rel="noopener noreferrer" className={styles.contactItemLink}>@instagram</a>
+                    </div>
+                  )}
+                  {identitas?.twitter && (
+                    <div className={styles.contactItem}>
+                      <span className={styles.contactItemLabel}>Twitter / X</span>
+                      <a href={identitas.twitter} target="_blank" rel="noopener noreferrer" className={styles.contactItemLink}>@twitter</a>
+                    </div>
+                  )}
+                  {identitas?.youtube && (
+                    <div className={styles.contactItem}>
+                      <span className={styles.contactItemLabel}>YouTube</span>
+                      <a href={identitas.youtube} target="_blank" rel="noopener noreferrer" className={styles.contactItemLink}>Channel Kami</a>
+                    </div>
+                  )}
+                </div>
+              </ContactCard>
+            )}
           </div>
         </div>
       </EditorialSection>

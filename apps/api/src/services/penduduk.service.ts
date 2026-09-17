@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { prisma } from './prisma.js';
 import { AuditService } from './audit.service.js';
 import {
@@ -85,6 +84,9 @@ export class PendudukService {
       desaId: penduduk.desaId?.toString() || null,
       createdAt: penduduk.createdAt.toISOString(),
       updatedAt: penduduk.updatedAt.toISOString(),
+      gubugId: penduduk.gubugId?.toString() || null,
+      rwId: penduduk.rwId?.toString() || null,
+      rtId: penduduk.rtId?.toString() || null,
     };
   }
 
@@ -102,7 +104,7 @@ export class PendudukService {
     const skip = (pageNum - 1) * limitNum;
 
     // Build where clause
-    const where: any = {};
+    const where: Prisma.PendudukWhereInput = {};
 
     // Soft delete filter - exclude deleted by default
     if (isAktif !== undefined) {
@@ -153,7 +155,7 @@ export class PendudukService {
         take: limitNum,
         orderBy: { namaLengkap: 'asc' },
         include: {
-          desa: {
+          Desa: {
             select: {
               id: true,
               nama: true,
@@ -184,7 +186,7 @@ export class PendudukService {
     const penduduk = await prisma.penduduk.findFirst({
       where: { id, desaId },
       include: {
-        desa: {
+        Desa: {
           select: {
             id: true,
             nama: true,
@@ -232,7 +234,7 @@ export class PendudukService {
     const penduduk = await prisma.penduduk.findFirst({
       where: { nik, desaId },
       include: {
-        desa: {
+        Desa: {
           select: {
             id: true,
             nama: true,
@@ -513,7 +515,7 @@ export class PendudukService {
    */
   async getStats() {
     const { desaId } = getInstanceContext();
-    const where: any = {};
+    const where: Prisma.PendudukWhereInput = {};
     if (desaId) where.desaId = desaId;
 
     const [total, aktif, nonAktif, byJenisKelamin, byAgama] = await Promise.all([

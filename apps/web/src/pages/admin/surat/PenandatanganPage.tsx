@@ -6,6 +6,7 @@ import { Button, Input, Modal } from '@/components/ui';
 import shared from '@/styles/AdminShared.module.css';
 import s from '@/pages/admin/layanan/LayananListPage.module.css';
 import { safeFetchJson } from '@/lib/fetch';
+import { useConfirm } from '@/hooks/useConfirm';
 
 interface Penandatangan {
   id: string;
@@ -18,6 +19,7 @@ interface Penandatangan {
 
 export default function PenandatanganPage() {
   const { token, loading: authLoading } = useAuthStore();
+  const { confirm, ConfirmElement } = useConfirm();
   const [data, setData] = useState<Penandatangan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -66,7 +68,7 @@ export default function PenandatanganPage() {
     if (token) fetchData();
   }, [token, page, search, fetchData]);
 
-  const handleOpenModal = (item?: Penandatangan) => {
+  const handleOpenModal = async (item?: Penandatangan) => {
     if (item) {
       setEditingData(item);
       setFormData({
@@ -141,7 +143,8 @@ export default function PenandatanganPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!token || !window.confirm('Apakah Anda yakin ingin menghapus data ini?')) return;
+    if (!token) return;
+    const _ok = await confirm({ message: 'Apakah Anda yakin ingin menghapus data ini?', title: 'Konfirmasi' }); if (!_ok) return;
 
     try {
       const result = await safeFetchJson(`${API_URL}/documents/penanda-tangan/${id}`, {
@@ -166,6 +169,7 @@ export default function PenandatanganPage() {
 
   return (
     <AdminLayout>
+      {ConfirmElement}
       <div className={shared.container}>
         <div className={shared.header}>
           <div className={shared.searchBox}>

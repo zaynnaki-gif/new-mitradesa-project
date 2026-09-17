@@ -1,32 +1,18 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { AdminLayout } from '@/layouts';
 import { Button, Modal, Input, Select } from '@/components/ui';
 import { LoadingState, ErrorState } from '@/components/states';
 import { useAuthStore } from '@/stores/auth.store';
-import { API_URL } from '@/lib/constants';
-import { safeFetchJson } from '@/lib/fetch';
 import styles from './ApbdesEntryPage.module.css';
-
-interface ApbdesItem {
-  id: string;
-  apbdesId: string;
-  kategori: 'PENDAPATAN' | 'BELANJA' | 'PEMBIAYAAN';
-  nama: string;
-  anggaran: number;
-  realization: number;
-  createdAt: string;
-}
-
-interface Apbdes {
-  id: string;
-  tahun: number;
-  totalPendapatan: number;
-  totalBelanja: number;
-  totalPembiayaan: number;
-  isAktif: boolean;
-  items: ApbdesItem[];
-}
-
+import { useConfirm } from '@/hooks/useConfirm';
+import {
+  ApbdesItem,
+  useApbdesList,
+  useApbdesDetail,
+  useRkpdesByTahun,
+  useSaveApbdesItem,
+  useDeleteApbdesItem
+} from '@/hooks/usePerencanaan';
 
 const KATEGORI_OPTIONS = [
   { value: 'PENDAPATAN', label: 'Pendapatan' },
@@ -45,83 +31,42 @@ function formatRupiah(n: number) {
 
 export default function ApbdesEntryPage() {
   const { token } = useAuthStore();
+  const { confirm, ConfirmElement } = useConfirm();
   const [tahun, setTahun] = useState(new Date().getFullYear().toString());
-  const [apbdes, setApbdes] = useState<Apbdes | null>(null);
-  const [apbdesList, setApbdesList] = useState<Apbdes[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+
+  const { data: apbdesList, isLoading: listLoading, error: listError } = useApbdesList(tahun, token || '');
+  
+  // Set default apbdesId if list is available
+  const [selectedApbdesId, setSelectedApbdesId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (apbdesList && apbdesList.length > 0) {
+      setSelectedApbdesId(apbdesList[0].id);
+    } else {
+      setSelectedApbdesId(null);
+    }
+  }, [apbdesList]);
+
+  const { data: apbdes, isLoading: detailLoading, error: detailError, refetch } = useApbdesDetail(selectedApbdesId, token || '');
+  const { data: rkpdesList = [], isLoading: rkpdesLoading } = useRkpdesByTahun(tahun, token || '');
+
+  const saveMutation = useSaveApbdesItem();
+  const deleteMutation = useDeleteApbdesItem();
 
   // Item modal
   const [showItemModal, setShowItemModal] = useState(false);
   const [editingItem, setEditingItem] = useState<ApbdesItem | null>(null);
-  const [itemLoading, setItemLoading] = useState(false);
-  const [itemError, setItemError] = useState<string | null>(null);
   const [itemForm, setItemForm] = useState({
     kategori: 'PENDAPATAN',
     nama: '',
     anggaran: '',
     realization: '',
+    rkpdesId: '',
   });
-
-  // Load list of APBDes years
-  const fetchApbdesList = useCallback(async () => {
-    try {
-      const data = await safeFetchJson(`${API_URL}/transparansi?tahun=${tahun}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (data.success) setApbdesList(data.data || []);
-    } catch { /* ignore */ }
-  }, [token, tahun]);
-
-  // Load detail + items
-  const fetchDetail = useCallback(async (apbdesId: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await safeFetchJson(`${API_URL}/transparansi/${apbdesId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (data.success) setApbdes(data.data);
-      else setError(data.error?.message || 'Gagal memuat');
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Terjadi kesalahan');
-    } finally {
-      setLoading(false);
-    }
-  }, [token]);
-
-  useEffect(() => { fetchApbdesList(); }, [fetchApbdesList]);
-
-  useEffect(() => {
-    if (apbdesList.length > 0 && !apbdes) {
-      fetchDetail(apbdesList[0].id);
-    }
-  }, [apbdesList, apbdes, fetchDetail]);
-
-  // Select APBDes by tahun
-  const handleTahunChange = (newTahun: string) => {
-    setTahun(newTahun);
-    setApbdes(null);
-    setLoading(true);
-    // Trigger fetch
-    safeFetchJson(`${API_URL}/transparansi?tahun=${newTahun}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((data: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
-        if (data.success && data.data?.length > 0) {
-          fetchDetail(data.data[0].id);
-        } else {
-          setApbdes(null);
-          setLoading(false);
-        }
-      })
-      .catch(() => setLoading(false));
-  };
 
   const openAddItem = () => {
     setEditingItem(null);
-    setItemForm({ kategori: 'PENDAPATAN', nama: '', anggaran: '', realization: '' });
-    setItemError(null);
+    setItemForm({ kategori: 'PENDAPATAN', nama: '', anggaran: '', realization: '', rkpdesId: '' });
     setShowItemModal(true);
   };
 
@@ -132,56 +77,45 @@ export default function ApbdesEntryPage() {
       nama: item.nama,
       anggaran: String(item.anggaran),
       realization: String(item.realization),
+      rkpdesId: item.Rkpdes?.id || '',
     });
-    setItemError(null);
     setShowItemModal(true);
   };
 
   const handleItemSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!apbdes) return;
-    setItemLoading(true);
-    setItemError(null);
 
     const body = {
-      kategori: itemForm.kategori,
+      kategori: itemForm.kategori as 'PENDAPATAN' | 'BELANJA' | 'PEMBIAYAAN',
       nama: itemForm.nama,
       anggaran: parseFloat(itemForm.anggaran) || 0,
       realization: parseFloat(itemForm.realization) || 0,
+      ...(itemForm.rkpdesId ? { rkpdesId: itemForm.rkpdesId } : {}),
     };
 
     try {
-      const url = editingItem
-        ? `${API_URL}/transparansi/${apbdes.id}/items/${editingItem.id}`
-        : `${API_URL}/transparansi/${apbdes.id}/items`;
-      const method = editingItem ? 'PATCH' : 'POST';
-
-      const data = await safeFetchJson(url, {
-        method,
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(body),
+      await saveMutation.mutateAsync({
+        apbdesId: apbdes.id,
+        itemId: editingItem?.id,
+        data: body,
+        token: token || '',
       });
-      if (data.success) {
-        setShowItemModal(false);
-        fetchDetail(apbdes.id);
-      } else {
-        setItemError(data.error?.message || 'Gagal menyimpan');
-      }
-    } catch (err: any) { setItemError(err.message || 'Terjadi kesalahan'); } // eslint-disable-line @typescript-eslint/no-explicit-any
-    finally { setItemLoading(false); }
+      setShowItemModal(false);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Terjadi kesalahan');
+    }
   };
 
   const handleDeleteItem = async (item: ApbdesItem) => {
-    if (!confirm('Hapus rincian ini?')) return;
+    if (!await confirm({ message: 'Hapus rincian ini?', title: 'Konfirmasi' })) return;
     if (!apbdes) return;
+
     try {
-      const data = await safeFetchJson(
-        `${API_URL}/transparansi/${apbdes.id}/items/${item.id}`,
-        { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } }
-      );
-      if (data.success) fetchDetail(apbdes.id);
-      else alert(data.error?.message || 'Gagal hapus');
-    } catch (err: any) { alert(err.message || 'Terjadi kesalahan'); } // eslint-disable-line @typescript-eslint/no-explicit-any
+      await deleteMutation.mutateAsync({ apbdesId: apbdes.id, itemId: item.id, token: token || '' });
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Terjadi kesalahan');
+    }
   };
 
   const getItemsByKategori = (kat: string) =>
@@ -193,8 +127,9 @@ export default function ApbdesEntryPage() {
   const calcAnggaran = (kat: string) =>
     getItemsByKategori(kat).reduce((s, i) => s + i.anggaran, 0);
 
-  if (loading) return <AdminLayout><LoadingState message="Memuat..." fullPage /></AdminLayout>;
-  if (error) return <AdminLayout><ErrorState title="Gagal" message={error} onRetry={() => apbdes ? fetchDetail(apbdes.id) : fetchApbdesList()} /></AdminLayout>;
+  if (listLoading || detailLoading || rkpdesLoading) return <AdminLayout><LoadingState message="Memuat..." fullPage /></AdminLayout>;
+  const error = listError || detailError;
+  if (error) return <AdminLayout><ErrorState title="Gagal" message={error instanceof Error ? error.message : 'Terjadi kesalahan'} onRetry={() => refetch()} /></AdminLayout>;
 
   const categories = [
     { key: 'PENDAPATAN', label: 'Pendapatan', color: '#3b82f6' },
@@ -204,6 +139,7 @@ export default function ApbdesEntryPage() {
 
   return (
     <AdminLayout>
+      {ConfirmElement}
       <div className={styles.container}>
         {/* Header */}
         <div className={styles.header}>
@@ -215,7 +151,7 @@ export default function ApbdesEntryPage() {
             <select
               className={styles.tahunSelect}
               value={tahun}
-              onChange={e => handleTahunChange(e.target.value)}
+              onChange={e => setTahun(e.target.value)}
             >
               {[2020, 2021, 2022, 2023, 2024, 2025, 2026, 2027, 2028].map(y => (
                 <option key={y} value={String(y)}>{y}</option>
@@ -270,7 +206,8 @@ export default function ApbdesEntryPage() {
                           <div className={styles.itemInfo}>
                             <span className={styles.itemNama}>{item.nama}</span>
                             <span className={styles.itemMeta}>
-                              Anggaran: {formatRupiah(item.anggaran)}
+                              Anggaran: {formatRupiah(item.anggaran)} 
+                              {item.Rkpdes && <span> | RKPDes: {item.Rkpdes.namaKegiatan}</span>}
                             </span>
                           </div>
                           <div className={styles.itemValues}>
@@ -293,24 +230,47 @@ export default function ApbdesEntryPage() {
         {/* Item Modal */}
         <Modal
           isOpen={showItemModal}
-          onClose={() => setShowItemModal(false)}
+          onClose={() => !saveMutation.isPending && setShowItemModal(false)}
           title={editingItem ? 'Edit Rincian' : 'Tambah Rincian APBDes'}
         >
           <form onSubmit={handleItemSubmit} className={styles.itemForm}>
-            {itemError && <div className={styles.formError}>{itemError}</div>}
+            {saveMutation.error && <div className={styles.formError}>{saveMutation.error.message}</div>}
             <Select
               label="Kategori"
               value={itemForm.kategori}
-              onChange={e => setItemForm(f => ({ ...f, kategori: e.target.value as typeof f.kategori }))}
+              onChange={e => setItemForm(f => ({ ...f, kategori: e.target.value }))}
               options={KATEGORI_OPTIONS}
               required
             />
+            {itemForm.kategori === 'BELANJA' && (
+              <Select
+                label="Sambungkan ke Program RKPDes (Opsional)"
+                value={itemForm.rkpdesId}
+                onChange={e => {
+                  const rkpdesId = e.target.value;
+                  const selectedRkpdes = rkpdesList.find(r => r.id === rkpdesId);
+                  setItemForm(f => ({ 
+                    ...f, 
+                    rkpdesId,
+                    // Auto-fill nama rincian if empty
+                    nama: f.nama || (selectedRkpdes ? selectedRkpdes.namaKegiatan : '')
+                  }));
+                }}
+                options={[
+                  { value: '', label: '-- Tidak Disambungkan --' },
+                  ...rkpdesList.map(r => ({
+                    value: r.id,
+                    label: r.namaKegiatan
+                  }))
+                ]}
+              />
+            )}
             <Input
               label="Nama Rincian"
               value={itemForm.nama}
               onChange={e => setItemForm(f => ({ ...f, nama: e.target.value }))}
               placeholder="Contoh: Pajak Bumi dan Bangunan"
-              required
+              required={!itemForm.rkpdesId}
             />
             <div className={styles.formGrid2}>
               <Input
@@ -331,9 +291,9 @@ export default function ApbdesEntryPage() {
               />
             </div>
             <div className={styles.formActions}>
-              <Button type="button" variant="outline" onClick={() => setShowItemModal(false)}>Batal</Button>
-              <Button type="submit" disabled={itemLoading}>
-                {itemLoading ? 'Menyimpan...' : 'Simpan'}
+              <Button type="button" variant="outline" onClick={() => setShowItemModal(false)} disabled={saveMutation.isPending}>Batal</Button>
+              <Button type="submit" disabled={saveMutation.isPending}>
+                {saveMutation.isPending ? 'Menyimpan...' : 'Simpan'}
               </Button>
             </div>
           </form>

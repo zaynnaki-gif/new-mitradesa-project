@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Container, Typography, Button, Input } from '../../components/ui';
-import { API_URL } from '../../lib/constants';
+import { useCitizenRequestOtp, useCitizenRecoverAccess, useCitizenCancelRecovery, useCitizenVerifyOtp } from '../../hooks/useAuth';
 
 export function RequestOtpPage() {
   const [nik, setNik] = useState('');
@@ -12,123 +12,74 @@ export function RequestOtpPage() {
   const [otp, setOtp] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const requestOtpMutation = useCitizenRequestOtp();
+  const recoverAccessMutation = useCitizenRecoverAccess();
+  const cancelRecoveryMutation = useCitizenCancelRecovery();
+  const verifyOtpMutation = useCitizenVerifyOtp();
 
-  const handleRequestOtp = async (e: React.FormEvent) => {
+  const handleRequestOtp = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setMessage('');
-    setLoading(true);
-
-    try {
-      const response = await fetch(`${API_URL}/auth/citizen/request-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nik }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error?.message || 'Gagal meminta kode OTP');
-      }
-
-      setChallenge(data.data.challenge);
-      setMessage('OTP telah dikirim ke nomor WhatsApp terdaftar Anda');
-      setStep('otp');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Terjadi kesalahan');
-    } finally {
-      setLoading(false);
-    }
+    
+    requestOtpMutation.mutate(nik, {
+      onSuccess: (data) => {
+        setChallenge(data.challenge);
+        setMessage('OTP telah dikirim ke nomor WhatsApp terdaftar Anda');
+        setStep('otp');
+      },
+      onError: (err: Error) => setError(err.message)
+    });
   };
 
-  const handleRecoverAccess = async (e: React.FormEvent) => {
+  const handleRecoverAccess = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setMessage('');
-    setLoading(true);
 
-    try {
-      const response = await fetch(`${API_URL}/auth/citizen/recover-access`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nik, noKk, telepon }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error?.message || 'Gagal memulihkan akses warga');
-      }
-
-      setChallenge(data.data.challenge);
-      setMessage(data.data.message || 'Nomor WhatsApp berhasil diperbarui. Kode OTP telah dikirimkan.');
-      setStep('otp');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Terjadi kesalahan pemulihan');
-    } finally {
-      setLoading(false);
-    }
+    recoverAccessMutation.mutate({ nik, noKk, telepon }, {
+      onSuccess: (data) => {
+        setChallenge(data.challenge);
+        setMessage(data.message || 'Nomor WhatsApp berhasil diperbarui. Kode OTP telah dikirimkan.');
+        setStep('otp');
+      },
+      onError: (err: Error) => setError(err.message)
+    });
   };
 
-  const handleCancelRecovery = async (e: React.FormEvent) => {
+  const handleCancelRecovery = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setMessage('');
-    setLoading(true);
 
-    try {
-      const response = await fetch(`${API_URL}/auth/citizen/cancel-recovery`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nik, cancellationCode }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error?.message || 'Gagal membatalkan pemulihan');
-      }
-
-      setMessage(data.data.message || 'Pemulihan akses berhasil dibatalkan. Nomor lama telah dipulihkan.');
-      setStep('nik');
-      setCancellationCode('');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Terjadi kesalahan pembatalan');
-    } finally {
-      setLoading(false);
-    }
+    cancelRecoveryMutation.mutate({ nik, cancellationCode }, {
+      onSuccess: (data) => {
+        setMessage(data.message || 'Pemulihan akses berhasil dibatalkan. Nomor lama telah dipulihkan.');
+        setStep('nik');
+        setCancellationCode('');
+      },
+      onError: (err: Error) => setError(err.message)
+    });
   };
 
-  const handleVerifyOtp = async (e: React.FormEvent) => {
+  const handleVerifyOtp = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setMessage('');
-    setLoading(true);
 
-    try {
-      const response = await fetch(`${API_URL}/auth/citizen/verify-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ challenge, otp }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error?.message || 'Gagal memverifikasi OTP');
-      }
-
-      // Store token and redirect
-      localStorage.setItem('citizen_token', data.data.token);
-      window.location.href = '/layanan';
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Terjadi kesalahan');
-    } finally {
-      setLoading(false);
-    }
+    verifyOtpMutation.mutate({ challenge, otp }, {
+      onSuccess: (data) => {
+        localStorage.setItem('citizen_token', data.token);
+        window.location.href = '/layanan';
+      },
+      onError: (err: Error) => setError(err.message)
+    });
   };
+
+  const isLoading = requestOtpMutation.isPending || 
+                    recoverAccessMutation.isPending || 
+                    cancelRecoveryMutation.isPending || 
+                    verifyOtpMutation.isPending;
 
   const resetToNik = () => {
     setStep('nik');
@@ -408,10 +359,10 @@ export function RequestOtpPage() {
             <Button
               type="submit"
               variant="primary"
-              disabled={loading}
+              disabled={isLoading}
               style={{ width: '100%' }}
             >
-              {loading
+              {isLoading
                 ? 'Memproses...'
                 : step === 'nik'
                 ? 'Kirim OTP ke WhatsApp'
@@ -427,7 +378,7 @@ export function RequestOtpPage() {
                 type="button"
                 variant="outline"
                 onClick={resetToNik}
-                disabled={loading}
+                disabled={isLoading}
                 style={{ width: '100%' }}
               >
                 Kembali ke Form Awal

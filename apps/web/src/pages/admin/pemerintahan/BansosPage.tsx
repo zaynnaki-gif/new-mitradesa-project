@@ -7,6 +7,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import { API_URL } from '@/lib/constants';
 import { safeFetchJson } from '@/lib/fetch';
 import styles from './BansosPage.module.css';
+import { useConfirm } from '@/hooks/useConfirm';
 
 // ============================================
 // Types
@@ -66,6 +67,7 @@ const formatRupiah = (num: number) => {
 
 export default function BansosPage() {
   const { token } = useAuthStore();
+  const { confirm, ConfirmElement } = useConfirm();
 
   // ============================================
   // State
@@ -158,12 +160,12 @@ export default function BansosPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     fetchData(1);
   };
 
-  const handlePageChange = (page: number) => {
+  const handlePageChange = async (page: number) => {
     fetchData(page);
   };
 
@@ -240,7 +242,7 @@ export default function BansosPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Yakin ingin menghapus data ini?')) return;
+    const _ok = await confirm({ message: 'Yakin ingin menghapus data ini?', title: 'Konfirmasi' }); if (!_ok) return;
 
     try {
       const data = await safeFetchJson(`${API_URL}/bansos/${id}`, {
@@ -263,6 +265,7 @@ export default function BansosPage() {
 
   return (
     <AdminLayout>
+      {ConfirmElement}
       <div className={styles.container}>
         {/* Header */}
         <div className={styles.header}>

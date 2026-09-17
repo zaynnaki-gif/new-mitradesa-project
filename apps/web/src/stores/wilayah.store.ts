@@ -1,7 +1,6 @@
 /**
  * Wilayah Store
- * Menyimpan pemilihan wilayah aktif (Desa) agar persist across sessions
- * dan bisa diakses dari seluruh aplikasi
+ * Menyimpan pemilihan wilayah terakhir di UI (hanya cache untuk mempermudah form)
  */
 
 import { create } from 'zustand';
@@ -20,11 +19,8 @@ interface StoredWilayah {
 }
 
 interface WilayahState {
-  // Current active wilayah
+  // Current selected wilayah for UI caching
   activeWilayah: StoredWilayah | null;
-
-  // Quick access to IDs
-  activeDesaId: string | null;
 
   // Setters
   setWilayah: (wilayah: StoredWilayah) => void;
@@ -49,7 +45,6 @@ const loadStoredWilayah = (): StoredWilayah | null => {
 
 export const useWilayahStore = create<WilayahState>((set) => ({
   activeWilayah: loadStoredWilayah(),
-  activeDesaId: loadStoredWilayah()?.desaId || null,
 
   setWilayah: (wilayah: StoredWilayah) => {
     try {
@@ -59,7 +54,6 @@ export const useWilayahStore = create<WilayahState>((set) => ({
     }
     set({
       activeWilayah: wilayah,
-      activeDesaId: wilayah.desaId,
     });
   },
 
@@ -71,7 +65,6 @@ export const useWilayahStore = create<WilayahState>((set) => ({
     }
     set({
       activeWilayah: null,
-      activeDesaId: null,
     });
   },
 
@@ -80,7 +73,6 @@ export const useWilayahStore = create<WilayahState>((set) => ({
     if (stored) {
       set({
         activeWilayah: stored,
-        activeDesaId: stored.desaId,
       });
     }
   },

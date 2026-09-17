@@ -7,6 +7,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import { API_URL } from '@/lib/constants';
 import styles from './UserManagementPage.module.css';
 import { safeFetchJson } from '@/lib/fetch';
+import { useConfirm } from '@/hooks/useConfirm';
 
 // ============================================
 // Types
@@ -61,6 +62,7 @@ const formatDate = (date: string) => {
 
 export default function UserManagementPage() {
   const { token } = useAuthStore();
+  const { confirm, ConfirmElement } = useConfirm();
 
   // ============================================
   // State
@@ -238,7 +240,13 @@ export default function UserManagementPage() {
     const newStatus = account.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
     const action = newStatus === 'ACTIVE' ? 'mengaktifkan' : 'menonaktifkan';
 
-    if (!confirm(`Yakin ingin ${action} akun "${account.username}"?`)) return;
+    const ok = await confirm({
+      title: newStatus === 'ACTIVE' ? 'Aktifkan Akun' : 'Nonaktifkan Akun',
+      message: `Yakin ingin ${action} akun "${account.username}"?`,
+      confirmLabel: newStatus === 'ACTIVE' ? 'Ya, Aktifkan' : 'Ya, Nonaktifkan',
+      variant: newStatus === 'ACTIVE' ? 'default' : 'warning',
+    });
+    if (!ok) return;
 
     try {
       await safeFetchJson(`${API_URL}/accounts/${account.id}/status`, {
@@ -257,7 +265,13 @@ export default function UserManagementPage() {
   };
 
   const handleDelete = async (account: Account) => {
-    if (!confirm(`Yakin ingin menghapus akun "${account.username}"? Tindakan ini tidak dapat dibatalkan.`)) return;
+    const ok = await confirm({
+      title: 'Hapus Akun Pengguna',
+      message: `Yakin ingin menghapus akun "${account.username}"? Tindakan ini tidak dapat dibatalkan dan akan menghapus semua data terkait akun ini.`,
+      confirmLabel: 'Ya, Hapus Permanen',
+      variant: 'danger',
+    });
+    if (!ok) return;
 
     try {
       const data = await safeFetchJson(`${API_URL}/accounts/${account.id}`, {
@@ -288,6 +302,7 @@ export default function UserManagementPage() {
 
   return (
     <AdminLayout>
+      {ConfirmElement}
       <div className={styles.container}>
         {/* Header */}
         <div className={styles.header}>

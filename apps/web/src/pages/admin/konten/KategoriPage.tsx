@@ -1,123 +1,73 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { AdminLayout } from '@/layouts';
 import { Typography, Button, Modal } from '@/components/ui';
 import { LoadingState, ErrorState } from '@/components/states';
 import { useAuthStore } from '@/stores/auth.store';
 import { KategoriForm } from '@/components/forms/KategoriForm';
-import { API_URL } from '@/lib/constants';
+import { useKategoriList, useDeleteKategori, Kategori } from '@/hooks/useKonten';
 import styles from './KategoriPage.module.css';
+import { useConfirm } from '@/hooks/useConfirm';
 
-interface Kategori {
-  id: string;
-  nama: string;
-  slug: string;
-  deskripsi: string | null;
-  ikon: string | null;
-  warna: string | null;
-  urutan: number;
-  isAktif: boolean;
-  jumlahBerita: number;
-  createdAt: string;
-  updatedAt: string;
-}
 
-interface PaginationMeta {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-}
 
 export function KategoriPage() {
   const { token } = useAuthStore();
-  const [data, setData] = useState<Kategori[]>([]);
-  const [meta, setMeta] = useState<PaginationMeta>({ page: 1, limit: 20, total: 0, totalPages: 0 });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { confirm, ConfirmElement } = useConfirm();
+  const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Partial<Kategori> | null>(null);
 
-  const fetchData = async (page = 1, searchQuery = '') => {
-    setLoading(true);
-    setError(null);
-    try {
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: '20',
-        ...(searchQuery && { search: searchQuery }),
-      });
+  const { data: queryData, isLoading: loading, error, refetch } = useKategoriList(page, search, token || '');
+  const data = queryData?.data || [];
+  const meta = queryData?.meta || { page: 1, limit: 20, total: 0, totalPages: 0 };
 
-      const headers: HeadersInit = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
+  const deleteKategori = useDeleteKategori();
 
-      const res = await fetch(`${API_URL}/api/kategori?${params}`, { headers });
-      const result = await res.json();
-
-      if (result.success) {
-        setData(result.data || []);
-        if (result.meta) setMeta(result.meta);
-      } else {
-        throw new Error(result.error?.message || 'Failed to fetch');
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
-    } finally {
-      setLoading(false);
-    }
+  const handleSearch = () => {
+    setSearch(searchInput);
+    setPage(1);
   };
 
-  useEffect(() => {
-    fetchData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
-  const handleSearch = () => fetchData(1, search);
 
-  const handleOpenCreate = () => {
+  const handleOpenCreate = async () => {
     setEditingItem(null);
     setIsModalOpen(true);
   };
 
-  const handleOpenEdit = (item: Kategori) => {
+  const handleOpenEdit = async (item: Kategori) => {
     setEditingItem(item);
     setIsModalOpen(true);
   };
 
-  const handleCloseModal = () => {
+  const handleCloseModal = async () => {
     setIsModalOpen(false);
     setEditingItem(null);
   };
 
-  const handleFormSuccess = () => {
+  const handleFormSuccess = async () => {
     handleCloseModal();
-    fetchData(meta.page);
+    refetch();
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Yakin ingin menghapus?')) return;
+    const _ok = await confirm({ message: 'Yakin ingin menghapus?', title: 'Konfirmasi' }); 
+    if (!_ok) return;
     try {
-      const headers: HeadersInit = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-
-      const res = await fetch(`${API_URL}/api/kategori/${id}`, { method: 'DELETE', headers });
-      const result = await res.json();
-      if (result.success) {
-        fetchData(meta.page);
-      } else {
-        alert(result.error?.message || 'Gagal menghapus');
-      }
-    } catch (err) {
-      console.error('Error:', err);
-      alert('Gagal menghapus kategori');
+      await deleteKategori.mutateAsync({ id, token: token || '' });
+    } catch (err: any) {
+      alert(err.message || 'Unknown error');
     }
   };
 
   if (error && data.length === 0) {
     return (
       <AdminLayout>
+      {ConfirmElement}
         <div className={styles.container}>
-          <ErrorState message={error} onRetry={() => fetchData()} />
+          <ErrorState message={error.message || 'Gagal'} onRetry={() => refetch()} />
         </div>
       </AdminLayout>
     );
@@ -144,8 +94,8 @@ export function KategoriPage() {
           <input
             type="text"
             placeholder="Cari kategori..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             className={styles.searchInput}
           />
@@ -230,8 +180,8 @@ export function KategoriPage() {
               Menampilkan {((meta.page - 1) * meta.limit) + 1} - {Math.min(meta.page * meta.limit, meta.total)} dari {meta.total}
             </span>
             <div className={styles.paginationControls}>
-              <Button variant="secondary" size="sm" disabled={meta.page <= 1} onClick={() => fetchData(meta.page - 1)}>Previous</Button>
-              <Button variant="secondary" size="sm" disabled={meta.page >= meta.totalPages} onClick={() => fetchData(meta.page + 1)}>Next</Button>
+              <Button variant="secondary" size="sm" disabled={meta.page <= 1} onClick={() => setPage(meta.page - 1)}>Previous</Button>
+              <Button variant="secondary" size="sm" disabled={meta.page >= meta.totalPages} onClick={() => setPage(meta.page + 1)}>Next</Button>
             </div>
           </div>
         )}

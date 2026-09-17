@@ -14,6 +14,14 @@ const querySchema = z.object({
 
 const slugSchema = z.object({ slug: z.string().min(1) });
 
+interface AgendaRow {
+  id: bigint;
+  status: string;
+  tanggalMulai: Date;
+  tanggalSelesai: Date;
+  [key: string]: unknown;
+}
+
 function computeDynamicStatus(
   _dbStatus: string,
   tanggalMulai: Date,
@@ -25,18 +33,10 @@ function computeDynamicStatus(
   return 'SELESAI';
 }
 
-function serializeAgenda(item: {
-  id: bigint;
-  desaId: bigint;
-  status: string;
-  tanggalMulai: Date;
-  tanggalSelesai: Date;
-  [key: string]: unknown;
-}) {
+function serializeAgenda(item: AgendaRow) {
   return {
     ...item,
     id: item.id.toString(),
-    desaId: item.desaId.toString(),
     status: computeDynamicStatus(item.status, item.tanggalMulai, item.tanggalSelesai),
   };
 }

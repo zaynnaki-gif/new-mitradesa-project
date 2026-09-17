@@ -103,6 +103,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
     } catch (err) {
       console.error('Network error when fetching user:', err);
+      set({ token: null, user: null, isAuthenticated: false });
     } finally {
       set({ loading: false });
     }

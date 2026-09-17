@@ -1,0 +1,91 @@
+.container {
+  padding: 24px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.header h1 {
+  font-size: 24px;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.header p {
+  color: #6b7280;
+  margin-top: 4px;
+}
+
+.card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.tableHeader {
+  padding: 16px 24px;
+  border-bottom: 1px solid #e5e7eb;
+  background-color: #f9fafb;
+}
+
+.tableHeader th {
+  text-align: left;
+  font-weight: 500;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.tableBody td {
+  padding: 16px 24px;
+  border-bottom: 1px solid #e5e7eb;
+  color: #374151;
+}
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.statusDiajukan { background-color: #f3f4f6; color: #374151; }
+.statusDitinjau { background-color: #fef3c7; color: #b45309; }
+.statusDiterima { background-color: #d1fae5; color: #065f46; }
+.statusDitolak { background-color: #fee2e2; color: #b91c1c; }
+
+.emptyState {
+  padding: 48px;
+  text-align: center;
+  color: #6b7280;
+}
+
+.dukunganBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: #f3f4f6;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #4b5563;
+}
+
+.dukunganBadge svg {
+  color: #ef4444;
+}
+
+.formGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 16px;
+}

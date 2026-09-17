@@ -1,8 +1,7 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { prisma } from './prisma.js';
 import { ApiError } from '../utils/response.js';
 import { CreateAgendaInput, UpdateAgendaInput, QueryAgendaInput } from '../dto/agenda.dto.js';
-import { getInstanceContext } from '../config/instance.js';
+
 
 export interface PaginationMeta {
   page: number;
@@ -19,10 +18,9 @@ export interface PaginatedResult<T> {
 export class AgendaService {
   async findAll(query: QueryAgendaInput): Promise<PaginatedResult<any>> {
     const { page, limit, search, isAktif, status } = query;
-    const { desaId } = getInstanceContext();
     const skip = (page - 1) * limit;
 
-    const where: any = { desaId };
+    const where: any = { };
 
     if (search) {
       where.OR = [
@@ -57,8 +55,7 @@ export class AgendaService {
     return {
       data: agendaList.map(a => ({
         ...a,
-        id: a.id.toString(),
-        desaId: a.desaId.toString()
+        id: a.id.toString()
       })),
       meta: {
         page,
@@ -70,18 +67,15 @@ export class AgendaService {
   }
 
   async findById(id: bigint) {
-    const { desaId } = getInstanceContext();
-    const where: any = { id, desaId };
+    const where: any = { id };
     const agenda = await prisma.agenda.findFirst({ where });
     if (!agenda) throw ApiError.notFound('Agenda tidak ditemukan');
-    return { ...agenda, id: agenda.id.toString(), desaId: agenda.desaId.toString() };
+    return { ...agenda, id: agenda.id.toString() };
   }
 
   async create(data: CreateAgendaInput) {
-    const { desaId } = getInstanceContext();
     const newAgenda = await prisma.agenda.create({
       data: {
-        desaId,
         judul: data.judul,
         slug: data.slug,
         deskripsi: data.deskripsi,
@@ -93,12 +87,11 @@ export class AgendaService {
         isAktif: data.isAktif,
       },
     });
-    return { ...newAgenda, id: newAgenda.id.toString(), desaId: newAgenda.desaId.toString() };
+    return { ...newAgenda, id: newAgenda.id.toString() };
   }
 
   async update(id: bigint, data: UpdateAgendaInput) {
-    const { desaId } = getInstanceContext();
-    const where: any = { id, desaId };
+    const where: any = { id };
     const agenda = await prisma.agenda.findFirst({ where });
     if (!agenda) throw ApiError.notFound('Agenda tidak ditemukan');
 
@@ -116,12 +109,11 @@ export class AgendaService {
         isAktif: data.isAktif,
       },
     });
-    return { ...updated, id: updated.id.toString(), desaId: updated.desaId.toString() };
+    return { ...updated, id: updated.id.toString() };
   }
 
   async delete(id: bigint) {
-    const { desaId } = getInstanceContext();
-    const where: any = { id, desaId };
+    const where: any = { id };
     const agenda = await prisma.agenda.findFirst({ where });
     if (!agenda) throw ApiError.notFound('Agenda tidak ditemukan');
     await prisma.agenda.delete({ where: { id } });

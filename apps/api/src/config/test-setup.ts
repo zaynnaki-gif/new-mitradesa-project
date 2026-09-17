@@ -43,12 +43,12 @@ try {
 // Import for cleanup (only runs after safety check passes)
 import { prisma, cleanupAllTestSessions } from '../fixtures/auth.fixture';
 
-// Global beforeAll - ensure default test instance exists
+// Global beforeAll - ensure single-tenant environment is initialized
 beforeAll(async () => {
   try {
-    const desaId = BigInt(process.env.DESA_ID || '1');
-    const desa = await prisma.desa.findUnique({ where: { id: desaId } });
-    if (!desa) {
+    // Single-tenant: ensure IdentitasDesa exists (the source of truth)
+    const identitas = await prisma.identitasDesa.findFirst();
+    if (!identitas) {
       // Create regions first
       let provinsi = await prisma.provinsi.findFirst();
       if (!provinsi) {
@@ -71,18 +71,32 @@ beforeAll(async () => {
         });
       }
 
-      await prisma.desa.create({
+      // Create DesaConfig
+      const desaConfig = await prisma.desaConfig.create({
         data: {
-          id: desaId,
+          kecamatanId: kecamatan.id,
           kode: process.env.DESA_KODE || '5101012001',
           nama: process.env.DESA_NAMA || 'Desa Seruni Mumbul',
-          kecamatanId: kecamatan.id
         }
       });
-      console.log('✓ Created default test Desa instance (ID: 1)');
+
+      // Create IdentitasDesa (single-tenant source of truth)
+      await prisma.identitasDesa.create({
+        data: {
+          desaConfigId: desaConfig.id,
+          namaDesa: process.env.DESA_NAMA || 'Desa Seruni Mumbul',
+          kodeDesa: process.env.DESA_KODE || '5101012001',
+          kepalaDesa: 'Administrator',
+          alamat: '-',
+          email: '-',
+          telepon: '-',
+        }
+      });
+
+      console.log('✓ Created default test IdentitasDesa instance');
     }
   } catch (error) {
-    console.error('Failed to create default test Desa:', error);
+    console.error('Failed to create default test IdentitasDesa:', error);
   }
 });
 

@@ -6,6 +6,7 @@ import { API_URL } from '@/lib/constants';
 import { Button, Input, Select, Modal, Badge } from '@/components/ui';
 import { safeFetchJson } from '@/lib/fetch';
 import styles from './BlankoListPage.module.css';
+import { useConfirm } from '@/hooks/useConfirm';
 
 interface Blanko {
   id: string;
@@ -18,6 +19,7 @@ interface Blanko {
 export default function BlankoListPage() {
   const navigate = useNavigate();
   const { token } = useAuthStore();
+  const { confirm, ConfirmElement } = useConfirm();
   const [blankoList, setBlankoList] = useState<Blanko[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -83,7 +85,7 @@ export default function BlankoListPage() {
   };
 
   const handleSetDefault = async (id: string) => {
-    if (!window.confirm('Jadikan blanko ini sebagai default?')) return;
+    const _ok = await confirm({ message: 'Jadikan blanko ini sebagai default?', title: 'Konfirmasi' }); if (!_ok) return;
     try {
       await safeFetchJson(`${API_URL}/blanko/${id}/set-default`, {
         method: 'PUT',
@@ -96,7 +98,7 @@ export default function BlankoListPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Hapus blanko ini?')) return;
+    const _ok = await confirm({ message: 'Hapus blanko ini?', title: 'Konfirmasi' }); if (!_ok) return;
     try {
       await safeFetchJson(`${API_URL}/blanko/${id}`, {
         method: 'DELETE',
@@ -110,6 +112,7 @@ export default function BlankoListPage() {
 
   return (
     <AdminLayout>
+      {ConfirmElement}
       <div className={styles.container}>
         <div className={styles.header}>
           <div>

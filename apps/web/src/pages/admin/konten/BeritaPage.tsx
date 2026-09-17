@@ -1,42 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { AdminLayout } from '@/layouts';
 import { Typography, Button, Modal } from '@/components/ui';
 import { LoadingState, ErrorState } from '@/components/states';
 import { useAuthStore } from '@/stores/auth.store';
 import { BeritaForm } from '@/components/forms/BeritaForm';
-import { AdminLayout } from '@/layouts';
-import { API_URL } from '@/lib/constants';
+import { useBeritaList, useDeleteBerita, usePublishBerita, useArchiveBerita, Berita } from '@/hooks/useKonten';
 import styles from '@/styles/AdminShared.module.css';
-
-interface Berita {
-  id: string;
-  judul: string;
-  slug: string;
-  excerpt: string | null;
-  gambarUrl: string | null;
-  status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
-  kategori: {
-    id: string;
-    nama: string;
-    slug: string;
-    warna: string | null;
-  } | null;
-  penulis: {
-    id: string;
-    username: string;
-  } | null;
-  publishedAt: string | null;
-  metaTitle: string | null;
-  metaDeskripsi: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface PaginationMeta {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-}
+import { useConfirm } from '@/hooks/useConfirm';
 
 const statusColors: Record<string, { bg: string; text: string }> = {
   DRAFT: { bg: '#fef3c7', text: '#92400e' },
@@ -46,130 +16,78 @@ const statusColors: Record<string, { bg: string; text: string }> = {
 
 export function BeritaPage() {
   const { token } = useAuthStore();
-  const [data, setData] = useState<Berita[]>([]);
-  const [meta, setMeta] = useState<PaginationMeta>({ page: 1, limit: 20, total: 0, totalPages: 0 });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { confirm, ConfirmElement } = useConfirm();
+  const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Partial<Berita> | null>(null);
 
-  const fetchData = async (page = 1, searchQuery = '', status = '') => {
-    setLoading(true);
-    setError(null);
-    try {
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: '20',
-        ...(searchQuery && { search: searchQuery }),
-        ...(status && { status }),
-      });
+  const { data: queryData, isLoading: loading, error, refetch } = useBeritaList(page, search, statusFilter, token || '');
+  const data = queryData?.data || [];
+  const meta = queryData?.meta || { page: 1, limit: 20, total: 0, totalPages: 0 };
 
-      const headers: HeadersInit = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
+  const publishBerita = usePublishBerita();
+  const archiveBerita = useArchiveBerita();
+  const deleteBerita = useDeleteBerita();
 
-      const res = await fetch(`${API_URL}/berita?${params}`, { headers });
-      const result = await res.json();
-
-      if (result.success) {
-        setData(result.data || []);
-        if (result.meta) setMeta(result.meta);
-      } else {
-        throw new Error(result.error?.message || 'Failed to fetch');
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
-    } finally {
-      setLoading(false);
-    }
+  const handleSearch = () => {
+    setSearch(searchInput);
+    setPage(1);
   };
-
-  useEffect(() => {
-    fetchData(1, search, statusFilter);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const handleSearch = () => fetchData(1, search, statusFilter);
 
   const handleStatusChange = (newStatus: string) => {
     setStatusFilter(newStatus);
-    fetchData(1, search, newStatus);
+    setPage(1);
   };
 
   const handlePublish = async (id: string) => {
     try {
-      const headers: HeadersInit = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-
-      const res = await fetch(`${API_URL}/berita/${id}/publish`, { method: 'POST', headers });
-      const result = await res.json();
-      if (result.success) {
-        fetchData(meta.page, search, statusFilter);
-      } else {
-        alert(result.error?.message || 'Gagal mempublikasikan');
-      }
-    } catch (err) {
-      console.error('Error:', err);
-      alert('Gagal mempublikasikan berita');
+      await publishBerita.mutateAsync({ id, token: token || '' });
+    } catch (err: any) {
+      alert(err.message || 'Gagal mempublikasikan berita');
     }
   };
 
   const handleUnpublish = async (id: string) => {
     try {
-      const headers: HeadersInit = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-
-      const res = await fetch(`${API_URL}/berita/${id}/archive`, { method: 'POST', headers });
-      const result = await res.json();
-      if (result.success) {
-        fetchData(meta.page, search, statusFilter);
-      } else {
-        alert(result.error?.message || 'Gagal mengarsipkan');
-      }
-    } catch (err) {
-      console.error('Error:', err);
-      alert('Gagal mengarsipkan berita');
+      await archiveBerita.mutateAsync({ id, token: token || '' });
+    } catch (err: any) {
+      alert(err.message || 'Gagal mengarsipkan berita');
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Yakin ingin menghapus?')) return;
+    const _ok = await confirm({ message: 'Yakin ingin menghapus?', title: 'Konfirmasi' }); 
+    if (!_ok) return;
     try {
-      const headers: HeadersInit = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-
-      const res = await fetch(`${API_URL}/berita/${id}`, { method: 'DELETE', headers });
-      const result = await res.json();
-      if (result.success) {
-        fetchData(meta.page, search, statusFilter);
-      } else {
-        alert(result.error?.message || 'Gagal menghapus');
-      }
-    } catch (err) {
-      console.error('Error:', err);
-      alert('Gagal menghapus berita');
+      await deleteBerita.mutateAsync({ id, token: token || '' });
+    } catch (err: any) {
+      alert(err.message || 'Gagal menghapus berita');
     }
   };
 
-  const handleOpenCreate = () => {
+
+
+  const handleOpenCreate = async () => {
     setEditingItem(null);
     setIsModalOpen(true);
   };
 
-  const handleOpenEdit = (item: Berita) => {
+  const handleOpenEdit = async (item: Berita) => {
     setEditingItem(item);
     setIsModalOpen(true);
   };
 
-  const handleCloseModal = () => {
+  const handleCloseModal = async () => {
     setIsModalOpen(false);
     setEditingItem(null);
   };
 
-  const handleFormSuccess = () => {
+  const handleFormSuccess = async () => {
     handleCloseModal();
-    fetchData(meta.page, search, statusFilter);
+    refetch();
   };
 
   const formatDate = (dateStr: string | null) => {
@@ -184,8 +102,9 @@ export function BeritaPage() {
   if (error && data.length === 0) {
     return (
       <AdminLayout>
+      {ConfirmElement}
         <div style={{ padding: '2rem' }}>
-          <ErrorState message={error} onRetry={() => fetchData()} />
+          <ErrorState message={error.message || 'Gagal'} onRetry={() => refetch()} />
         </div>
       </AdminLayout>
     );
@@ -214,8 +133,8 @@ export function BeritaPage() {
           <input
             type="text"
             placeholder="Cari berita..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             className={styles.searchInput}
           />
@@ -353,7 +272,7 @@ export function BeritaPage() {
                 variant="secondary"
                 size="sm"
                 disabled={meta.page <= 1}
-                onClick={() => fetchData(meta.page - 1, search, statusFilter)}
+                onClick={() => setPage(meta.page - 1)}
               >
                 Previous
               </Button>
@@ -361,7 +280,7 @@ export function BeritaPage() {
                 variant="secondary"
                 size="sm"
                 disabled={meta.page >= meta.totalPages}
-                onClick={() => fetchData(meta.page + 1, search, statusFilter)}
+                onClick={() => setPage(meta.page + 1)}
               >
                 Next
               </Button>

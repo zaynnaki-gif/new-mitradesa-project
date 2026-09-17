@@ -1,56 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { AdminLayout } from '@/layouts';
 import { Button, Input, Select, Badge } from '@/components/ui';
 import { LoadingState, ErrorState } from '@/components/states';
 import { Pagination } from '@/components/Pagination';
 import { useAuthStore } from '@/stores/auth.store';
-import { API_URL } from '@/lib/constants';
-import { safeFetchJson } from '@/lib/fetch';
 import styles from './MutasiPage.module.css';
+import { useConfirm } from '@/hooks/useConfirm';
 
-// ============================================
-// Types
-// ============================================
-
-interface MutasiPenduduk {
-  id: string;
-  jenisMutasi: 'LAHIR' | 'MATI' | 'PINDAH_DATANG' | 'PINDAH_PERGI';
-  tanggalMutasi: string;
-  nik: string;
-  namaLengkap: string;
-  jenisKelamin?: string;
-  tanggalLahir?: string;
-  tempatLahir?: string;
-  nikAyah?: string;
-  nikIbu?: string;
-  penyebabMati?: string;
-  alamatAsal?: string;
-  desaAsal?: string;
-  kecamatanAsal?: string;
-  kabupatenAsal?: string;
-  alamatTujuan?: string;
-  desaTujuan?: string;
-  kecamatanTujuan?: string;
-  kabupatenTujuan?: string;
-  keterangan?: string;
-  createdAt: string;
-}
-
-interface MutasiStats {
-  tahun: number;
-  lahir: number;
-  mati: number;
-  pindahDatang: number;
-  pindahPergi: number;
-  netto: number;
-}
-
-interface PaginationMeta {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-}
+import { useMutasiList, useMutasiStats, useCreateMutasi, useUpdateMutasi, useDeleteMutasi, MutasiPenduduk } from '@/hooks/useMutasiPenduduk';
 
 const JENIS_MUTASI_OPTIONS = [
   { value: '', label: 'Semua Jenis' },
@@ -74,20 +31,25 @@ const JENIS_MUTASI_LABEL: Record<string, { label: string; color: BadgeColor }> =
 
 export default function MutasiPage() {
   const { token } = useAuthStore();
+  const { confirm, ConfirmElement } = useConfirm();
 
-  // ============================================
-  // State
-  // ============================================
-  const [items, setItems] = useState<MutasiPenduduk[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [pagination, setPagination] = useState<PaginationMeta | null>(null);
-  const [stats, setStats] = useState<MutasiStats | null>(null);
-
-  // Filters
+  const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [jenisMutasi, setJenisMutasi] = useState('');
   const [tahun, setTahun] = useState(new Date().getFullYear().toString());
+
+  const { data: listResponse, isLoading: loading, error: queryError } = useMutasiList(page, search, jenisMutasi, tahun, token || '');
+  const items = listResponse?.data || [];
+  const pagination = listResponse?.meta || null;
+  const error = queryError ? queryError.message : null;
+
+  const { data: stats } = useMutasiStats(tahun, token || '');
+
+  const createMutation = useCreateMutasi();
+  const updateMutation = useUpdateMutasi();
+  const deleteMutation = useDeleteMutasi();
+
+
 
   // Modal state
   const [showModal, setShowModal] = useState(false);
@@ -117,75 +79,11 @@ export default function MutasiPage() {
     keterangan: '',
   });
 
-  // ============================================
-  // Fetch Data
-  // ============================================
-  const fetchData = async (page = 1) => {
-    setLoading(true);
-    setError(null);
 
-    try {
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: '20',
-      });
 
-      if (search) params.append('search', search);
-      if (jenisMutasi) params.append('jenisMutasi', jenisMutasi);
-      if (tahun) params.append('tahun', tahun);
-
-      const data = await safeFetchJson(`${API_URL}/mutasi-penduduk?${params}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (data.success) {
-        setItems(data.data || []);
-        setPagination(data.meta || null);
-      } else {
-        throw new Error(data.message || 'Gagal mengambil data');
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchStats = async () => {
-    try {
-      const data = await safeFetchJson(`${API_URL}/mutasi-penduduk/stats`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (data.success) {
-        setStats(data.data);
-      }
-    } catch (err) {
-      console.error('Failed to fetch stats:', err);
-    }
-  };
-
-  useEffect(() => {
-    if (token) {
-      fetchData();
-      fetchStats();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, jenisMutasi, tahun]);
-
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    fetchData(1);
-  };
-
-  const handlePageChange = (page: number) => {
-    fetchData(page);
+    setPage(1);
   };
 
   // ============================================
@@ -245,15 +143,10 @@ export default function MutasiPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!token) return;
     setFormLoading(true);
 
     try {
-      const url = editingItem
-        ? `${API_URL}/mutasi-penduduk/${editingItem.id}`
-        : `${API_URL}/mutasi-penduduk`;
-
-      const method = editingItem ? 'PATCH' : 'POST';
-
       // Prepare payload - only include relevant fields based on jenis mutasi
       const payload: Record<string, unknown> = {
         jenisMutasi: formData.jenisMutasi,
@@ -286,48 +179,27 @@ export default function MutasiPage() {
         if (formData.kabupatenTujuan) payload.kabupatenTujuan = formData.kabupatenTujuan;
       }
 
-      const data = await safeFetchJson(url, {
-        method,
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (data.success) {
-        setShowModal(false);
-        fetchData(pagination?.page || 1);
-        fetchStats();
+      if (editingItem) {
+        await updateMutation.mutateAsync({ id: editingItem.id, data: payload, token });
       } else {
-        alert(data.message || 'Gagal menyimpan data');
+        await createMutation.mutateAsync({ data: payload, token });
       }
-    } catch {
-      alert('Terjadi kesalahan');
+      setShowModal(false);
+    } catch (error: any) {
+      alert(error.message || 'Terjadi kesalahan');
     } finally {
       setFormLoading(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Yakin ingin menghapus data ini?')) return;
+    const _ok = await confirm({ message: 'Yakin ingin menghapus data ini?', title: 'Konfirmasi' }); if (!_ok) return;
+    if (!token) return;
 
     try {
-      const data = await safeFetchJson(`${API_URL}/mutasi-penduduk/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (data.success) {
-        fetchData(pagination?.page || 1);
-        fetchStats();
-      } else {
-        alert(data.message || 'Gagal menghapus data');
-      }
-    } catch {
-      alert('Terjadi kesalahan');
+      await deleteMutation.mutateAsync({ id, token });
+    } catch (error: any) {
+      alert(error.message || 'Terjadi kesalahan');
     }
   };
 
@@ -342,6 +214,7 @@ export default function MutasiPage() {
 
   return (
     <AdminLayout>
+      {ConfirmElement}
       <div className={styles.container}>
         {/* Header */}
         <div className={styles.header}>
@@ -422,7 +295,7 @@ export default function MutasiPage() {
           <ErrorState
             title="Gagal Memuat Data"
             message={error}
-            onRetry={() => fetchData()}
+            onRetry={() => window.location.reload()}
           />
         ) : (
           <>
@@ -487,7 +360,7 @@ export default function MutasiPage() {
               <Pagination
                 currentPage={pagination.page}
                 totalPages={pagination.totalPages}
-                onPageChange={handlePageChange}
+                onPageChange={setPage}
                 disabled={loading}
               />
             )}

@@ -37,7 +37,7 @@ function PerangkatCard({ children, delay = 0 }: { children: React.ReactNode, del
 
 export default function PemerintahanPage() {
   const { data: identitas, isLoading, error, refetch } = useIdentitasDesa();
-  const { data: perangkatDesa, loading: perangkatLoading, error: perangkatError, refetch: perangkatRefetch } = usePerangkatDesa();
+  const { data: perangkatDesa, isLoading: perangkatLoading, error: perangkatError, refetch: perangkatRefetch } = usePerangkatDesa();
 
   const villageName = identitas?.namaDesa || 'Desa';
 
@@ -86,7 +86,7 @@ export default function PemerintahanPage() {
     return priorities[jabatan] || 99;
   };
 
-  const sortedPerangkat = [...perangkatDesa].sort(
+  const sortedPerangkat = [...(perangkatDesa || [])].sort(
     (a, b) => getJabatanPriority(a.jabatan) - getJabatanPriority(b.jabatan)
   );
 
@@ -188,8 +188,8 @@ export default function PemerintahanPage() {
 
                 {perangkatError && (
                   <ErrorState
-                    title="Gagal Memuat Perangkat Desa"
-                    message={perangkatError}
+                    title="Gagal Memuat Struktur Pemerintahan"
+                    message={perangkatError?.message || 'Terjadi kesalahan saat memuat data perangkat desa'}
                     onRetry={() => perangkatRefetch()}
                   />
                 )}
@@ -263,24 +263,7 @@ export default function PemerintahanPage() {
                     <span className={styles.infoLabel}>Desa</span>
                     <span className={styles.infoValue}>{villageName}</span>
                   </div>
-                  {identitas?.desa?.kecamatan && (
-                    <div className={styles.infoRow}>
-                      <span className={styles.infoLabel}>Kecamatan</span>
-                      <span className={styles.infoValue}>{identitas.desa.kecamatan.nama}</span>
-                    </div>
-                  )}
-                  {identitas?.desa?.kecamatan?.kabupaten && (
-                    <div className={styles.infoRow}>
-                      <span className={styles.infoLabel}>Kabupaten</span>
-                      <span className={styles.infoValue}>{identitas.desa.kecamatan.kabupaten.nama}</span>
-                    </div>
-                  )}
-                  {identitas?.desa?.kecamatan?.kabupaten?.provinsi && (
-                    <div className={styles.infoRow}>
-                      <span className={styles.infoLabel}>Provinsi</span>
-                      <span className={styles.infoValue}>{identitas.desa.kecamatan.kabupaten.provinsi.nama}</span>
-                    </div>
-                  )}
+                  {/* Location properties removed */}
                   {identitas?.kodeDesa && (
                     <div className={styles.infoRow}>
                       <span className={styles.infoLabel}>Kode Desa</span>

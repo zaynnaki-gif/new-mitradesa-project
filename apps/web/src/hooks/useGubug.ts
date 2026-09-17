@@ -18,10 +18,8 @@ interface ApiResponse<T> {
   data: T;
 }
 
-async function fetchGubug(desaId?: number): Promise<Gubug[]> {
-  const url = desaId
-    ? `${API_URL}/wilayah/gubug?desaId=${desaId}`
-    : `${API_URL}/wilayah/gubug`;
+async function fetchGubug(): Promise<Gubug[]> {
+  const url = `${API_URL}/wilayah/gubug`;
 
   const response = await fetch(url);
 
@@ -33,11 +31,10 @@ async function fetchGubug(desaId?: number): Promise<Gubug[]> {
   return result.data || [];
 }
 
-export function useGubug(desaId?: number) {
+export function useGubug() {
   return useQuery<Gubug[]>({
-    queryKey: ['wilayah', 'gubug', desaId],
-    queryFn: () => fetchGubug(desaId),
-    enabled: !!desaId,
+    queryKey: ['wilayah', 'gubug'],
+    queryFn: () => fetchGubug(),
     staleTime: 1000 * 60 * 30, // 30 minutes
     gcTime: 1000 * 60 * 60 * 24, // 24 hours
   });

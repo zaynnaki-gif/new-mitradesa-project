@@ -1,30 +1,17 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { AdminLayout } from '@/layouts';
 import { Button, Modal } from '@/components/ui';
 import { LoadingState, ErrorState } from '@/components/states';
 import { useAuthStore } from '@/stores/auth.store';
-import { API_URL } from '@/lib/constants';
-import { safeFetchJson } from '@/lib/fetch';
 import styles from './KasUmumPage.module.css';
-
-interface KasUmumEntry {
-  id: string;
-  tanggal: string;
-  jenis: 'KAS_MASUK' | 'KAS_KELUAR';
-  uraian: string;
-  jumlah: number;
-  saldo: number;
-  createdAt: string;
-}
-
-interface PaginationMeta {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-}
-
-
+import { useConfirm } from '@/hooks/useConfirm';
+import {
+  KasUmumEntry,
+  useKasUmumList,
+  useKasUmumSaldo,
+  useSaveKasUmum,
+  useDeleteKasUmum
+} from '@/hooks/useKeuangan';
 
 const JENIS_OPTIONS = [
   { value: 'KAS_MASUK', label: 'Kas Masuk' },
@@ -33,73 +20,32 @@ const JENIS_OPTIONS = [
 
 export default function KasUmumPage() {
   const { token } = useAuthStore();
+  const { confirm, ConfirmElement } = useConfirm();
 
-  const [entries, setEntries] = useState<KasUmumEntry[]>([]);
-  const [saldo, setSaldo] = useState<number>(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [meta, setMeta] = useState<PaginationMeta | null>(null);
-
-  // Filters
+  const [page, setPage] = useState(1);
   const [tahun, setTahun] = useState(new Date().getFullYear().toString());
   const [bulan, setBulan] = useState('');
   const [jenis, setJenis] = useState('');
 
+  const { data: listResponse, isLoading, error: queryError, refetch } = useKasUmumList(page, tahun, bulan, jenis, token || '');
+  const { data: saldoData } = useKasUmumSaldo(token || '');
+  const saveMutation = useSaveKasUmum();
+  const deleteMutation = useDeleteKasUmum();
+
+  const entries = listResponse?.data || [];
+  const meta = listResponse?.meta;
+  const saldo = saldoData?.saldo || 0;
+  const error = queryError instanceof Error ? queryError.message : null;
+
   // Modal form
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState<KasUmumEntry | null>(null);
-  const [formLoading, setFormLoading] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     tanggal: new Date().toISOString().split('T')[0],
     jenis: 'KAS_MASUK' as 'KAS_MASUK' | 'KAS_KELUAR',
     uraian: '',
     jumlah: '',
   });
-
-  const fetchEntries = useCallback(async (page = 1) => {
-    setLoading(true);
-    setError(null);
-    const params = new URLSearchParams({
-      page: String(page),
-      limit: '20',
-      tahun,
-      ...(bulan && { bulan }),
-      ...(jenis && { jenis }),
-    });
-
-    try {
-      const data = await safeFetchJson(`${API_URL}/kas-umum?${params}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (data.success) {
-        setEntries(data.data || []);
-        setMeta(data.meta);
-      } else {
-        throw new Error(data.error?.message || 'Gagal memuat data');
-      }
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Terjadi kesalahan');
-    } finally {
-      setLoading(false);
-    }
-  }, [token, tahun, bulan, jenis]);
-
-  const fetchSaldo = useCallback(async () => {
-    try {
-      const data = await safeFetchJson(`${API_URL}/kas-umum/saldo`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (data.success) {
-        setSaldo(data.data.saldo || 0);
-      }
-    } catch { /* ignore */ }
-  }, [token]);
-
-  useEffect(() => {
-    fetchEntries(1);
-    fetchSaldo();
-  }, [fetchEntries, fetchSaldo]);
 
   const openCreate = () => {
     setEditing(null);
@@ -109,7 +55,6 @@ export default function KasUmumPage() {
       uraian: '',
       jumlah: '',
     });
-    setFormError(null);
     setShowModal(true);
   };
 
@@ -121,58 +66,40 @@ export default function KasUmumPage() {
       uraian: entry.uraian,
       jumlah: String(entry.jumlah),
     });
-    setFormError(null);
     setShowModal(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.uraian || !formData.jumlah) return;
-    setFormLoading(true);
-    setFormError(null);
-
-    const url = editing
-      ? `${API_URL}/kas-umum/${editing.id}`
-      : `${API_URL}/kas-umum`;
-    const method = editing ? 'PATCH' : 'POST';
-    const body = {
-      tanggal: formData.tanggal,
-      jenis: formData.jenis,
-      uraian: formData.uraian,
-      jumlah: parseFloat(formData.jumlah),
-    };
 
     try {
-      const data = await safeFetchJson(url, {
-        method,
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(body),
+      const body = {
+        tanggal: formData.tanggal,
+        jenis: formData.jenis,
+        uraian: formData.uraian,
+        jumlah: parseFloat(formData.jumlah),
+      };
+
+      await saveMutation.mutateAsync({
+        id: editing?.id,
+        data: body,
+        token: token || '',
       });
-      if (data.success) {
-        setShowModal(false);
-        fetchEntries(meta?.page || 1);
-        fetchSaldo();
-      } else {
-        setFormError(data.error?.message || 'Terjadi kesalahan');
-      }
-    } catch (err: any) { setFormError(err.message || 'Terjadi kesalahan'); } // eslint-disable-line @typescript-eslint/no-explicit-any
-    finally { setFormLoading(false); }
+      setShowModal(false);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Terjadi kesalahan');
+    }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Hapus entri ini?')) return;
+    if (!await confirm({ message: 'Hapus entri ini?', title: 'Konfirmasi' })) return;
+
     try {
-      const data = await safeFetchJson(`${API_URL}/kas-umum/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (data.success) {
-        fetchEntries(meta?.page || 1);
-        fetchSaldo();
-      } else {
-        alert(data.error?.message || 'Gagal hapus');
-      }
-    } catch (err: any) { alert(err.message || 'Terjadi kesalahan'); } // eslint-disable-line @typescript-eslint/no-explicit-any
+      await deleteMutation.mutateAsync({ id, token: token || '' });
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Terjadi kesalahan');
+    }
   };
 
   const formatRupiah = (n: number) =>
@@ -192,6 +119,7 @@ export default function KasUmumPage() {
 
   return (
     <AdminLayout>
+      {ConfirmElement}
       <div className={styles.container}>
         {/* Header */}
         <div className={styles.header}>
@@ -215,7 +143,7 @@ export default function KasUmumPage() {
           <select
             className={styles.filterSelect}
             value={tahun}
-            onChange={e => { setTahun(e.target.value); }}
+            onChange={e => { setTahun(e.target.value); setPage(1); }}
           >
             {[2020, 2021, 2022, 2023, 2024, 2025, 2026, 2027, 2028].map(y => (
               <option key={y} value={String(y)}>{y}</option>
@@ -224,7 +152,7 @@ export default function KasUmumPage() {
           <select
             className={styles.filterSelect}
             value={bulan}
-            onChange={e => setBulan(e.target.value)}
+            onChange={e => { setBulan(e.target.value); setPage(1); }}
           >
             <option value="">Semua Bulan</option>
             {months.map(m => (
@@ -234,21 +162,20 @@ export default function KasUmumPage() {
           <select
             className={styles.filterSelect}
             value={jenis}
-            onChange={e => setJenis(e.target.value)}
+            onChange={e => { setJenis(e.target.value); setPage(1); }}
           >
             <option value="">Semua Jenis</option>
             {JENIS_OPTIONS.map(o => (
               <option key={o.value} value={o.value}>{o.label}</option>
             ))}
           </select>
-          <Button variant="outline" onClick={() => fetchEntries(1)}>Filter</Button>
         </div>
 
         {/* Content */}
-        {loading ? (
+        {isLoading ? (
           <LoadingState message="Memuat..." fullPage />
         ) : error ? (
-          <ErrorState title="Gagal" message={error} onRetry={() => fetchEntries()} />
+          <ErrorState title="Gagal" message={error} onRetry={() => refetch()} />
         ) : (
           <>
             <div className={styles.tableContainer}>
@@ -311,7 +238,7 @@ export default function KasUmumPage() {
                 <Button
                   size="sm" variant="outline"
                   disabled={meta.page <= 1}
-                  onClick={() => fetchEntries(meta.page - 1)}
+                  onClick={() => setPage(meta.page - 1)}
                 >
                   ← Prev
                 </Button>
@@ -321,7 +248,7 @@ export default function KasUmumPage() {
                 <Button
                   size="sm" variant="outline"
                   disabled={meta.page >= meta.totalPages}
-                  onClick={() => fetchEntries(meta.page + 1)}
+                  onClick={() => setPage(meta.page + 1)}
                 >
                   Next →
                 </Button>
@@ -333,12 +260,12 @@ export default function KasUmumPage() {
         {/* Modal */}
         <Modal
           isOpen={showModal}
-          onClose={() => setShowModal(false)}
+          onClose={() => !saveMutation.isPending && setShowModal(false)}
           title={editing ? 'Edit Entri Kas Umum' : 'Tambah Entri Kas Umum'}
         >
           <form onSubmit={handleSubmit} className={styles.form}>
-            {formError && (
-              <div className={styles.formError}>{formError}</div>
+            {saveMutation.error && (
+              <div className={styles.formError}>{saveMutation.error.message}</div>
             )}
             <div className={styles.formGrid}>
               <div>
@@ -390,9 +317,9 @@ export default function KasUmumPage() {
               />
             </div>
             <div className={styles.formActions}>
-              <Button type="button" variant="outline" onClick={() => setShowModal(false)}>Batal</Button>
-              <Button type="submit" disabled={formLoading}>
-                {formLoading ? 'Menyimpan...' : 'Simpan'}
+              <Button type="button" variant="outline" onClick={() => setShowModal(false)} disabled={saveMutation.isPending}>Batal</Button>
+              <Button type="submit" disabled={saveMutation.isPending}>
+                {saveMutation.isPending ? 'Menyimpan...' : 'Simpan'}
               </Button>
             </div>
           </form>

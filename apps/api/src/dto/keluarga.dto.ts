@@ -24,6 +24,9 @@ export const createKeluargaSchema = z.object({
   rt: z.string().max(10).optional(),
   rw: z.string().max(10).optional(),
   dusun: z.string().max(100).optional(),
+  gubugId: z.string().optional().nullable(),
+  rwId: z.string().optional().nullable(),
+  rtId: z.string().optional().nullable(),
   kodePos: z.string().max(10).optional(),
   hubunganKepala: z.string().max(50).default('KEPALA'),
 });
@@ -38,6 +41,9 @@ export const updateKeluargaSchema = z.object({
   rt: z.string().max(10).optional(),
   rw: z.string().max(10).optional(),
   dusun: z.string().max(100).optional(),
+  gubugId: z.string().optional().nullable(),
+  rwId: z.string().optional().nullable(),
+  rtId: z.string().optional().nullable(),
   kodePos: z.string().max(10).optional(),
 });
 
@@ -106,9 +112,10 @@ export interface KeluargaResponse {
   rt: string | null;
   rw: string | null;
   dusun: string | null;
+  gubugId: string | null;
+  rwId: string | null;
+  rtId: string | null;
   kodePos: string | null;
-  desaId: string | null;
-  desaNama: string | null;
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;

@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/auth.store';
 import { API_URL } from '@/lib/constants';
 import { safeFetchJson } from '@/lib/fetch';
 import styles from './ReferensiPage.module.css';
+import { useConfirm } from '@/hooks/useConfirm';
 
 type TabType = 'agama' | 'golongan_darah' | 'status_perkawinan' | 'hubungan_keluarga' | 'pendidikan' | 'pekerjaan' | 'status_kependudukan' | 'jabatan_perangkat' | 'status_perangkat';
 
@@ -42,6 +43,7 @@ const TABS: { id: TabType; label: string; apiEndpoint: string }[] = [
 
 export default function ReferensiPage() {
   const { token } = useAuthStore();
+  const { confirm, ConfirmElement } = useConfirm();
 
   // State
   const [activeTab, setActiveTab] = useState<TabType>('agama');
@@ -141,7 +143,7 @@ export default function ReferensiPage() {
 
   // Delete
   const handleDelete = async (item: RefItem) => {
-    if (!confirm(`Yakin ingin menghapus "${item.nama}"?`)) return;
+    const _ok = await confirm({ message: `Yakin ingin menghapus "${item.nama}"?`, title: 'Konfirmasi' }); if (!_ok) return;
 
     try {
       const data = await safeFetchJson(`${API_URL}${currentTab.apiEndpoint}/${encodeURIComponent(item.kode)}`, {
@@ -179,6 +181,7 @@ export default function ReferensiPage() {
 
   return (
     <AdminLayout>
+      {ConfirmElement}
       <div className={styles.container}>
         {/* Header */}
         <div className={styles.header}>

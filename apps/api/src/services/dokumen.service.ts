@@ -20,7 +20,7 @@ import {
 import { ApiError } from '../utils/response.js';
 import { generateDocumentNumber, generateVerificationToken } from '../utils/numbering.js';
 import { resolveBinding } from '../utils/binding-resolver.js';
-import { getInstanceContext } from '../config/instance.js';
+
 
 export class DokumenDefinitionService {
   private db: PrismaClient;
@@ -100,11 +100,10 @@ export class DokumenDefinitionService {
    * Find document by ID with desa verification
    */
   async findByIdWithDesa(id: bigint) {
-    const { desaId } = getInstanceContext();
     return this.db.dokumenDefinition.findFirst({
       where: {
         id,
-        ...(desaId && { layanan: { desaId } }),
+        ...({}),
       },
       include: {
         layanan: true,
@@ -502,7 +501,6 @@ export class InstanDokumenService {
   async generate(
     data: CreateInstanDokumenInput & { templateVersionId: bigint; requestData?: Record<string, unknown> }
   ) {
-    const { desaId } = getInstanceContext();
     const templateVersion = await this.db.templateVersion.findUnique({
       where: { id: data.templateVersionId },
       include: { template: { include: { dokumen: true } } },
@@ -512,7 +510,7 @@ export class InstanDokumenService {
       throw ApiError.badRequest('Template version belum dipublikasikan');
     }
 
-    const nomorDokumen = await generateDocumentNumber(this.db, desaId, templateVersion.template.dokumen.kode);
+    const nomorDokumen = await generateDocumentNumber(this.db, templateVersion.template.dokumen.kode);
     const verificationToken = generateVerificationToken();
     const content = templateVersion.content as Record<string, unknown>;
     const resolvedContent = data.requestData ? resolveBinding(content, data.requestData) : content;
@@ -540,8 +538,7 @@ export class InstanDokumenService {
     const page = query.page || 1;
     const limit = query.limit || 20;
     const skip = (page - 1) * limit;
-    const { desaId } = getInstanceContext();
-    const where: Prisma.InstanDokumenWhereInput = desaId ? { dokumen: { layanan: { desaId } } } : {};
+    const where: Prisma.InstanDokumenWhereInput = {};
     if (query.dokumenId) where.dokumenId = query.dokumenId;
     if (query.permintaanId) where.permintaanId = query.permintaanId;
     if (query.status) where.status = query.status;
@@ -621,11 +618,9 @@ export class PenandaTanganService {
   }
 
   async create(data: CreatePenandaTanganInput) {
-    const { desaId } = getInstanceContext();
     const pinHash = data.pin ? await bcrypt.hash(data.pin, 10) : undefined;
     return this.db.penandaTangan.create({
       data: {
-        desaId,
         nama: data.nama,
         jabatan: data.jabatan,
         nip: data.nip,
@@ -641,8 +636,7 @@ export class PenandaTanganService {
     const page = query.page || 1;
     const limit = query.limit || 20;
     const skip = (page - 1) * limit;
-    const { desaId } = getInstanceContext();
-    const where: Prisma.PenandaTanganWhereInput = { desaId };
+    const where: Prisma.PenandaTanganWhereInput = { };
     if (query.isActive === 'true') where.isActive = true;
     if (query.isActive === 'false') where.isActive = false;
     if (query.search) {
@@ -663,8 +657,7 @@ export class PenandaTanganService {
   }
 
   async update(id: bigint, data: UpdatePenandaTanganInput) {
-    const { desaId } = getInstanceContext();
-    const existing = await this.db.penandaTangan.findFirst({ where: { id, desaId } });
+    const existing = await this.db.penandaTangan.findFirst({ where: { id } });
     if (!existing) throw ApiError.notFound('Penanda tangan tidak ditemukan');
     const pinHash = data.pin ? await bcrypt.hash(data.pin, 10) : undefined;
     return this.db.penandaTangan.update({
@@ -682,8 +675,7 @@ export class PenandaTanganService {
   }
 
   async delete(id: bigint) {
-    const { desaId } = getInstanceContext();
-    const existing = await this.db.penandaTangan.findFirst({ where: { id, desaId } });
+    const existing = await this.db.penandaTangan.findFirst({ where: { id } });
     if (!existing) throw ApiError.notFound('Penanda tangan tidak ditemukan');
     await this.db.penandaTangan.delete({ where: { id } });
   }

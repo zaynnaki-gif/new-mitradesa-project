@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { prisma } from './prisma.js';
 import { AuditService } from './audit.service.js';
 import {
@@ -13,7 +12,6 @@ import {
 } from '../dto/keluarga.dto.js';
 import { ApiError } from '../utils/response.js';
 import { Prisma } from '@prisma/client';
-import { getInstanceContext } from '../config/instance.js';
 
 /**
  * KeluargaService - ATOMIC operations for Keluarga + AnggotaKeluarga
@@ -40,9 +38,11 @@ export class KeluargaService {
       rt: keluarga.rtId?.toString() || null,
       rw: keluarga.rwId?.toString() || null,
       dusun: keluarga.gubugId?.toString() || null,
+      gubugId: keluarga.gubugId?.toString() || null,
+      rwId: keluarga.rwId?.toString() || null,
+      rtId: keluarga.rtId?.toString() || null,
       kodePos: keluarga.kodePos || null,
-      desaId: keluarga.desaId?.toString() || null,
-      desaNama: keluarga.desa?.nama || null,
+      
       createdAt: keluarga.createdAt.toISOString(),
       updatedAt: keluarga.updatedAt.toISOString(),
       deletedAt: keluarga.deletedAt?.toISOString() || null,
@@ -76,7 +76,7 @@ export class KeluargaService {
 
     const where: any = { deletedAt: null };
 
-    const { desaId } = getInstanceContext();
+    
 
     if (query.search) {
       where.OR = [
@@ -87,7 +87,6 @@ export class KeluargaService {
 
     if (query.noKk) where.noKk = query.noKk;
     if (query.kepalaId) where.kepalaId = query.kepalaId;
-    if (desaId) where.desaId = desaId;
 
     const [data, total] = await Promise.all([
       prisma.keluarga.findMany({
@@ -97,7 +96,7 @@ export class KeluargaService {
         orderBy: { createdAt: 'desc' },
         include: {
           kepala: { select: { id: true, nik: true, namaLengkap: true } },
-          desa: { select: { id: true, nama: true } },
+          
         },
       }),
       prisma.keluarga.count({ where }),
@@ -113,12 +112,12 @@ export class KeluargaService {
    * Get keluarga by ID with anggota
    */
   async findById(id: bigint): Promise<KeluargaDetailResponse> {
-    const { desaId } = getInstanceContext();
+    
     const keluarga = await prisma.keluarga.findFirst({
-      where: { id, desaId },
+      where: { id },
       include: {
         kepala: { select: { id: true, nik: true, namaLengkap: true } },
-        desa: { select: { id: true, nama: true } },
+        
         anggota: {
           where: { isAktif: true },
           include: { penduduk: { select: { id: true, nik: true, namaLengkap: true } } },
@@ -141,8 +140,8 @@ export class KeluargaService {
    * Get anggota for a keluarga
    */
   async getAnggota(keluargaId: bigint): Promise<AnggotaResponse[]> {
-    const { desaId } = getInstanceContext();
-    const keluarga = await prisma.keluarga.findFirst({ where: { id: keluargaId, desaId } });
+    
+    const keluarga = await prisma.keluarga.findFirst({ where: { id: keluargaId } });
     if (!keluarga || keluarga.deletedAt) {
       throw ApiError.notFound('Keluarga tidak ditemukan');
     }
@@ -168,13 +167,13 @@ export class KeluargaService {
     const kepalaId = typeof data.kepalaId === 'bigint' ? data.kepalaId : data.kepalaId;
 
     // Validate kepala exists and is active
-    const { desaId } = getInstanceContext();
-    const kepala = await prisma.penduduk.findFirst({ where: { id: kepalaId, desaId } });
+    
+    const kepala = await prisma.penduduk.findFirst({ where: { id: kepalaId } });
     if (!kepala) throw ApiError.badRequest('Kepala keluarga tidak ditemukan');
     if (!kepala.isAktif) throw ApiError.badRequest('Kepala keluarga tidak aktif');
 
     // Check no duplicate noKk
-    const dup = await prisma.keluarga.findFirst({ where: { noKk: data.noKk, desaId } });
+    const dup = await prisma.keluarga.findFirst({ where: { noKk: data.noKk } });
     if (dup && !dup.deletedAt) throw ApiError.conflict('Nomor KK sudah terdaftar');
 
     // ATOMIC: kepala FK checked first, rollback on any failure
@@ -186,11 +185,11 @@ export class KeluargaService {
             noKk: data.noKk,
             kepalaId: kepalaId,
             alamat: data.alamat || null,
-            rtId: data.rt ? BigInt(data.rt) : null,
-            rwId: data.rw ? BigInt(data.rw) : null,
-            gubugId: data.dusun ? BigInt(data.dusun) : null,
+            gubugId: data.gubugId ? BigInt(data.gubugId) : (data.dusun && !isNaN(Number(data.dusun)) ? BigInt(data.dusun) : null),
+            rwId: data.rwId ? BigInt(data.rwId) : (data.rw && !isNaN(Number(data.rw)) ? BigInt(data.rw) : null),
+            rtId: data.rtId ? BigInt(data.rtId) : (data.rt && !isNaN(Number(data.rt)) ? BigInt(data.rt) : null),
             kodePos: data.kodePos || null,
-            desaId,
+            
           },
         });
 
@@ -240,14 +239,14 @@ export class KeluargaService {
     actorIp?: string,
     actorAgent?: string
   ) {
-    const { desaId } = getInstanceContext();
-    const existing = await prisma.keluarga.findFirst({ where: { id, desaId } });
+    
+    const existing = await prisma.keluarga.findFirst({ where: { id } });
     if (!existing || existing.deletedAt) throw ApiError.notFound('Keluarga tidak ditemukan');
 
     // Check duplicate noKk if changing
     if (data.noKk && data.noKk !== existing.noKk) {
       const dup = await prisma.keluarga.findFirst({
-        where: { noKk: data.noKk, id: { not: id }, desaId },
+        where: { noKk: data.noKk, id: { not: id } },
       });
       if (dup && !dup.deletedAt) throw ApiError.conflict('Nomor KK sudah terdaftar');
     }
@@ -255,7 +254,7 @@ export class KeluargaService {
     // Validate new kepala if changing
     if (data.kepalaId && data.kepalaId !== existing.kepalaId) {
       const kepala = await prisma.penduduk.findFirst({
-        where: { id: data.kepalaId, desaId },
+        where: { id: data.kepalaId },
       });
       if (!kepala) throw ApiError.badRequest('Kepala tidak valid');
       if (!kepala.isAktif) throw ApiError.badRequest('Kepala tidak aktif');
@@ -266,9 +265,7 @@ export class KeluargaService {
     if (data.noKk !== undefined) updateData.noKk = data.noKk;
     if (data.kepalaId !== undefined) updateData.kepalaId = data.kepalaId;
     if (data.alamat !== undefined) updateData.alamat = data.alamat;
-    if (data.rt !== undefined) updateData.rt = data.rt;
-    if (data.rw !== undefined) updateData.rw = data.rw;
-    if (data.dusun !== undefined) updateData.dusun = data.dusun;
+    if (data.gubugId !== undefined) updateData.gubugId = data.gubugId ? BigInt(data.gubugId) : null;
     if (data.kodePos !== undefined) updateData.kodePos = data.kodePos;
 
     const result = await prisma.keluarga.update({
@@ -301,8 +298,8 @@ export class KeluargaService {
     actorIp?: string,
     actorAgent?: string
   ) {
-    const { desaId } = getInstanceContext();
-    const existing = await prisma.keluarga.findFirst({ where: { id, desaId } });
+    
+    const existing = await prisma.keluarga.findFirst({ where: { id } });
     if (!existing || existing.deletedAt) throw ApiError.notFound('Keluarga tidak ditemukan');
 
     // Check for active anggota (except kepala)
@@ -344,11 +341,11 @@ export class KeluargaService {
     actorIp?: string,
     actorAgent?: string
   ) {
-    const { desaId } = getInstanceContext();
-    const keluarga = await prisma.keluarga.findFirst({ where: { id: keluargaId, desaId } });
+    
+    const keluarga = await prisma.keluarga.findFirst({ where: { id: keluargaId } });
     if (!keluarga || keluarga.deletedAt) throw ApiError.notFound('Keluarga tidak ditemukan');
 
-    const penduduk = await prisma.penduduk.findFirst({ where: { id: data.pendudukId, desaId } });
+    const penduduk = await prisma.penduduk.findFirst({ where: { id: data.pendudukId } });
     if (!penduduk) throw ApiError.notFound('Penduduk tidak ditemukan');
     if (!penduduk.isAktif) throw ApiError.badRequest('Penduduk tidak aktif');
 
@@ -441,14 +438,14 @@ export class KeluargaService {
     actorIp?: string,
     actorAgent?: string
   ) {
-    const { desaId } = getInstanceContext();
+    
     const existing = await prisma.anggotaKeluarga.findUnique({
       where: { id: anggotaId },
     });
     if (!existing) throw ApiError.notFound('Anggota tidak ditemukan');
     if (existing.keluargaId !== keluargaId) throw ApiError.notFound('Anggota tidak ditemukan di keluarga ini');
 
-    const keluarga = await prisma.keluarga.findFirst({ where: { id: keluargaId, desaId } });
+    const keluarga = await prisma.keluarga.findFirst({ where: { id: keluargaId } });
     if (!keluarga) throw ApiError.notFound('Keluarga tidak ditemukan');
     if (existing.pendudukId === keluarga.kepalaId) {
       throw ApiError.badRequest('Tidak dapat menghapus kepala keluarga');

@@ -1,37 +1,15 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { AdminLayout } from '@/layouts';
 import { Button, Select, Badge } from '@/components/ui';
 import { LoadingState, ErrorState } from '@/components/states';
 import { Pagination } from '@/components/Pagination';
 import { useAuthStore } from '@/stores/auth.store';
-import { API_URL } from '@/lib/constants';
-import { safeFetchJson } from '@/lib/fetch';
+
+import { usePerangkatDesaList, useSavePerangkatDesa, useDeletePerangkatDesa, PerangkatDesaAdmin as PerangkatDesa } from '@/hooks/usePerangkatDesa';
+import { RecordSelector } from '@/components/RecordSelector';
 import styles from './PerangkatDesaPage.module.css';
 
-interface PerangkatDesa {
-  id: string;
-  pendudukId: string;
-  pendudukNik: string;
-  pendudukNama: string;
-  desaId: string;
-  desaNama: string;
-  jabatan: string;
-  status: string;
-  fotoUrl: string | null;
-  accountId: string | null;
-  accountUsername: string | null;
-  createdAt: string;
-  updatedAt: string;
-  deletedAt: string | null;
-  isAktif: boolean;
-}
 
-interface PaginationMeta {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-}
 
 const JABATAN_OPTIONS = [
   { value: 'KEPALA_DESA', label: 'Kepala Desa' },
@@ -51,14 +29,22 @@ const STATUS_OPTIONS = [
 export default function PerangkatDesaPage() {
   const { token } = useAuthStore();
 
-  const [items, setItems] = useState<PerangkatDesa[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [meta, setMeta] = useState<PaginationMeta | null>(null);
+  const [page, setPage] = useState(1);
 
   // Filters
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
+
+  const { data: response, isLoading: loading, error, refetch: fetchItems } = usePerangkatDesaList(
+    { page, limit: 20, search, status },
+    token || ''
+  );
+  
+  const items = response?.data || [];
+  const meta = response?.meta || null;
+
+  const saveMutation = useSavePerangkatDesa();
+  const deleteMutation = useDeletePerangkatDesa();
 
   // Modal
   const [showModal, setShowModal] = useState(false);
@@ -66,126 +52,62 @@ export default function PerangkatDesaPage() {
   const [formLoading, setFormLoading] = useState(false);
   const [formData, setFormData] = useState({ jabatan: '', status: 'AKTIF' });
 
-  // Penduduk search for linking
-  const [pendudukSearch, setPendudukSearch] = useState('');
-  const [selectedPenduduk, setSelectedPenduduk] = useState<{ id: string; nik: string; namaLengkap: string } | null>(null);
-  const [pendudukLoading, setPendudukLoading] = useState(false);
-  const [pendudukList, setPendudukList] = useState<{ id: string; nik: string; namaLengkap: string }[]>([]);
-
-  const fetchItems = useCallback(async (page = 1) => {
-    setLoading(true);
-    setError(null);
-    const params = new URLSearchParams({ page: String(page), limit: '20' });
-    if (search) params.set('search', search);
-    if (status) params.set('status', status);
-
-    try {
-      const data = await safeFetchJson(`${API_URL}/perangkat-desa?${params}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (data.success) {
-        setItems(data.data || []);
-        setMeta(data.meta);
-      } else {
-        throw new Error(data.error?.message || 'Gagal memuat data');
-      }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [token, search, status]);
-
-  useEffect(() => { fetchItems(); }, [fetchItems]);
-
-  // Search penduduk for linking
-  useEffect(() => {
-    if (!pendudukSearch || pendudukSearch.length < 3) {
-      setPendudukList([]);
-      return;
-    }
-    const timer = setTimeout(async () => {
-      setPendudukLoading(true);
-      try {
-        const data = await safeFetchJson(`${API_URL}/penduduk?search=${encodeURIComponent(pendudukSearch)}&limit=10`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (data.success) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          setPendudukList(data.data.map((p: any) => ({ id: p.id, nik: p.nik, namaLengkap: p.namaLengkap })));
-        }
-      } catch { /* ignore */ }
-      finally { setPendudukLoading(false); }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [pendudukSearch, token]);
+  // Penduduk search state
+  const [selectedPendudukId, setSelectedPendudukId] = useState<string>('');
+  const [defaultSearchName, setDefaultSearchName] = useState<string>('');
 
   const openCreate = () => {
     setEditing(null);
     setFormData({ jabatan: '', status: 'AKTIF' });
-    setSelectedPenduduk(null);
-    setPendudukSearch('');
-    setPendudukList([]);
+    setSelectedPendudukId('');
+    setDefaultSearchName('');
     setShowModal(true);
   };
 
   const openEdit = (item: PerangkatDesa) => {
     setEditing(item);
     setFormData({ jabatan: item.jabatan, status: item.status });
-    setSelectedPenduduk(null);
-    setPendudukSearch('');
-    setPendudukList([]);
+    setSelectedPendudukId(item.pendudukId);
+    setDefaultSearchName(item.pendudukNama || '');
     setShowModal(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Validate
-    if (!editing && !selectedPenduduk) {
+    if (!selectedPendudukId && !editing) {
       alert('Pilih penduduk terlebih dahulu');
       return;
     }
-    if (!formData.jabatan) {
-      alert('Jabatan wajib diisi');
-      return;
-    }
-
     setFormLoading(true);
-    try {
-      const url = editing
-        ? `${API_URL}/perangkat-desa/${editing.id}`
-        : `${API_URL}/perangkat-desa`;
-      const method = editing ? 'PATCH' : 'POST';
-      const body: Record<string, unknown> = { ...formData };
-      if (!editing && selectedPenduduk) body.pendudukId = selectedPenduduk.id;
 
-      const data = await safeFetchJson(url, {
-        method,
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(body),
+    const payload = {
+      pendudukId: selectedPendudukId || editing?.pendudukId,
+      jabatan: formData.jabatan,
+      status: formData.status,
+    };
+
+    try {
+      await saveMutation.mutateAsync({
+        id: editing?.id,
+        payload,
+        token: token || '',
       });
-      if (data.success) {
-        setShowModal(false);
-        fetchItems(meta?.page || 1);
-      } else {
-        alert(data.error?.message || data.message || 'Terjadi kesalahan');
-      }
-    } catch (err: any) { alert(err.message || 'Terjadi kesalahan'); } // eslint-disable-line @typescript-eslint/no-explicit-any
-    finally { setFormLoading(false); }
+      setShowModal(false);
+    } catch (err: any) {
+      alert(err.message || 'Terjadi kesalahan');
+    } finally {
+      setFormLoading(false);
+    }
   };
 
-  const handleDelete = async (item: PerangkatDesa) => {
-    if (!confirm(`Hapus perangkat "${item.pendudukNama}" (${item.jabatan})?`)) return;
+  const handleDelete = async (id: string) => {
+    if (!confirm('Apakah Anda yakin ingin menghapus perangkat desa ini?')) return;
+    
     try {
-      const data = await safeFetchJson(`${API_URL}/perangkat-desa/${item.id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (data.success) fetchItems(meta?.page || 1);
-      else alert(data.error?.message || 'Gagal hapus');
-    } catch (err: any) { alert(err.message || 'Terjadi kesalahan'); } // eslint-disable-line @typescript-eslint/no-explicit-any
+      await deleteMutation.mutateAsync({ id, token: token || '' });
+    } catch (err: any) {
+      alert(err.message || 'Gagal menghapus perangkat desa');
+    }
   };
 
   const formatDate = (date: string) => {
@@ -206,34 +128,38 @@ export default function PerangkatDesaPage() {
 
         {/* Filters */}
         <div className={styles.filters}>
-          <div className={styles.filterRow}>
+          <div className={styles.search}>
             <input
               type="text"
-              placeholder="Cari NIK atau nama..."
+              placeholder="Cari nama atau jabatan..."
               value={search}
-              onChange={e => setSearch(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && fetchItems(1)}
-              className={styles.filterInput}
-              style={{ padding: '0.5rem', border: '1px solid var(--color-border)', borderRadius: '0.375rem', fontSize: '0.875rem', minWidth: '200px' }}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              className={styles.searchInput}
             />
-            <Select
-              value={status}
-              onChange={e => setStatus(e.target.value)}
-              style={{ width: 140 }}
-            >
-              <option value="">Semua Status</option>
-              {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </Select>
-            <Button onClick={() => fetchItems(1)}>Cari</Button>
-            <Button variant="outline" onClick={() => { setSearch(''); setStatus(''); fetchItems(1); }}>Reset</Button>
           </div>
+          <Select
+            value={status}
+            onChange={(e) => {
+              setStatus(e.target.value);
+              setPage(1);
+            }}
+            options={[{ value: '', label: 'Semua Status' }, ...STATUS_OPTIONS]}
+            className={styles.filterSelect}
+          />
         </div>
 
         {/* Content */}
         {loading ? (
           <LoadingState message="Memuat data..." fullPage />
         ) : error ? (
-          <ErrorState title="Gagal Memuat Data" message={error} onRetry={() => fetchItems()} />
+          <ErrorState
+            title="Gagal Memuat Data"
+            message={error.message || 'Terjadi kesalahan saat memuat data perangkat desa'}
+            onRetry={() => fetchItems()}
+          />
         ) : (
           <>
             <div className={styles.tableWrapper}>
@@ -272,7 +198,7 @@ export default function PerangkatDesaPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleDelete(item)}
+                          onClick={() => handleDelete(item.id)}
                           style={{ color: 'var(--color-error)', borderColor: 'var(--color-error)' }}
                         >Hapus</Button>
                       </td>
@@ -284,9 +210,9 @@ export default function PerangkatDesaPage() {
 
             {meta && meta.totalPages > 1 && (
               <Pagination
-                currentPage={meta.page}
+                currentPage={page}
                 totalPages={meta.totalPages}
-                onPageChange={fetchItems}
+                onPageChange={(p) => setPage(p)}
                 disabled={loading}
               />
             )}
@@ -303,40 +229,24 @@ export default function PerangkatDesaPage() {
               </div>
               <form onSubmit={handleSubmit} className={styles.form}>
                 {!editing && (
-                  <>
-                    <div className={styles.formGrid}>
-                      <div>
-                        <label style={{ display: 'block', marginBottom: '0.25rem', fontWeight: 500, fontSize: '0.875rem' }}>
-                          Penduduk *
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="Ketik nama atau NIK untuk mencari..."
-                          value={pendudukSearch}
-                          onChange={e => {
-                            setPendudukSearch(e.target.value);
-                            setSelectedPenduduk(null);
-                          }}
-                          style={{ width: '100%', padding: '0.5rem', border: '1px solid var(--color-border)', borderRadius: '0.375rem', fontSize: '0.875rem' }}
-                        />
-                        {pendudukLoading && <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', margin: '0.25rem 0 0' }}>Mencari...</p>}
-                        {pendudukList.length > 0 && !selectedPenduduk && (
-                          <ul style={{ listStyle: 'none', margin: '0.25rem 0 0', padding: '0.5rem', border: '1px solid var(--color-border)', borderRadius: '0.375rem', background: 'white', maxHeight: '150px', overflowY: 'auto' }}>
-                            {pendudukList.map(p => (
-                              <li key={p.id} style={{ padding: '0.25rem 0', cursor: 'pointer', fontSize: '0.875rem' }} onClick={() => { setSelectedPenduduk(p); setPendudukSearch(p.namaLengkap); setPendudukList([]); }}>
-                                {p.namaLengkap} — NIK: {p.nik}
-                              </li>
-                            ))}
-                          </ul>
+                  <div className={styles.formGrid}>
+                    <div>
+                      <RecordSelector
+                        endpoint="/cms/penduduk"
+                        label="Penduduk *"
+                        value={selectedPendudukId}
+                        defaultName={defaultSearchName}
+                        onChange={(id) => setSelectedPendudukId(id)}
+                        renderItem={res => (
+                          <>
+                            <div style={{ fontWeight: 500 }}>{res.namaLengkap}</div>
+                            <div style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>NIK: {res.nik}</div>
+                          </>
                         )}
-                        {selectedPenduduk && (
-                          <p style={{ fontSize: '0.875rem', color: 'var(--color-success)', margin: '0.25rem 0 0' }}>
-                            ✓ Dipilih: {selectedPenduduk.namaLengkap} (NIK: {selectedPenduduk.nik})
-                          </p>
-                        )}
-                      </div>
+                        getDisplayValue={res => res.namaLengkap}
+                      />
                     </div>
-                  </>
+                  </div>
                 )}
 
                 <div className={styles.formGrid}>

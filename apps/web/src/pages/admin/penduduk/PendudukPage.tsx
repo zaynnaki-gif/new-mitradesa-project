@@ -1,157 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { AdminLayout } from '@/layouts';
 import { Button, Input, Select, Badge } from '@/components/ui';
 import { LoadingState, ErrorState } from '@/components/states';
 import { Pagination } from '@/components/Pagination';
 import { useAuthStore } from '@/stores/auth.store';
-import { API_URL } from '@/lib/constants';
-import { safeFetchJson } from '@/lib/fetch';
 import styles from './PendudukPage.module.css';
+import { useConfirm } from '@/hooks/useConfirm';
+import { DusunSelector } from '@/components/DusunSelector';
+import { useReference } from '@/hooks/useReference';
 
-interface Penduduk {
-  id: string;
-  nik: string;
-  namaLengkap: string;
-  tempatLahir: string;
-  tanggalLahir: string;
-  jenisKelamin: 'L' | 'P';
-  golDarah: string | null;
-  agama: string | null;
-  statusPerkawinan: string;
-  hubunganKeluarga: string | null;
-  dusun: string | null;
-  rt: string | null;
-  rw: string | null;
-  telepon: string | null;
-  isAktif: boolean;
-  pendidikan: string | null;
-  pekerjaan: string | null;
-  suku: string | null;
-  namaAyahLengkap: string | null;
-  namaIbuLengkap: string | null;
-  wargaNegara?: string | null;
-  nikAyah?: string | null;
-  nikIbu?: string | null;
-  pendapatan?: string | null;
-  kepemilikanRumah?: string | null;
-  luasRumah?: string | null;
-  jumlahLantai?: string | null;
-  jenisLantai?: string | null;
-  jenisDinding?: string | null;
-  jenisAtap?: string | null;
-  kepemilikanTanah?: string | null;
-  luasTanah?: string | null;
-  penerangan?: string | null;
-  sumberEnergiMasak?: string | null;
-  mck?: string | null;
-  sumberAir?: string | null;
-  bantuanSosial?: string | null;
-  bantuanExtra?: string | null;
-  bpjsKesehatan?: string | null;
-  bpjsKetenagakerjaan?: string | null;
-  kepemilikanAset?: string | null;
-  kondisiFisik?: string | null;
-  createdAt: string;
-}
+import { usePendudukList, useCreatePenduduk, useUpdatePenduduk, useDeletePenduduk, Penduduk } from '@/hooks/usePenduduk';
 
-interface PaginationMeta {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-}
-
-const PEKERJAAN_OPTIONS = [
-  "Belum/Tidak Bekerja",
-  "Mengurus Rumah Tangga",
-  "Pelajar/Mahasiswa",
-  "Pensiunan",
-  "Pegawai Negeri Sipil (PNS)",
-  "Tentara Nasional Indonesia (TNI)",
-  "Kepolisian RI (POLRI)",
-  "Perdagangan",
-  "Petani/Pekebun",
-  "Peternak",
-  "Nelayan/Perikanan",
-  "Industri",
-  "Konstruksi",
-  "Transportasi",
-  "Karyawan Swasta",
-  "Karyawan BUMN",
-  "Karyawan BUMD",
-  "Karyawan Honorer",
-  "Buruh Harian Lepas",
-  "Buruh Tani/Perkebunan",
-  "Buruh Nelayan/Perikanan",
-  "Buruh Peternakan",
-  "Pembantu Rumah Tangga",
-  "Tukang Cukur",
-  "Tukang Listrik",
-  "Tukang Batu",
-  "Tukang Kayu",
-  "Tukang Sol Sepatu",
-  "Tukang Las/Pandai Besi",
-  "Tukang Jahit",
-  "Tukang Gigi",
-  "Penata Rias",
-  "Penata Busana",
-  "Penata Rambut",
-  "Mekanik",
-  "Seniman",
-  "Tabib",
-  "Paraji",
-  "Perancang Busana",
-  "Penterjemah",
-  "Imam Masjid",
-  "Pendeta",
-  "Pastor",
-  "Wartawan",
-  "Ustadz/Mubaligh",
-  "Juru Masak",
-  "Promotor Acara",
-  "Anggota DPR-RI",
-  "Anggota DPD",
-  "Anggota BPK",
-  "Presiden",
-  "Wakil Presiden",
-  "Anggota Mahkamah Konstitusi",
-  "Anggota Kabinet/Kementerian",
-  "Duta Besar",
-  "Gubernur",
-  "Wakil Gubernur",
-  "Bupati",
-  "Wakil Bupati",
-  "Walikota",
-  "Wakil Walikota",
-  "Anggota DPRD Provinsi",
-  "Anggota DPRD Kabupaten/Kota",
-  "Dosen",
-  "Guru",
-  "Pilot",
-  "Pengacara",
-  "Notaris",
-  "Arsitek",
-  "Akuntan",
-  "Konsultan",
-  "Dokter",
-  "Bidan",
-  "Perawat",
-  "Apoteker",
-  "Psikiater/Psikolog",
-  "Penyiar Televisi",
-  "Penyiar Radio",
-  "Pelaut",
-  "Peneliti",
-  "Sopir",
-  "Pialang",
-  "Paranormal",
-  "Pedagang",
-  "Perangkat Desa",
-  "Kepala Desa",
-  "Biarawati",
-  "Wiraswasta",
-  "Lainnya"
-];
 
 const KEPEMILIKAN_RUMAH_OPTIONS = ['Milik Sendiri', 'Sewa/Kontrak', 'Bebas Sewa', 'Dinas', 'Milik Orang Tua/Keluarga', 'Lainnya'];
 const LUAS_RUMAH_OPTIONS = ['< 50 m2', '50 - 99 m2', '100 - 199 m2', '>= 200 m2'];
@@ -169,23 +28,42 @@ const KONDISI_FISIK_OPTIONS = ['Normal', 'Tunanetra', 'Tunarungu', 'Tunawicara',
 
 export default function PendudukPage() {
   const { token } = useAuthStore();
-  const [penduduk, setPenduduk] = useState<Penduduk[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [pagination, setPagination] = useState<PaginationMeta | null>(null);
-
-  // Filters
+  const { confirm, ConfirmElement } = useConfirm();
+  const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [jenisKelamin, setJenisKelamin] = useState('');
   const [isAktif, setIsAktif] = useState('');
+  
+  const { data: agamaRefs } = useReference('agama', token || '');
+  const { data: golDarahRefs } = useReference('gol-darah', token || '');
+  const { data: statusKawinRefs } = useReference('status-kawin', token || '');
+  const { data: pendidikanRefs } = useReference('pendidikan', token || '');
+  const { data: pekerjaanRefs } = useReference('pekerjaan', token || '');
+  const { data: hubunganKeluargaRefs } = useReference('hubungan-keluarga', token || '');
+
+  const { data: pendudukResponse, isLoading: loading, error: queryError } = usePendudukList(
+    page,
+    search,
+    jenisKelamin,
+    isAktif,
+    token || ''
+  );
+  
+  const penduduk = pendudukResponse?.data || [];
+  const pagination = pendudukResponse?.meta || null;
+  const error = queryError ? queryError.message : null;
+
+  const createMutation = useCreatePenduduk();
+  const updateMutation = useUpdatePenduduk();
+  const deleteMutation = useDeletePenduduk();
+
+
 
   // Modal state
   const [showModal, setShowModal] = useState(false);
   const [editingPenduduk, setEditingPenduduk] = useState<Penduduk | null>(null);
   const [formLoading, setFormLoading] = useState(false);
 
-
-  const [gubugOptions, setGubugOptions] = useState<{kode: string, nama: string}[]>([]);
 
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
@@ -201,6 +79,9 @@ export default function PendudukPage() {
     dusun: '',
     rt: '',
     rw: '',
+    gubugId: '',
+    rwId: '',
+    rtId: '',
     telepon: '',
     pendidikan: '',
     pekerjaan: '',
@@ -231,69 +112,12 @@ export default function PendudukPage() {
     kondisiFisik: '',
   });
 
-  const fetchPenduduk = async (page = 1) => {
-    setLoading(true);
-    setError(null);
 
-    try {
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: '20',
-      });
 
-      if (search) params.append('search', search);
-      if (jenisKelamin) params.append('jenisKelamin', jenisKelamin);
-      if (isAktif) params.append('isAktif', isAktif);
-
-      const data = await safeFetchJson(`${API_URL}/penduduk?${params}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (data.success) {
-        setPenduduk(data.data || []);
-        setPagination(data.meta || null);
-      } else {
-        throw new Error(data.message || 'Gagal mengambil data');
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchPenduduk();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
-
-  useEffect(() => {
-    if (token) {
-      safeFetchJson(`${API_URL}/wilayah/dropdown`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      .then(data => {
-        if (data.success && data.data?.gubug) {
-          setGubugOptions(data.data.gubug);
-        }
-      })
-      .catch(err => console.error(err));
-    }
-  }, [token]);
-
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    fetchPenduduk(1);
+    setPage(1);
   };
-
-  /*
-  const handlePageChange = (page: number) => {
-    fetchPenduduk(page);
-  };
-  */
 
   const openCreateModal = () => {
     setEditingPenduduk(null);
@@ -311,6 +135,9 @@ export default function PendudukPage() {
       dusun: '',
       rt: '',
       rw: '',
+      gubugId: '',
+      rwId: '',
+      rtId: '',
       telepon: '',
       pendidikan: '',
       pekerjaan: '',
@@ -359,6 +186,9 @@ export default function PendudukPage() {
       dusun: item.dusun || '',
       rt: item.rt || '',
       rw: item.rw || '',
+      gubugId: item.gubugId || '',
+      rwId: item.rwId || '',
+      rtId: item.rtId || '',
       telepon: item.telepon || '',
       pendidikan: item.pendidikan || '',
       pekerjaan: item.pekerjaan || '',
@@ -393,56 +223,31 @@ export default function PendudukPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!token) return;
     setFormLoading(true);
 
     try {
-      const url = editingPenduduk
-        ? `${API_URL}/penduduk/${editingPenduduk.id}`
-        : `${API_URL}/penduduk`;
-
-      const method = editingPenduduk ? 'PATCH' : 'POST';
-
-      const data = await safeFetchJson(url, {
-        method,
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (data.success) {
-        setShowModal(false);
-        fetchPenduduk(pagination?.page || 1);
+      if (editingPenduduk) {
+        await updateMutation.mutateAsync({ id: editingPenduduk.id, data: formData, token });
       } else {
-        alert(data.message || 'Gagal menyimpan data');
+        await createMutation.mutateAsync({ data: formData, token });
       }
-    } catch (error) {
-      console.error('Fetch Error:', error);
-      alert('Terjadi kesalahan');
+      setShowModal(false);
+    } catch (error: any) {
+      alert(error.message || 'Terjadi kesalahan');
     } finally {
       setFormLoading(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Yakin ingin menghapus data ini?')) return;
+    const _ok = await confirm({ message: 'Yakin ingin menghapus data ini?', title: 'Konfirmasi' }); if (!_ok) return;
+    if (!token) return;
 
     try {
-      const data = await safeFetchJson(`${API_URL}/penduduk/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (data.success) {
-        fetchPenduduk(pagination?.page || 1);
-      } else {
-        alert(data.message || 'Gagal menghapus data');
-      }
-    } catch {
-      alert('Terjadi kesalahan');
+      await deleteMutation.mutateAsync({ id, token });
+    } catch (error: any) {
+      alert(error.message || 'Terjadi kesalahan');
     }
   };
 
@@ -464,12 +269,13 @@ export default function PendudukPage() {
   // ============================================
   // EXPORT DATA
   // ============================================
-  const handleExport = () => {
+  const handleExport = async () => {
     window.location.href = '/admin/sistem/export';
   };
 
   return (
     <AdminLayout>
+      {ConfirmElement}
       <div className={styles.container}>
         {/* Header */}
         <div className={styles.header}>
@@ -527,7 +333,7 @@ export default function PendudukPage() {
           <ErrorState
             title="Gagal Memuat Data"
             message={error}
-            onRetry={() => fetchPenduduk()}
+            onRetry={() => window.location.reload()}
           />
         ) : (
           <>
@@ -590,7 +396,7 @@ export default function PendudukPage() {
               <Pagination
                 currentPage={pagination.page}
                 totalPages={pagination?.totalPages || 1}
-                onPageChange={fetchPenduduk}
+                onPageChange={setPage}
                 disabled={loading}
               />
             )}
@@ -656,10 +462,9 @@ export default function PendudukPage() {
                         onChange={(e) => setFormData({ ...formData, golDarah: e.target.value })}
                       >
                         <option value="">Pilih</option>
-                        <option value="A">A</option>
-                        <option value="B">B</option>
-                        <option value="AB">AB</option>
-                        <option value="O">O</option>
+                        {golDarahRefs?.map((item) => (
+                          <option key={item.kode} value={item.nama}>{item.nama}</option>
+                        ))}
                       </Select>
                       <Select
                         label="Agama"
@@ -667,12 +472,9 @@ export default function PendudukPage() {
                         onChange={(e) => setFormData({ ...formData, agama: e.target.value })}
                       >
                         <option value="">Pilih</option>
-                        <option value="Islam">Islam</option>
-                        <option value="Kristen">Kristen</option>
-                        <option value="Katolik">Katolik</option>
-                        <option value="Hindu">Hindu</option>
-                        <option value="Buddha">Buddha</option>
-                        <option value="Konghucu">Konghucu</option>
+                        {agamaRefs?.map((item) => (
+                          <option key={item.kode} value={item.nama}>{item.nama}</option>
+                        ))}
                       </Select>
                     </div>
                   )}
@@ -686,16 +488,20 @@ export default function PendudukPage() {
                         required
                       >
                         <option value="">Pilih Status</option>
-                        <option value="Belum Kawin">Belum Kawin</option>
-                        <option value="Kawin">Kawin</option>
-                        <option value="Cerai Hidup">Cerai Hidup</option>
-                        <option value="Cerai Mati">Cerai Mati</option>
+                        {statusKawinRefs?.map((item) => (
+                          <option key={item.kode} value={item.nama}>{item.nama}</option>
+                        ))}
                       </Select>
-                      <Input
+                      <Select
                         label="Hubungan Keluarga"
                         value={formData.hubunganKeluarga}
                         onChange={(e) => setFormData({ ...formData, hubunganKeluarga: e.target.value })}
-                      />
+                      >
+                        <option value="">Pilih</option>
+                        {hubunganKeluargaRefs?.map((item) => (
+                          <option key={item.kode} value={item.nama}>{item.nama}</option>
+                        ))}
+                      </Select>
                       <Input
                         label="NIK Ayah"
                         value={formData.nikAyah}
@@ -718,30 +524,22 @@ export default function PendudukPage() {
                         value={formData.namaIbuLengkap}
                         onChange={(e) => setFormData({ ...formData, namaIbuLengkap: e.target.value })}
                       />
-                      <Select
-                        label="Dusun"
-                        value={formData.dusun}
-                        onChange={(e) => setFormData({ ...formData, dusun: e.target.value })}
-                      >
-                        <option value="">Pilih Dusun</option>
-                        {gubugOptions.map((g) => (
-                          <option key={g.kode} value={g.nama}>{g.nama}</option>
-                        ))}
-                      </Select>
-                      <div className={styles.rowFields}>
-                        <Input
-                          label="RT"
-                          value={formData.rt}
-                          onChange={(e) => setFormData({ ...formData, rt: e.target.value })}
-                          style={{ width: '80px' }}
-                        />
-                        <Input
-                          label="RW"
-                          value={formData.rw}
-                          onChange={(e) => setFormData({ ...formData, rw: e.target.value })}
-                          style={{ width: '80px' }}
-                        />
-                      </div>
+                      <DusunSelector
+                        selectedGubugId={formData.gubugId}
+                        selectedRwId={formData.rwId}
+                        selectedRtId={formData.rtId}
+                        onChange={(gubugId, rwId, rtId, names) => {
+                          setFormData({
+                            ...formData,
+                            gubugId: gubugId || '',
+                            rwId: rwId || '',
+                            rtId: rtId || '',
+                            dusun: names?.gubug || '',
+                            rw: names?.rw || '',
+                            rt: names?.rt || '',
+                          });
+                        }}
+                      />
                       <Input
                         label="Telepon"
                         value={formData.telepon}
@@ -758,16 +556,9 @@ export default function PendudukPage() {
                         onChange={(e) => setFormData({ ...formData, pendidikan: e.target.value })}
                       >
                         <option value="">Pilih Pendidikan</option>
-                        <option value="Tidak/Belum Sekolah">Tidak/Belum Sekolah</option>
-                        <option value="Belum Tamat SD/Sederajat">Belum Tamat SD/Sederajat</option>
-                        <option value="Tamat SD/Sederajat">Tamat SD/Sederajat</option>
-                        <option value="SLTP/Sederajat">SLTP/Sederajat</option>
-                        <option value="SLTA/Sederajat">SLTA/Sederajat</option>
-                        <option value="Diploma I/II">Diploma I/II</option>
-                        <option value="Akademi/Diploma III/S.Muda">Akademi/Diploma III/S.Muda</option>
-                        <option value="Diploma IV/Strata I">Diploma IV/Strata I</option>
-                        <option value="Strata II">Strata II</option>
-                        <option value="Strata III">Strata III</option>
+                        {pendidikanRefs?.map((item) => (
+                          <option key={item.kode} value={item.nama}>{item.nama}</option>
+                        ))}
                       </Select>
                       <Select
                         label="Pekerjaan"
@@ -775,8 +566,8 @@ export default function PendudukPage() {
                         onChange={(e) => setFormData({ ...formData, pekerjaan: e.target.value })}
                       >
                         <option value="">Pilih Pekerjaan</option>
-                        {PEKERJAAN_OPTIONS.map((job) => (
-                          <option key={job} value={job}>{job}</option>
+                        {pekerjaanRefs?.map((item) => (
+                          <option key={item.kode} value={item.nama}>{item.nama}</option>
                         ))}
                       </Select>
                       <Select

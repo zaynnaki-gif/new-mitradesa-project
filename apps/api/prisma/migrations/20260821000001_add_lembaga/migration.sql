@@ -14,7 +14,7 @@ CREATE TABLE "lembaga" (
     "rt_id" BIGINT,
     "status" VARCHAR(20) NOT NULL DEFAULT 'AKTIF',
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT NOW(),
-    "updated_at" TIMESTAMPMZ(6) NOT NULL DEFAULT NOW(),
+    "updated_at" TIMESTAMP(6) NOT NULL DEFAULT NOW(),
     CONSTRAINT "lembaga_desa_id_foreign" FOREIGN KEY ("desa_id") REFERENCES "desa"("id") ON DELETE NO ACTION ON UPDATE NO ACTION,
     CONSTRAINT "lembaga_penduduk_id_foreign" FOREIGN KEY ("penduduk_id") REFERENCES "penduduk"("id") ON DELETE SET NULL ON UPDATE NO ACTION,
     CONSTRAINT "lembaga_gubug_id_foreign" FOREIGN KEY ("gubug_id") REFERENCES "gubug"("id") ON DELETE SET NULL ON UPDATE NO ACTION,

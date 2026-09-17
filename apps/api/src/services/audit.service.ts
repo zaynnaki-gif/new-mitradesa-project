@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+import { Prisma } from '@prisma/client';
 import { prisma } from './prisma.js';
 
 export class AuditService {
@@ -61,7 +61,7 @@ export class AuditService {
     const perPage = filters.perPage || 20;
     const skip = (page - 1) * perPage;
 
-    const where: any = {};
+    const where: Prisma.AuditLogWhereInput = {};
 
     if (filters.entityType) {
       where.entityType = filters.entityType;
@@ -76,7 +76,7 @@ export class AuditService {
     }
 
     if (filters.action) {
-      where.action = filters.action;
+      where.action = filters.action as import("@prisma/client").AuditAction;
     }
 
     if (filters.fromDate || filters.toDate) {

@@ -31,7 +31,8 @@ export default function HomePage() {
   const { data: services } = useLayananList({ limit: 6 });
   const { data: gallery } = useMediaList({ limit: 8 });
   const { data: perangkatDesa } = usePerangkatDesa();
-  const { data: umkms } = useUmkmList({ limit: 3 });
+  const { data: umkmsData } = useUmkmList({ limit: 3 });
+  const umkms = umkmsData?.data || [];
   const { data: agendas } = useAgendaList(3);
   const { data: apbdes } = useApbdes();
   const { data: statistik } = useStatistikDesa();
@@ -54,11 +55,9 @@ export default function HomePage() {
       ? { url: identitas.logoDesaUrl, alt: `Logo ${villageName}` }
       : undefined,
     location: {
-      district: identitas?.desa?.kecamatan?.nama
-        ? `Kecamatan ${identitas.desa.kecamatan.nama}`
-        : undefined,
-      city: identitas?.desa?.kecamatan?.kabupaten?.nama,
-      province: identitas?.desa?.kecamatan?.kabupaten?.provinsi?.nama,
+      district: undefined,
+      city: undefined,
+      province: undefined,
     },
   };
 

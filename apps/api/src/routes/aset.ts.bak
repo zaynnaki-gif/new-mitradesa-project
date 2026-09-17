@@ -1,0 +1,80 @@
+import { Router } from "express";
+import { asyncHandler, response } from "../utils/response";
+import { authenticateInternal, authorize } from "../middleware/index";
+import { AsetDesaService } from "../services/aset-desa.service";
+
+const router = Router();
+const asetService = new AsetDesaService();
+
+router.get(
+  "/",
+  authenticateInternal(),
+  authorize("aset.view"),
+  asyncHandler(async (req, res) => {
+    const result = await asetService.findAll(
+      req.query as {
+        page?: number;
+        limit?: number;
+        search?: string;
+        kategori?: string;
+        kondisi?: string;
+      },
+    );
+    return response.success(res, result.data, "Daftar aset desa", result.meta);
+  }),
+);
+
+router.get(
+  "/:id",
+  authenticateInternal(),
+  authorize("aset.view"),
+  asyncHandler(async (req, res) => {
+    const id = req.params.id;
+    const data = await asetService.findById(id);
+    return response.success(res, data);
+  }),
+);
+
+router.post(
+  "/",
+  authenticateInternal(),
+  authorize("aset.create"),
+  asyncHandler(async (req, res) => {
+    const data = await asetService.create(
+      req.body,
+      req.user?.accountId ? String(req.user.accountId) : "",
+    );
+    return response.created(res, data, "Aset desa berhasil ditambahkan");
+  }),
+);
+
+router.patch(
+  "/:id",
+  authenticateInternal(),
+  authorize("aset.update"),
+  asyncHandler(async (req, res) => {
+    const id = req.params.id;
+    const data = await asetService.update(
+      id,
+      req.body,
+      req.user?.accountId ? String(req.user.accountId) : "",
+    );
+    return response.success(res, data, "Aset desa berhasil diperbarui");
+  }),
+);
+
+router.delete(
+  "/:id",
+  authenticateInternal(),
+  authorize("aset.delete"),
+  asyncHandler(async (req, res) => {
+    const id = req.params.id;
+    await asetService.remove(
+      id,
+      req.user?.accountId ? String(req.user.accountId) : "",
+    );
+    return response.success(res, null, "Aset desa berhasil dihapus");
+  }),
+);
+
+export default router;

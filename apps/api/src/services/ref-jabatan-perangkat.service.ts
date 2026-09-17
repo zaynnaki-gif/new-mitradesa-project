@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+import { Prisma } from '@prisma/client';
 import { prisma } from './prisma.js';
 import { AuditService } from './audit.service.js';
 import { ApiError } from '../utils/response.js';
@@ -26,7 +26,7 @@ export class RefJabatanPerangkatService {
     const page = options.page || 1;
     const limit = options.limit || 20;
     const skip = (page - 1) * limit;
-    const where: any = {};
+    const where: Prisma.RefJabatanPerangkatWhereInput = {};
 
     if (options.isAktif !== undefined) where.isAktif = options.isAktif;
     if (options.kategori) where.kategori = options.kategori;

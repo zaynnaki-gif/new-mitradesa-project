@@ -33,6 +33,9 @@ export const createPendudukSchema = z.object({
   rt: z.string().max(10).optional().nullable(),
   rw: z.string().max(10).optional().nullable(),
   dusun: z.string().max(100).optional().nullable(),
+  gubugId: z.string().optional().nullable(),
+  rwId: z.string().optional().nullable(),
+  rtId: z.string().optional().nullable(),
   kodePos: z.string().max(10).optional().nullable(),
   telepon: z.string().max(20).optional().nullable(),
   email: z.string().email('Invalid email format').max(255).optional().nullable().or(z.literal('')),
@@ -73,6 +76,9 @@ export const updatePendudukSchema = z.object({
   rt: z.string().max(10).optional().nullable(),
   rw: z.string().max(10).optional().nullable(),
   dusun: z.string().max(100).optional().nullable(),
+  gubugId: z.string().optional().nullable(),
+  rwId: z.string().optional().nullable(),
+  rtId: z.string().optional().nullable(),
   kodePos: z.string().max(10).optional().nullable(),
   telepon: z.string().max(20).optional().nullable(),
   email: z.string().email().max(255).optional().nullable().or(z.literal('')),
@@ -147,6 +153,9 @@ export interface PendudukResponse {
   rt: string | null;
   rw: string | null;
   dusun: string | null;
+  gubugId: string | null;
+  rwId: string | null;
+  rtId: string | null;
   kodePos: string | null;
   telepon: string | null;
   email: string | null;
@@ -178,8 +187,8 @@ export interface PendudukResponse {
   kepemilikanAset: string | null;
   kondisiFisik: string | null;
   isAktif: boolean;
-  statusKepindahan: string | null;
   desaId: string | null;
+  statusKepindahan: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -199,6 +208,9 @@ export interface PendudukPublicResponse {
   rt: string | null;
   rw: string | null;
   dusun: string | null;
+  gubugId: string | null;
+  rwId: string | null;
+  rtId: string | null;
 }
 
 /**

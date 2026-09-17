@@ -1,53 +1,22 @@
-import { useState, useEffect } from 'react';
 import { Card, Table, Typography, Button, Badge } from '../../../components/ui';
-import { API_URL } from '../../../lib/constants';
 import { useAuthStore } from '../../../stores/auth.store';
-import { safeFetchJson } from '@/lib/fetch';
+import { useSuratKeluarList, useSignTte } from '@/hooks/useArsipSurat';
 
 export function TteDashboardPage() {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [documents, setDocuments] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const { token } = useAuthStore();
+  const { data: response, isLoading: loading, error: queryError } = useSuratKeluarList('', token || '', true, 'GENERATED');
+  
+  const documents = response?.data?.data || [];
+  const error = queryError?.message || '';
 
-  const fetchDocuments = async () => {
-    try {
-      setLoading(true);
-      // Fetch documents pending signature. Depending on backend, might be GENERATED or PENDING_SIGNATURE
-      const data = await safeFetchJson(`${API_URL}/arsip-surat/keluar?status=GENERATED`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      if (data.success) {
-        setDocuments(data.data?.data || []);
-      } else {
-        throw new Error(data.message || 'Gagal memuat dokumen');
-      }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchDocuments();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  const signTte = useSignTte();
 
   const handleApprove = async (id: string) => {
     try {
-      // Typically we would call an endpoint to approve/sign
-      // For now we assume a PATCH to /api/arsip-surat/keluar/:id/sign or we just update status
-      alert(`Fitur TTE untuk dokumen ${id} akan memproses Tanda Tangan Elektronik.`);
-      // Mock update
-      setDocuments(documents.filter(d => d.id !== id));
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (err: any) {
-      alert('Gagal menyetujui dokumen');
+      await signTte.mutateAsync({ id, token: token || '' });
+      alert(`Dokumen ${id} berhasil ditandatangani (TTE).`);
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Gagal menyetujui dokumen');
     }
   };
 

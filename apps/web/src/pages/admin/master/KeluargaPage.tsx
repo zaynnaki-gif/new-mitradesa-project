@@ -1,45 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Button, Input, Select, Modal, Badge } from '../../../components/ui';
 import { LoadingState, ErrorState } from '../../../components/states';
 import { useAuthStore } from '../../../stores/auth.store';
-import { API_URL } from '../../../lib/constants';
-import { safeFetchJson } from '../../../lib/fetch';
 import styles from './KeluargaPage.module.css';
+import { DusunSelector } from '@/components/DusunSelector';
+import { RecordSelector } from '@/components/RecordSelector';
 
-// Types
-interface Anggota {
-  id: string;
-  pendudukId: string;
-  nik: string;
-  namaLengkap: string;
-  hubungan: string;
-  isAktif: boolean;
-}
-
-interface Keluarga {
-  id: string;
-  noKk: string;
-  kepalaId: string;
-  kepalaNik: string;
-  kepalaNama: string;
-  alamat: string | null;
-  dusun: string | null;
-  rw: string | null;
-  rt: string | null;
-  createdAt: string;
-  isAktif: boolean;
-}
-
-interface KeluargaDetail extends Keluarga {
-  anggota: Anggota[];
-}
-
-interface PaginationMeta {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-}
+import { useKeluargaList, useKeluargaDetail, useCreateKeluarga, useUpdateKeluarga, useDeleteKeluarga, useAddAnggota, useRemoveAnggota, Keluarga, KeluargaDetail } from '@/hooks/useKeluarga';
 
 // Form types
 interface KeluargaForm {
@@ -49,6 +16,9 @@ interface KeluargaForm {
   dusun: string;
   rw: string;
   rt: string;
+  gubugId: string;
+  rwId: string;
+  rtId: string;
 }
 
 interface AnggotaForm {
@@ -61,23 +31,39 @@ export default function KeluargaPage() {
   const { token } = useAuthStore();
 
   // State - list
-  const [keluarga, setKeluarga] = useState<Keluarga[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [pagination, setPagination] = useState<PaginationMeta | null>(null);
-
-  // Filters
+  const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  
+  // Data Fetching
+  const { data: keluargaResponse, isLoading: loading, error: queryError } = useKeluargaList(page, search, token || '');
+  const keluarga = keluargaResponse?.data || [];
+  const pagination = keluargaResponse?.meta || null;
+  const error = queryError ? queryError.message : null;
 
-  // List modal
+  // Mutations
+  const createMutation = useCreateKeluarga();
+  const updateMutation = useUpdateKeluarga();
+  const deleteMutation = useDeleteKeluarga();
+  const addAnggotaMutation = useAddAnggota();
+  const removeAnggotaMutation = useRemoveAnggota();
+
+  // Selected keluarga for detail fetching
+  const [selectedKeluargaId, setSelectedKeluargaId] = useState<string | null>(null);
+  const { data: detailData, isLoading: listLoading } = useKeluargaDetail(selectedKeluargaId || '', token || '');
+  
+  // We sync detailData to selectedKeluarga state since the modal uses it
+  useEffect(() => {
+    if (detailData) setSelectedKeluarga(detailData);
+  }, [detailData]);
+
+  // List modal state
   const [showListModal, setShowListModal] = useState(false);
   const [selectedKeluarga, setSelectedKeluarga] = useState<KeluargaDetail | null>(null);
-  const [listLoading, setListLoading] = useState(false);
 
   // Form modal
   const [showFormModal, setShowFormModal] = useState(false);
   const [editingKeluarga, setEditingKeluarga] = useState<Keluarga | null>(null);
-  const [formLoading, setFormLoading] = useState(false);
+  const [defaultSearchName, setDefaultSearchName] = useState('');
   const [formData, setFormData] = useState<KeluargaForm>({
     noKk: '',
     kepalaId: '',
@@ -85,63 +71,20 @@ export default function KeluargaPage() {
     dusun: '',
     rw: '',
     rt: '',
+    gubugId: '',
+    rwId: '',
+    rtId: '',
   });
 
   // Anggota modal
   const [showAnggotaModal, setShowAnggotaModal] = useState(false);
   const [anggotaForm, setAnggotaForm] = useState<AnggotaForm>({ pendudukId: '', hubungan: '' });
-  const [anggotaLoading, setAnggotaLoading] = useState(false);
-
-  const [gubugOptions, setGubugOptions] = useState<{kode: string, nama: string}[]>([]);
-
-  // Fetch keluarga list
-  const fetchKeluarga = useCallback(async (page = 1) => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const params = new URLSearchParams({ page: String(page), limit: '20' });
-      if (search) params.append('search', search);
-
-      const data = await safeFetchJson(`${API_URL}/keluarga?${params}`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-
-      if (data.success) {
-        setKeluarga(data.data);
-        setPagination(data.meta);
-      } else {
-        throw new Error(data.message || 'Failed to fetch');
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
-    } finally {
-      setLoading(false);
-    }
-  }, [token, search]);
-
-  useEffect(() => {
-    fetchKeluarga();
-  }, [fetchKeluarga]);
-
-  useEffect(() => {
-    if (token) {
-      safeFetchJson(`${API_URL}/wilayah/dropdown`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      .then(data => {
-        if (data.success && data.data?.gubug) {
-          setGubugOptions(data.data.gubug);
-        }
-      })
-      .catch(err => console.error(err));
-    }
-  }, [token]);
 
   // Open create modal
   const openCreateModal = () => {
     setEditingKeluarga(null);
-    setFormData({ noKk: '', kepalaId: '', alamat: '', dusun: '', rw: '', rt: '' });
+    setFormData({ noKk: '', kepalaId: '', alamat: '', dusun: '', rw: '', rt: '', gubugId: '', rwId: '', rtId: '' });
+    setDefaultSearchName('');
     setShowFormModal(true);
   };
 
@@ -155,127 +98,71 @@ export default function KeluargaPage() {
       dusun: item.dusun || '',
       rw: item.rw || '',
       rt: item.rt || '',
+      gubugId: item.gubugId || '',
+      rwId: item.rwId || '',
+      rtId: item.rtId || '',
     });
+    setDefaultSearchName(item.kepalaNama || '');
     setShowFormModal(true);
   };
 
   // Open detail/list modal
   const openListModal = async (item: Keluarga) => {
     setSelectedKeluarga(null);
-    setListLoading(true);
+    setSelectedKeluargaId(item.id);
     setShowListModal(true);
-
-    try {
-      const data = await safeFetchJson(`${API_URL}/keluarga/${item.id}`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      if (data.success) {
-        setSelectedKeluarga(data.data);
-      }
-    } catch (err) {
-      console.error('Failed to fetch detail:', err);
-    } finally {
-      setListLoading(false);
-    }
   };
 
   // Submit keluarga form
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setFormLoading(true);
+    if (!token) return;
 
     try {
-      const url = editingKeluarga
-        ? `${API_URL}/keluarga/${editingKeluarga.id}`
-        : `${API_URL}/keluarga`;
-      const method = editingKeluarga ? 'PATCH' : 'POST';
-
-      const data = await safeFetchJson(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (data.success) {
-        setShowFormModal(false);
-        fetchKeluarga();
+      if (editingKeluarga) {
+        await updateMutation.mutateAsync({ id: editingKeluarga.id, data: formData, token });
       } else {
-        alert(data.message || 'Terjadi kesalahan');
+        await createMutation.mutateAsync({ data: formData, token });
       }
-    } catch {
-      alert('Terjadi kesalahan');
-    } finally {
-      setFormLoading(false);
+      setShowFormModal(false);
+    } catch (err: any) {
+      alert(err.message || 'Terjadi kesalahan');
     }
   };
 
   // Delete keluarga
   const handleDelete = async (item: Keluarga) => {
-    if (!confirm(`Yakin ingin menghapus keluarga dengan No. KK ${item.noKk}?`)) return;
+    if (!confirm(`Yakin ingin menghapus keluarga dengan No. KK ${item.noKk}?`) || !token) return;
 
     try {
-      const data = await safeFetchJson(`${API_URL}/keluarga/${item.id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      if (data.success) {
-        fetchKeluarga();
-      } else {
-        alert(data.message || 'Gagal menghapus');
-      }
-    } catch {
-      alert('Terjadi kesalahan');
+      await deleteMutation.mutateAsync({ id: item.id, token });
+    } catch (err: any) {
+      alert(err.message || 'Terjadi kesalahan');
     }
   };
 
   // Add anggota
   const handleAddAnggota = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedKeluarga || !anggotaForm.pendudukId) return;
+    if (!selectedKeluarga || !anggotaForm.pendudukId || !token) return;
 
-    setAnggotaLoading(true);
     try {
-      const data = await safeFetchJson(`${API_URL}/keluarga/${selectedKeluarga.id}/anggota`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(anggotaForm),
-      });
-      if (data.success) {
-        setShowAnggotaModal(false);
-        setAnggotaForm({ pendudukId: '', hubungan: '' });
-        openListModal(selectedKeluarga);
-      } else {
-        alert(data.message || 'Gagal menambah anggota');
-      }
-    } catch {
-      alert('Terjadi kesalahan');
-    } finally {
-      setAnggotaLoading(false);
+      await addAnggotaMutation.mutateAsync({ keluargaId: selectedKeluarga.id, data: anggotaForm, token });
+      setShowAnggotaModal(false);
+      setAnggotaForm({ pendudukId: '', hubungan: '' });
+    } catch (err: any) {
+      alert(err.message || 'Terjadi kesalahan');
     }
   };
 
   // Remove anggota
   const handleRemoveAnggota = async (anggotaId: string) => {
-    if (!selectedKeluarga || !confirm('Yakin ingin menghapus anggota ini?')) return;
+    if (!selectedKeluarga || !confirm('Yakin ingin menghapus anggota ini?') || !token) return;
 
     try {
-      const data = await safeFetchJson(`${API_URL}/keluarga/${selectedKeluarga.id}/anggota/${anggotaId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      if (data.success) {
-        openListModal(selectedKeluarga);
-      } else {
-        alert(data.error?.message || 'Gagal menghapus anggota');
-      }
-    } catch {
-      alert('Terjadi kesalahan');
+      await removeAnggotaMutation.mutateAsync({ keluargaId: selectedKeluarga.id, anggotaId, token });
+    } catch (err: any) {
+      alert(err.message || 'Terjadi kesalahan');
     }
   };
 
@@ -312,21 +199,20 @@ export default function KeluargaPage() {
 
       {/* Search */}
       <div className={styles.filters}>
-        <form onSubmit={(e) => { e.preventDefault(); fetchKeluarga(1); }} className={styles.searchForm}>
+        <div className={styles.searchForm}>
           <Input
             placeholder="Cari No. KK atau nama..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <Button type="submit">Cari</Button>
-        </form>
+        </div>
       </div>
 
       {/* Table */}
       {loading ? (
         <LoadingState message="Memuat data keluarga..." fullPage />
       ) : error ? (
-        <ErrorState title="Gagal Memuat Data" message={error} onRetry={() => fetchKeluarga()} />
+        <ErrorState title="Gagal Memuat Data" message={error} />
       ) : (
         <div className={styles.tableWrapper}>
           <table className={styles.table}>
@@ -385,7 +271,7 @@ export default function KeluargaPage() {
             variant="outline"
             size="sm"
             disabled={pagination.page <= 1}
-            onClick={() => fetchKeluarga(pagination.page - 1)}
+            onClick={() => setPage(pagination.page - 1)}
           >
             ← Prev
           </Button>
@@ -394,7 +280,7 @@ export default function KeluargaPage() {
             variant="outline"
             size="sm"
             disabled={pagination.page >= pagination.totalPages}
-            onClick={() => fetchKeluarga(pagination.page + 1)}
+            onClick={() => setPage(pagination.page + 1)}
           >
             Next →
           </Button>
@@ -479,21 +365,26 @@ export default function KeluargaPage() {
       >
         <form onSubmit={handleSubmit} className={styles.form}>
           <Input
-            label="No. KK"
+            label="No. KK *"
             value={formData.noKk}
             onChange={(e) => setFormData({ ...formData, noKk: e.target.value })}
             required
+            placeholder="16 digit angka"
             maxLength={16}
-            disabled={!!editingKeluarga}
-            placeholder="16 digit nomor KK"
           />
-          <Input
-            label="NIK Kepala Keluarga"
+          <RecordSelector
+            endpoint="/cms/penduduk"
+            label="Kepala Keluarga *"
             value={formData.kepalaId}
-            onChange={(e) => setFormData({ ...formData, kepalaId: e.target.value })}
-            required
-            disabled={!!editingKeluarga}
-            placeholder="NIK 16 digit"
+            defaultName={defaultSearchName}
+            onChange={(id) => setFormData({ ...formData, kepalaId: id })}
+            renderItem={res => (
+              <>
+                <div style={{ fontWeight: 500 }}>{res.namaLengkap}</div>
+                <div style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>NIK: {res.nik}</div>
+              </>
+            )}
+            getDisplayValue={res => res.namaLengkap}
           />
           <Input
             label="Alamat"
@@ -501,35 +392,29 @@ export default function KeluargaPage() {
             onChange={(e) => setFormData({ ...formData, alamat: e.target.value })}
           />
           <div className={styles.rowFields}>
-            <Select
-              label="Dusun"
-              value={formData.dusun}
-              onChange={(e) => setFormData({ ...formData, dusun: e.target.value })}
-            >
-              <option value="">Pilih Dusun</option>
-              {gubugOptions.map((g) => (
-                <option key={g.kode} value={g.nama}>{g.nama}</option>
-              ))}
-            </Select>
-            <Input
-              label="RW"
-              value={formData.rw}
-              onChange={(e) => setFormData({ ...formData, rw: e.target.value })}
-              placeholder="01"
-            />
-            <Input
-              label="RT"
-              value={formData.rt}
-              onChange={(e) => setFormData({ ...formData, rt: e.target.value })}
-              placeholder="001"
+            <DusunSelector
+              selectedGubugId={formData.gubugId}
+              selectedRwId={formData.rwId}
+              selectedRtId={formData.rtId}
+              onChange={(gubugId, rwId, rtId, names) => {
+                setFormData({
+                  ...formData,
+                  gubugId: gubugId || '',
+                  rwId: rwId || '',
+                  rtId: rtId || '',
+                  dusun: names?.gubug || '',
+                  rw: names?.rw || '',
+                  rt: names?.rt || '',
+                });
+              }}
             />
           </div>
           <div className={styles.formActions}>
             <Button type="button" variant="outline" onClick={() => setShowFormModal(false)}>
               Batal
             </Button>
-            <Button type="submit" disabled={formLoading}>
-              {formLoading ? 'Menyimpan...' : 'Simpan'}
+            <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
+              {createMutation.isPending || updateMutation.isPending ? 'Menyimpan...' : 'Simpan'}
             </Button>
           </div>
         </form>
@@ -566,8 +451,8 @@ export default function KeluargaPage() {
             <Button type="button" variant="outline" onClick={() => setShowAnggotaModal(false)}>
               Batal
             </Button>
-            <Button type="submit" disabled={anggotaLoading}>
-              {anggotaLoading ? 'Menyimpan...' : 'Simpan'}
+            <Button type="submit" disabled={addAnggotaMutation.isPending}>
+              {addAnggotaMutation.isPending ? 'Menyimpan...' : 'Simpan'}
             </Button>
           </div>
         </form>

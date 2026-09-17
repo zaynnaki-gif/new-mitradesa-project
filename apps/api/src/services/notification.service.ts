@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable no-console */
 import { prisma } from './prisma.js';
 import { config } from '../config/index.js';

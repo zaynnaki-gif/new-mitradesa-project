@@ -1,57 +1,44 @@
 import { prisma } from './prisma.js';
 import { ApiError } from '../utils/response.js';
-import { getInstanceContext } from '../config/instance.js';
+
 
 export class IdentitasDesaService {
   /**
-   * Get village identity (singleton - first village)
+   * Get village identity (singleton - single-tenant, always first record)
    */
   async getIdentitasDesa() {
-    const { desaId } = getInstanceContext();
-    // Get the configured desa and its identity
-    const desa = await prisma.desa.findFirst({
-      where: desaId ? { id: desaId } : undefined,
-      include: {
-        identitasDesa: true,
-        kecamatan: {
-          include: {
-            kabupaten: {
-              include: {
-                provinsi: true
-              }
-            }
-          }
-        }
-      },
-    });
+    let identitasDesa = await prisma.identitasDesa.findFirst();
 
-    if (!desa?.identitasDesa) {
-      return null;
+    if (!identitasDesa) {
+      // Auto-seed default identitas if missing to prevent 404 errors on fresh installations
+      identitasDesa = await prisma.identitasDesa.create({
+        data: {
+          namaDesa: 'Desa Seruni Mumbul', // default fallback
+          kodeDesa: '52.03.08.2014',
+          alamat: 'Jl. Raya Seruni Mumbul',
+        }
+      });
     }
 
-    return {
-      ...desa.identitasDesa,
-      desa: {
-        id: desa.id,
-        kode: desa.kode,
-        nama: desa.nama,
-        kecamatan: {
-          id: desa.kecamatan.id,
-          nama: desa.kecamatan.nama,
-          kode: desa.kecamatan.kode,
-          kabupaten: {
-            id: desa.kecamatan.kabupaten.id,
-            nama: desa.kecamatan.kabupaten.nama,
-            kode: desa.kecamatan.kabupaten.kode,
-            provinsi: {
-              id: desa.kecamatan.kabupaten.provinsi.id,
-              nama: desa.kecamatan.kabupaten.provinsi.nama,
-              kode: desa.kecamatan.kabupaten.provinsi.kode,
-            }
-          }
-        },
-      },
-    };
+    // Auto-populate kepalaDesa and sekretarisDesa from PerangkatDesa table
+    const kades = await prisma.perangkatDesa.findFirst({
+      where: { jabatan: { contains: 'Kepala Desa', mode: 'insensitive' }, status: 'AKTIF' },
+      include: { penduduk: true }
+    });
+    
+    const sekdes = await prisma.perangkatDesa.findFirst({
+      where: { jabatan: { contains: 'Sekretaris', mode: 'insensitive' }, status: 'AKTIF' },
+      include: { penduduk: true }
+    });
+
+    if (kades && kades.penduduk) {
+      identitasDesa.kepalaDesa = kades.penduduk.namaLengkap;
+    }
+    if (sekdes && sekdes.penduduk) {
+      identitasDesa.sekretarisDesa = sekdes.penduduk.namaLengkap;
+    }
+
+    return identitasDesa;
   }
 
   /**
@@ -72,6 +59,10 @@ export class IdentitasDesaService {
     faviconUrl?: string;
     kepalaDesa?: string;
     sekretarisDesa?: string;
+    facebook?: string;
+    instagram?: string;
+    twitter?: string;
+    youtube?: string;
   }) {
     const current = await this.getIdentitasDesa();
 
@@ -97,6 +88,10 @@ export class IdentitasDesaService {
         faviconUrl: data.faviconUrl,
         kepalaDesa: data.kepalaDesa,
         sekretarisDesa: data.sekretarisDesa,
+        facebook: data.facebook,
+        instagram: data.instagram,
+        twitter: data.twitter,
+        youtube: data.youtube,
       },
     });
   }

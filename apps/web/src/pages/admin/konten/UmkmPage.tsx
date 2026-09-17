@@ -1,119 +1,71 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Typography, Button, Modal } from '@/components/ui';
 import { LoadingState, ErrorState } from '@/components/states';
 import { useAuthStore } from '@/stores/auth.store';
 import { UmkmForm } from '@/components/forms/UmkmForm';
 import { AdminLayout } from '@/layouts';
-import { API_URL } from '@/lib/constants';
+import { useUmkmList, useDeleteUmkm, Umkm } from '@/hooks/useUmkm';
 import styles from './UmkmPage.module.css';
+import { useConfirm } from '@/hooks/useConfirm';
 
-interface Umkm {
-  id: string;
-  nama: string;
-  slug: string;
-  deskripsi: string;
-  kategori: string;
-  gambarUrl: string | null;
-  harga: string | null;
-  kontak: string;
-  pemilik: string;
-  isAktif: boolean;
-  createdAt: string;
-}
 
-interface PaginationMeta {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
-}
 
 export function UmkmPage() {
   const { token } = useAuthStore();
-  const [data, setData] = useState<Umkm[]>([]);
-  const [meta, setMeta] = useState<PaginationMeta>({ page: 1, limit: 20, total: 0, totalPages: 0 });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { confirm, ConfirmElement } = useConfirm();
+  const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<Partial<Umkm> | null>(null);
 
-  const fetchData = async (page = 1, searchQuery = '') => {
-    setLoading(true);
-    setError(null);
-    try {
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: '20',
-        ...(searchQuery && { search: searchQuery }),
-      });
+  const { data: queryData, isLoading: loading, error, refetch } = useUmkmList(
+    { page, search, limit: 20 },
+    token || ''
+  );
+  
+  const data = queryData?.data || [];
+  
+  const deleteUmkm = useDeleteUmkm();
 
-      const headers: HeadersInit = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-
-      const res = await fetch(`${API_URL}/umkm?${params}`, { headers });
-      const result = await res.json();
-
-      if (result.success) {
-        setData(result.data || []);
-        if (result.meta) setMeta(result.meta);
-      } else {
-        throw new Error(result.error?.message || 'Failed to fetch');
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error');
-    } finally {
-      setLoading(false);
-    }
+  const handleSearch = () => {
+    setSearch(searchInput);
+    setPage(1);
   };
 
-  useEffect(() => {
-    fetchData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const handleSearch = () => fetchData(1, search);
-
-  const handleOpenCreate = () => {
+  const handleOpenCreate = async () => {
     setEditingItem(null);
     setIsModalOpen(true);
   };
 
-  const handleOpenEdit = (item: Umkm) => {
+  const handleOpenEdit = async (item: Umkm) => {
     setEditingItem(item);
     setIsModalOpen(true);
   };
 
-  const handleCloseModal = () => {
+  const handleCloseModal = async () => {
     setIsModalOpen(false);
     setEditingItem(null);
   };
 
-  const handleFormSuccess = () => {
+  const handleFormSuccess = async () => {
     handleCloseModal();
-    fetchData(meta.page);
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Yakin ingin menghapus produk UMKM ini?')) return;
+    const _ok = await confirm({ message: 'Yakin ingin menghapus produk UMKM ini?', title: 'Konfirmasi' }); 
+    if (!_ok) return;
+    
     try {
-      const headers: HeadersInit = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-
-      const res = await fetch(`${API_URL}/umkm/${id}`, { method: 'DELETE', headers });
-      const result = await res.json();
-      if (result.success) {
-        fetchData(meta.page);
-      } else {
-        throw new Error(result.error?.message || 'Gagal menghapus');
-      }
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Unknown error');
+      await deleteUmkm.mutateAsync({ id, token: token || '' });
+    } catch (err: any) {
+      alert(err.message || 'Gagal menghapus');
     }
   };
 
   return (
     <AdminLayout>
+      {ConfirmElement}
       <div className={styles.container}>
         <div className={styles.header}>
           <Typography variant="h2">Kelola UMKM</Typography>
@@ -123,8 +75,8 @@ export function UmkmPage() {
         <div className={styles.filters}>
           <input
             type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             placeholder="Cari nama..."
             className={styles.searchInput}
@@ -133,7 +85,7 @@ export function UmkmPage() {
         </div>
 
         {loading && <LoadingState />}
-        {error && <ErrorState message={error} onRetry={() => fetchData()} />}
+        {error && <ErrorState message={error.message || 'Gagal'} onRetry={() => refetch()} />}
 
         {!loading && !error && (
           <div className={styles.tableContainer}>

@@ -1775,7 +1775,6 @@ export default function TemplateDesignerPage() {
                         margin: '0 auto',
                         fontFamily: 'Times New Roman, serif',
                       }}
-                      // eslint-disable-next-line react/no-danger
                       dangerouslySetInnerHTML={{ __html: previewHtml }}
                     />
                   </div>

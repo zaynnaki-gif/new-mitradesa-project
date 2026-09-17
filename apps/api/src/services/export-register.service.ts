@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * Register Export Service
  *
@@ -7,7 +6,7 @@
 
 import ExcelJS from 'exceljs';
 import { prisma } from './prisma.js';
-import { getInstanceContext } from '../config/instance.js';
+
 
 export interface RegisterExportOptions {
   startDate?: Date;
@@ -24,14 +23,11 @@ export async function exportDokumenRegisterXlsx(
   options: RegisterExportOptions = {}
 ): Promise<Buffer> {
   const { startDate, endDate, layananId, status } = options;
-  const { desaId } = getInstanceContext();
-
   // Build query
   const where: any = {
     dokumen: {
       layanan: {
-        desaId,
-      },
+},
     },
   };
 
@@ -174,14 +170,11 @@ export async function exportDokumenRegisterCsv(
   options: RegisterExportOptions = {}
 ): Promise<string> {
   const { startDate, endDate, layananId, status } = options;
-  const { desaId } = getInstanceContext();
-
   // Build query
   const where: any = {
     dokumen: {
       layanan: {
-        desaId,
-      },
+},
     },
   };
 
@@ -263,11 +256,8 @@ export async function exportPermintaanRegisterXlsx(
   options: RegisterExportOptions = {}
 ): Promise<Buffer> {
   const { startDate, endDate, layananId, status } = options;
-  const { desaId } = getInstanceContext();
-
   // Build query
   const where: any = {
-    desaId,
     deletedAt: null,
   };
 

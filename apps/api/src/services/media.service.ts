@@ -1,7 +1,7 @@
 import { prisma } from './prisma.js';
 import { ApiError } from '../utils/response.js';
 import { Prisma } from '@prisma/client';
-import { getInstanceContext } from '../config/instance.js';
+
 
 export interface QueryMediaInput {
   page?: number;
@@ -46,14 +46,14 @@ export class MediaService {
    */
   async findAll(query: QueryMediaInput) {
     const { page = 1, limit = 20, urutan = 'desc' } = query;
-    const { desaId } = getInstanceContext();
+    
     const skip = (page - 1) * limit;
 
     const where: Prisma.MediaWhereInput = {
       AND: [
         {
           OR: [
-            { uploadedBy: { perangkatDesa: { desaId } } },
+            { uploadedBy: { perangkatDesa: {} } },
             { uploadedById: null },
           ],
         },
@@ -97,13 +97,13 @@ export class MediaService {
    * Get media by ID
    */
   async findById(id: bigint) {
-    const { desaId } = getInstanceContext();
+    
     const where: Prisma.MediaWhereInput = {
       id,
       AND: [
         {
           OR: [
-            { uploadedBy: { perangkatDesa: { desaId } } },
+            { uploadedBy: { perangkatDesa: {} } },
             { uploadedById: null },
           ],
         },
@@ -132,13 +132,13 @@ export class MediaService {
    * Get media by slug
    */
   async findBySlug(slug: string) {
-    const { desaId } = getInstanceContext();
+    
     const where: Prisma.MediaWhereInput = {
       slug,
       AND: [
         {
           OR: [
-            { uploadedBy: { perangkatDesa: { desaId } } },
+            { uploadedBy: { perangkatDesa: {} } },
             { uploadedById: null },
           ],
         },
@@ -266,13 +266,13 @@ export class MediaService {
    * Update media
    */
   async update(id: bigint, data: UpdateMediaInput) {
-    const { desaId } = getInstanceContext();
+    
     const where: Prisma.MediaWhereInput = {
       id,
       AND: [
         {
           OR: [
-            { uploadedBy: { perangkatDesa: { desaId } } },
+            { uploadedBy: { perangkatDesa: {} } },
             { uploadedById: null },
           ],
         },
@@ -389,13 +389,13 @@ export class MediaService {
    * Soft delete media
    */
   async softDelete(id: bigint) {
-    const { desaId } = getInstanceContext();
+    
     const where: Prisma.MediaWhereInput = {
       id,
       AND: [
         {
           OR: [
-            { uploadedBy: { perangkatDesa: { desaId } } },
+            { uploadedBy: { perangkatDesa: {} } },
             { uploadedById: null },
           ],
         },
@@ -423,12 +423,12 @@ export class MediaService {
    * Get media statistics
    */
   async getStats() {
-    const { desaId } = getInstanceContext();
+    
     const where: Prisma.MediaWhereInput = {
       AND: [
         {
           OR: [
-            { uploadedBy: { perangkatDesa: { desaId } } },
+            { uploadedBy: { perangkatDesa: {} } },
             { uploadedById: null },
           ],
         },

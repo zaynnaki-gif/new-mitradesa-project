@@ -523,14 +523,14 @@ export { ALLOWED_BINDINGS };
  * Get dynamic village context from database
  * This function fetches actual village identity and government data
  */
-export async function getVillageContext(prisma: any, desaId: bigint): Promise<{
+export async function getVillageContext(prisma: any): Promise<{
   desa: Record<string, unknown>;
   kepala_desa: Record<string, unknown>;
   sekretaris_desa: Record<string, unknown>;
 }> {
   // Fetch village identity
-  const identitas = await prisma.identitasDesa.findUnique({
-    where: { desaId },
+  const identitas = await prisma.identitasDesa.findFirst({
+    
     include: {
       desa: {
         include: {
@@ -558,8 +558,7 @@ export async function getVillageContext(prisma: any, desaId: bigint): Promise<{
   // Fetch kepala desa
   const kepalaDesa = await prisma.perangkatDesa.findFirst({
     where: {
-      desaId,
-      jabatan: { contains: 'KEPALA_DESA', mode: 'insensitive' },
+            jabatan: { contains: 'KEPALA_DESA', mode: 'insensitive' },
       status: 'AKTIF',
     },
     include: { penduduk: true },
@@ -568,8 +567,7 @@ export async function getVillageContext(prisma: any, desaId: bigint): Promise<{
   // Fetch sekretaris desa
   const sekretarisDesa = await prisma.perangkatDesa.findFirst({
     where: {
-      desaId,
-      jabatan: { contains: 'SEKRETARIS', mode: 'insensitive' },
+            jabatan: { contains: 'SEKRETARIS', mode: 'insensitive' },
       status: 'AKTIF',
     },
     include: { penduduk: true },

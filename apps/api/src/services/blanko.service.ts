@@ -13,24 +13,23 @@ export interface BlankoInput {
 export type UpdateBlankoInput = Partial<BlankoInput>;
 
 export class BlankoService {
-  async getBlankoList(desaId: bigint) {
+  async getBlankoList() {
     return prisma.blanko.findMany({
-      where: { desaId },
+      where: { },
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  async getBlankoById(id: bigint, desaId: bigint) {
+  async getBlankoById(id: bigint) {
     const blanko = await prisma.blanko.findFirst({
-      where: { id, desaId },
+      where: { id },
     });
     if (!blanko) throw ApiError.notFound('Blanko not found');
     return blanko;
   }
 
-  async createBlanko(desaId: bigint, data: BlankoInput) {
+  async createBlanko(data: BlankoInput) {
     const createData: Prisma.BlankoUncheckedCreateInput = {
-      desaId,
       nama: data.nama,
       paperSize: data.paperSize || 'F4',
       margin: (data.margin as Prisma.InputJsonObject) ?? { top: 25.4, right: 25.4, bottom: 25.4, left: 25.4 },
@@ -40,8 +39,8 @@ export class BlankoService {
     return prisma.blanko.create({ data: createData });
   }
 
-  async updateBlanko(id: bigint, desaId: bigint, data: UpdateBlankoInput) {
-    const blanko = await this.getBlankoById(id, desaId);
+  async updateBlanko(id: bigint, data: UpdateBlankoInput) {
+    const blanko = await this.getBlankoById(id);
     const updateData: Prisma.BlankoUncheckedUpdateInput = {};
     if (data.nama !== undefined) updateData.nama = data.nama;
     if (data.paperSize !== undefined) updateData.paperSize = data.paperSize;
@@ -55,19 +54,19 @@ export class BlankoService {
     });
   }
 
-  async deleteBlanko(id: bigint, desaId: bigint) {
-    const blanko = await this.getBlankoById(id, desaId);
+  async deleteBlanko(id: bigint) {
+    const blanko = await this.getBlankoById(id);
     return prisma.blanko.delete({
       where: { id: blanko.id },
     });
   }
 
-  async setDefaultBlanko(id: bigint, desaId: bigint) {
-    const blanko = await this.getBlankoById(id, desaId);
+  async setDefaultBlanko(id: bigint) {
+    const blanko = await this.getBlankoById(id);
     
     // Unset current default
     await prisma.blanko.updateMany({
-      where: { desaId, isDefault: true },
+      where: { isDefault: true },
       data: { isDefault: false },
     });
 

@@ -85,8 +85,9 @@ export function Container({
 }
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'outline';
+  variant?: 'primary' | 'secondary' | 'outline' | 'danger';
   size?: 'sm' | 'md' | 'lg';
+  loading?: boolean;
 }
 
 const buttonVariants: Record<string, CSSProperties> = {
@@ -105,6 +106,11 @@ const buttonVariants: Record<string, CSSProperties> = {
     color: 'var(--color-primary)',
     border: '1px solid var(--color-primary)',
   },
+  danger: {
+    backgroundColor: 'var(--color-error, #ef4444)',
+    color: 'white',
+    border: 'none',
+  },
 };
 
 const buttonSizes: Record<string, CSSProperties> = {
@@ -116,6 +122,7 @@ const buttonSizes: Record<string, CSSProperties> = {
 export function Button({
   variant = 'primary',
   size = 'md',
+  loading,
   children,
   style,
   ...props
@@ -130,11 +137,11 @@ export function Button({
         transition: 'opacity 0.2s',
         ...buttonVariants[variant],
         ...buttonSizes[size],
-        opacity: props.disabled ? 0.6 : 1,
+        opacity: (props.disabled || loading) ? 0.6 : 1,
         ...style,
       }}
     >
-      {children}
+      {loading ? 'Memuat...' : children}
     </button>
   );
 }
@@ -322,7 +329,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
 }
 
 interface BadgeProps {
-  color?: 'primary' | 'secondary' | 'error' | 'success' | 'muted';
+  color?: 'primary' | 'secondary' | 'error' | 'success' | 'muted' | 'warning' | 'neutral' | 'danger';
   children: ReactNode;
 }
 export function Badge({ color = 'primary', children }: BadgeProps) {
@@ -330,7 +337,10 @@ export function Badge({ color = 'primary', children }: BadgeProps) {
     primary: 'var(--color-primary)',
     secondary: 'var(--color-secondary)',
     error: 'var(--color-error)',
+    danger: 'var(--color-error, #ef4444)',
     success: 'var(--color-success)',
+    warning: '#f59e0b',
+    neutral: '#999',
     muted: '#999',
   };
   return (
@@ -354,6 +364,188 @@ export function Card({ children, style }: { children: ReactNode, style?: CSSProp
     }}>
       {children}
     </div>
+  );
+}
+
+// ============================================================
+// ConfirmDialog — replaces all window.confirm() usages
+// Usage: <ConfirmDialog isOpen={...} onConfirm={...} onCancel={...} title="..." message="..." variant="danger" />
+// ============================================================
+interface ConfirmDialogProps {
+  isOpen: boolean;
+  title?: string;
+  message: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  variant?: 'danger' | 'warning' | 'default';
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+export function ConfirmDialog({
+  isOpen,
+  title,
+  message,
+  confirmLabel = 'Ya, Hapus',
+  cancelLabel = 'Batal',
+  variant = 'danger',
+  onConfirm,
+  onCancel,
+}: ConfirmDialogProps) {
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancel(); };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [isOpen, onCancel]);
+
+  if (!isOpen) return null;
+
+  const variantColor: Record<string, string> = {
+    danger: 'var(--color-error, #ef4444)',
+    warning: '#f59e0b',
+    default: 'var(--color-primary, #2563eb)',
+  };
+
+  const iconMap: Record<string, string> = {
+    danger: '🗑️',
+    warning: '⚠️',
+    default: 'ℹ️',
+  };
+
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 9999, padding: '1rem',
+      }}
+      onClick={onCancel}
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="confirm-title"
+      aria-describedby="confirm-message"
+    >
+      <div
+        style={{
+          background: 'white', borderRadius: '0.75rem', padding: '2rem',
+          maxWidth: 420, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.875rem', marginBottom: '1.5rem' }}>
+          <span style={{ fontSize: '2rem', lineHeight: 1 }}>{iconMap[variant]}</span>
+          <div>
+            {title && (
+              <h3 id="confirm-title" style={{ margin: '0 0 0.375rem', fontSize: '1.1rem', fontWeight: 600, color: '#111' }}>
+                {title}
+              </h3>
+            )}
+            <p id="confirm-message" style={{ margin: 0, fontSize: '0.9rem', color: '#555', lineHeight: 1.5 }}>
+              {message}
+            </p>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+          <button
+            onClick={onCancel}
+            style={{
+              padding: '0.5rem 1.25rem', borderRadius: '0.5rem', border: '1px solid #d1d5db',
+              background: 'white', color: '#374151', cursor: 'pointer', fontWeight: 500,
+              fontSize: '0.875rem',
+            }}
+          >
+            {cancelLabel}
+          </button>
+          <button
+            onClick={onConfirm}
+            autoFocus
+            style={{
+              padding: '0.5rem 1.25rem', borderRadius: '0.5rem', border: 'none',
+              background: variantColor[variant], color: 'white', cursor: 'pointer', fontWeight: 600,
+              fontSize: '0.875rem',
+            }}
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// SkeletonLoader — consistent shimmer-effect skeleton rows
+// Usage: <SkeletonLoader rows={5} />  or  <SkeletonLoader type="card" count={4} />
+// ============================================================
+interface SkeletonLoaderProps {
+  rows?: number;
+  type?: 'table' | 'card' | 'list';
+  count?: number;
+}
+
+export function SkeletonLoader({ rows = 5, type = 'table', count }: SkeletonLoaderProps) {
+  const shimmer: CSSProperties = {
+    background: 'linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)',
+    backgroundSize: '200% 100%',
+    animation: 'skeletonShimmer 1.4s ease-in-out infinite',
+    borderRadius: '0.25rem',
+  };
+
+  const n = count ?? rows;
+
+  if (type === 'card') {
+    return (
+      <>
+        <style>{`@keyframes skeletonShimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }`}</style>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem' }}>
+          {Array.from({ length: n }).map((_, i) => (
+            <div key={i} style={{ borderRadius: '0.75rem', overflow: 'hidden', background: '#f9fafb', padding: '1.25rem' }}>
+              <div style={{ ...shimmer, height: 40, width: 40, borderRadius: '50%', marginBottom: '1rem' }} />
+              <div style={{ ...shimmer, height: 14, width: '60%', marginBottom: '0.5rem' }} />
+              <div style={{ ...shimmer, height: 20, width: '40%' }} />
+            </div>
+          ))}
+        </div>
+      </>
+    );
+  }
+
+  if (type === 'list') {
+    return (
+      <>
+        <style>{`@keyframes skeletonShimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }`}</style>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          {Array.from({ length: n }).map((_, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div style={{ ...shimmer, height: 40, width: 40, borderRadius: '50%', flexShrink: 0 }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ ...shimmer, height: 14, width: '50%', marginBottom: '0.5rem' }} />
+                <div style={{ ...shimmer, height: 12, width: '80%' }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </>
+    );
+  }
+
+  // Default: table rows
+  return (
+    <>
+      <style>{`@keyframes skeletonShimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }`}</style>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+        {Array.from({ length: n }).map((_, i) => (
+          <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr', gap: '1rem', padding: '0.75rem 0' }}>
+            <div style={{ ...shimmer, height: 14 }} />
+            <div style={{ ...shimmer, height: 14, width: '80%' }} />
+            <div style={{ ...shimmer, height: 14, width: '60%' }} />
+            <div style={{ ...shimmer, height: 20, borderRadius: '9999px', width: 60 }} />
+            <div style={{ ...shimmer, height: 14, width: '50%' }} />
+          </div>
+        ))}
+      </div>
+    </>
   );
 }
 

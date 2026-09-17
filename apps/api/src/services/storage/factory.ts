@@ -47,6 +47,9 @@ export function getStorageProvider(): IStorageProvider {
       break;
   }
 
+  if (!storageProvider) {
+    throw new Error('Storage provider could not be initialized');
+  }
   return storageProvider;
 }
 

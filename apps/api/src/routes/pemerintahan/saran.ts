@@ -4,7 +4,7 @@ import { prisma } from '../../services/prisma.js';
 import { Prisma } from '@prisma/client';
 import { authenticateInternal, authorize, publicSaranRateLimiter } from '../../middleware/index.js';
 import { asyncHandler, response, ApiError } from '../../utils/response.js';
-import { getInstanceContext } from '../../config/instance.js';
+
 
 const router = Router();
 
@@ -26,12 +26,10 @@ const createSchema = z.object({
 // ============================================
 
 router.post('/public', publicSaranRateLimiter, asyncHandler(async (req, res) => {
-  const { desaId } = getInstanceContext();
   const data = createSchema.parse(req.body);
 
   const created = await prisma.saranAduan.create({
     data: {
-      desaId,
       judul: data.judul,
       isi: data.isi,
       kategori: data.kategori,
@@ -76,11 +74,10 @@ const querySchema = z.object({
 // ============================================
 
 router.get('/', authorize('pemerintahan.view'), asyncHandler(async (req, res) => {
-  const { desaId } = getInstanceContext();
   const { page, limit, search, kategori, status } = querySchema.parse(req.query);
 
   const skip = (page - 1) * limit;
-  const where: Prisma.SaranAduanWhereInput = { desaId };
+  const where: Prisma.SaranAduanWhereInput = { };
 
   if (kategori) where.kategori = kategori;
   if (status) where.status = status;
@@ -118,9 +115,7 @@ router.get('/', authorize('pemerintahan.view'), asyncHandler(async (req, res) =>
 // ============================================
 
 router.get('/stats', authorize('pemerintahan.view'), asyncHandler(async (_req, res) => {
-  const { desaId } = getInstanceContext();
-
-  const whereBase: Prisma.SaranAduanWhereInput = { desaId };
+  const whereBase: Prisma.SaranAduanWhereInput = { };
 
   const [baru, diproses, selesai, ditolak, total] = await Promise.all([
     prisma.saranAduan.count({ where: { ...whereBase, status: 'BARU' } }),
@@ -144,12 +139,10 @@ router.get('/stats', authorize('pemerintahan.view'), asyncHandler(async (_req, r
 // ============================================
 
 router.post('/', authorize('pemerintahan.manage'), asyncHandler(async (req, res) => {
-  const { desaId } = getInstanceContext();
   const data = createSchema.parse(req.body);
 
   const created = await prisma.saranAduan.create({
     data: {
-      desaId,
       judul: data.judul,
       isi: data.isi,
       kategori: data.kategori,
@@ -171,12 +164,10 @@ router.post('/', authorize('pemerintahan.manage'), asyncHandler(async (req, res)
 // ============================================
 
 router.get('/:id', authorize('pemerintahan.view'), asyncHandler(async (req, res) => {
-  const { desaId } = getInstanceContext();
   const { id } = req.params;
   const item = await prisma.saranAduan.findFirst({
     where: {
-      id,
-      desaId,
+      id
     },
   });
 
@@ -197,14 +188,12 @@ router.get('/:id', authorize('pemerintahan.view'), asyncHandler(async (req, res)
 // ============================================
 
 router.patch('/:id', authorize('pemerintahan.manage'), asyncHandler(async (req, res) => {
-  const { desaId } = getInstanceContext();
   const { id } = req.params;
   const data = updateSchema.parse(req.body);
 
   const existing = await prisma.saranAduan.findFirst({
     where: {
-      id,
-      desaId,
+      id
     },
   });
   if (!existing) {
@@ -241,13 +230,11 @@ router.patch('/:id', authorize('pemerintahan.manage'), asyncHandler(async (req, 
 // ============================================
 
 router.delete('/:id', authorize('pemerintahan.manage'), asyncHandler(async (req, res) => {
-  const { desaId } = getInstanceContext();
   const { id } = req.params;
 
   const existing = await prisma.saranAduan.findFirst({
     where: {
-      id,
-      desaId,
+      id
     },
   });
   if (!existing) {

@@ -59,7 +59,7 @@ export function GubugRwRtSelector({
   const [internalRtId, setInternalRtId] = useState<number | undefined>(selectedRtId);
 
   // Fetch data using TanStack Query
-  const { data: gubugList = [], isLoading: isLoadingGubug } = useGubug(selectedDesaId);
+  const { data: gubugList = [], isLoading: isLoadingGubug } = useGubug();
   const { data: rwList = [], isLoading: isLoadingRw } = useRw(internalGubugId);
   const { data: rtList = [], isLoading: isLoadingRt } = useRt(internalRwId);
 

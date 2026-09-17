@@ -163,6 +163,7 @@ export default function AppDashboard() {
       'DEVELOPER': 'Developer',
       'OPERATOR': 'Operator',
       'SUPERADMIN': 'Super Admin',
+      'SUPER_ADMIN': 'Super Admin',
     };
     return roleMap[roles[0]] || roles[0];
   };

@@ -204,15 +204,8 @@ export class WilayahSyncService {
 
         for (const item of data) {
           try {
-            await prisma.desa.upsert({
-              where: { kecamatanId_kode: { kecamatanId: kec.id, kode: item.id } },
-              update: { nama: item.name },
-              create: {
-                kecamatanId: kec.id,
-                kode: item.id,
-                nama: item.name,
-              },
-            });
+            // Single-tenant: DesaConfig removed. Village data is tracked externally.
+            // Just count progress.
             this.progress.villages.synced++;
 
             // Log progress every 1000 villages
@@ -246,7 +239,7 @@ export class WilayahSyncService {
       prisma.provinsi.count(),
       prisma.kabupaten.count(),
       prisma.kecamatan.count(),
-      prisma.desa.count(),
+      prisma.identitasDesa.count(),
       prisma.gubug.count(),
       prisma.rw.count(),
       prisma.rt.count(),

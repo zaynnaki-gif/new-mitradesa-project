@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { asyncHandler, response } from '../utils/response.js';
 import { prisma } from '../services/index.js';
 import { authenticateInternal, authorize } from '../middleware/index.js';
+import { Prisma } from '@prisma/client';
 
 const router = Router();
 
@@ -24,10 +25,10 @@ router.get(
     const fromDate = req.query.from_date ? new Date(req.query.from_date as string) : undefined;
     const toDate = req.query.to_date ? new Date(req.query.to_date as string) : undefined;
 
-    const where: any = {}; // eslint-disable-line @typescript-eslint/no-explicit-any
+    const where: Prisma.AuditLogWhereInput = {};
     if (entityType) where.entityType = entityType;
     if (entityId) where.entityId = entityId;
-    if (action) where.action = action;
+    if (action) where.action = action as Prisma.AuditLogWhereInput['action'];
     if (actorId) where.actorId = actorId;
     if (fromDate || toDate) {
       where.createdAt = {};

@@ -1,8 +1,7 @@
 import { prisma } from './prisma.js';
 import { ApiError } from '../utils/response.js';
 import { CreateApbdesInput, UpdateApbdesInput, QueryApbdesInput } from '../dto/transparansi.dto.js';
-import { Prisma, Apbdes } from '@prisma/client';
-import { getInstanceContext } from '../config/instance.js';
+import { Prisma } from '@prisma/client';
 
 export interface PaginationMeta {
   page: number;
@@ -17,12 +16,11 @@ export interface PaginatedResult<T> {
 }
 
 export class TransparansiService {
-  async findAll(query: QueryApbdesInput): Promise<PaginatedResult<Omit<Apbdes, 'id' | 'desaId'> & { id: string, desaId: string }>> {
+  async findAll(query: QueryApbdesInput): Promise<PaginatedResult<any>> {
     const { page, limit, tahun, isAktif } = query;
-    const { desaId } = getInstanceContext();
     const skip = (page - 1) * limit;
 
-    const where: Prisma.ApbdesWhereInput = { desaId };
+    const where: Prisma.ApbdesWhereInput = { };
 
     if (tahun) {
       where.tahun = tahun;
@@ -50,8 +48,7 @@ export class TransparansiService {
     return {
       data: apbdesList.map(a => ({
         ...a,
-        id: a.id.toString(),
-        desaId: a.desaId.toString()
+        id: a.id.toString()
       })),
       meta: {
         page,
@@ -63,23 +60,37 @@ export class TransparansiService {
   }
 
   async findById(id: bigint) {
-    const { desaId } = getInstanceContext();
-    const where: Prisma.ApbdesWhereInput = { id, desaId };
-    const apbdes = await prisma.apbdes.findFirst({ where, include: { items: true } });
+    const where: Prisma.ApbdesWhereInput = { id };
+    const apbdes = await prisma.apbdes.findFirst({ 
+      where, 
+      include: { 
+        items: {
+          include: { Rkpdes: true }
+        } 
+      } 
+    });
     if (!apbdes) throw ApiError.notFound('Data APBDes tidak ditemukan');
     return { 
       ...apbdes, 
-      id: apbdes.id.toString(), 
-      desaId: apbdes.desaId.toString(),
-      items: apbdes.items.map(i => ({ ...i, id: i.id.toString(), apbdesId: i.apbdesId.toString() }))
+      id: apbdes.id.toString(),
+      items: apbdes.items.map(i => ({ 
+        ...i, 
+        id: i.id.toString(), 
+        apbdesId: i.apbdesId.toString(),
+        Rkpdes: i.Rkpdes ? {
+          ...i.Rkpdes,
+          id: i.Rkpdes.id.toString(),
+          rpjmdesBidangId: i.Rkpdes.rpjmdesBidangId.toString(),
+          apbdesItemId: i.Rkpdes.apbdesItemId?.toString() || null
+        } : undefined
+      }))
     };
   }
 
   async create(data: CreateApbdesInput) {
-    const { desaId } = getInstanceContext();
     // Check if APBDes for this year already exists
     const existing = await prisma.apbdes.findFirst({
-      where: { desaId, tahun: data.tahun }
+      where: { tahun: data.tahun }
     });
     
     if (existing) {
@@ -88,7 +99,6 @@ export class TransparansiService {
 
     const newApbdes = await prisma.apbdes.create({
       data: {
-        desaId,
         tahun: data.tahun,
         totalPendapatan: data.totalPendapatan,
         totalBelanja: data.totalBelanja,
@@ -97,18 +107,17 @@ export class TransparansiService {
         dokumenUrl: data.dokumenUrl,
       },
     });
-    return { ...newApbdes, id: newApbdes.id.toString(), desaId: newApbdes.desaId.toString() };
+    return { ...newApbdes, id: newApbdes.id.toString() };
   }
 
   async update(id: bigint, data: UpdateApbdesInput) {
-    const { desaId } = getInstanceContext();
-    const where: Prisma.ApbdesWhereInput = { id, desaId };
+    const where: Prisma.ApbdesWhereInput = { id };
     const apbdes = await prisma.apbdes.findFirst({ where });
     if (!apbdes) throw ApiError.notFound('Data APBDes tidak ditemukan');
 
     if (data.tahun && data.tahun !== apbdes.tahun) {
       const existing = await prisma.apbdes.findFirst({
-        where: { desaId: apbdes.desaId, tahun: data.tahun }
+        where: { tahun: data.tahun }
       });
       if (existing) {
         throw ApiError.badRequest(`APBDes untuk tahun ${data.tahun} sudah ada`);
@@ -126,35 +135,52 @@ export class TransparansiService {
         dokumenUrl: data.dokumenUrl,
       },
     });
-    return { ...updated, id: updated.id.toString(), desaId: updated.desaId.toString() };
+    return { ...updated, id: updated.id.toString() };
   }
 
   async delete(id: bigint) {
-    const { desaId } = getInstanceContext();
-    const where: Prisma.ApbdesWhereInput = { id, desaId };
+    const where: Prisma.ApbdesWhereInput = { id };
     const apbdes = await prisma.apbdes.findFirst({ where });
     if (!apbdes) throw ApiError.notFound('Data APBDes tidak ditemukan');
     await prisma.apbdes.delete({ where: { id } });
   }
-  async addItem(apbdesId: bigint, data: { kategori: 'PENDAPATAN' | 'BELANJA' | 'PEMBIAYAAN'; nama: string; anggaran: number; realization: number }) {
-    const { desaId } = getInstanceContext();
-    const apbdes = await prisma.apbdes.findFirst({ where: { id: apbdesId, desaId } });
+  
+  async addItem(apbdesId: bigint, data: { kategori: 'PENDAPATAN' | 'BELANJA' | 'PEMBIAYAAN'; nama: string; anggaran: number; realization: number; rkpdesId?: bigint }) {
+    const apbdes = await prisma.apbdes.findFirst({ where: { id: apbdesId } });
     if (!apbdes) throw ApiError.notFound('Data APBDes tidak ditemukan');
+    
+    // Auto-fill nama if rkpdesId is provided but nama is empty
+    let finalNama = data.nama;
+    if (data.rkpdesId && (!finalNama || finalNama.trim() === '')) {
+      const rkpdes = await prisma.rkpdes.findFirst({ where: { id: data.rkpdesId } });
+      if (rkpdes) {
+        finalNama = rkpdes.namaKegiatan;
+      }
+    }
+
     const item = await prisma.apbdesItem.create({
       data: {
         apbdesId,
         kategori: data.kategori,
-        nama: data.nama,
+        nama: finalNama,
         anggaran: data.anggaran,
         realization: data.realization
       }
     });
+
+    // Link to RKPDes
+    if (data.rkpdesId) {
+      await prisma.rkpdes.update({
+        where: { id: data.rkpdesId },
+        data: { apbdesItemId: item.id }
+      });
+    }
+
     return { ...item, id: item.id.toString(), apbdesId: item.apbdesId.toString() };
   }
 
-  async updateItem(apbdesId: bigint, itemId: bigint, data: { nama?: string; anggaran?: number; realization?: number }) {
-    const { desaId } = getInstanceContext();
-    const apbdes = await prisma.apbdes.findFirst({ where: { id: apbdesId, desaId } });
+  async updateItem(apbdesId: bigint, itemId: bigint, data: { nama?: string; anggaran?: number; realization?: number; rkpdesId?: bigint | null }) {
+    const apbdes = await prisma.apbdes.findFirst({ where: { id: apbdesId } });
     if (!apbdes) throw ApiError.notFound('Data APBDes tidak ditemukan');
     const existing = await prisma.apbdesItem.findFirst({ where: { id: itemId, apbdesId } });
     if (!existing) throw ApiError.notFound('Data Rincian APBDes tidak ditemukan');
@@ -162,17 +188,33 @@ export class TransparansiService {
     const updated = await prisma.apbdesItem.update({
       where: { id: itemId },
       data: {
-        nama: data.nama,
-        anggaran: data.anggaran,
-        realization: data.realization
+        ...(data.nama !== undefined && { nama: data.nama }),
+        ...(data.anggaran !== undefined && { anggaran: data.anggaran }),
+        ...(data.realization !== undefined && { realization: data.realization })
       }
     });
+
+    if (data.rkpdesId !== undefined) {
+      // Unlink previous RKPDes that points to this APBDes item
+      await prisma.rkpdes.updateMany({
+        where: { apbdesItemId: itemId },
+        data: { apbdesItemId: null }
+      });
+      
+      // Link the new RKPDes
+      if (data.rkpdesId !== null) {
+        await prisma.rkpdes.update({
+          where: { id: data.rkpdesId },
+          data: { apbdesItemId: itemId }
+        });
+      }
+    }
+
     return { ...updated, id: updated.id.toString(), apbdesId: updated.apbdesId.toString() };
   }
 
   async deleteItem(apbdesId: bigint, itemId: bigint) {
-    const { desaId } = getInstanceContext();
-    const apbdes = await prisma.apbdes.findFirst({ where: { id: apbdesId, desaId } });
+    const apbdes = await prisma.apbdes.findFirst({ where: { id: apbdesId } });
     if (!apbdes) throw ApiError.notFound('Data APBDes tidak ditemukan');
     const existing = await prisma.apbdesItem.findFirst({ where: { id: itemId, apbdesId } });
     if (!existing) throw ApiError.notFound('Data Rincian APBDes tidak ditemukan');

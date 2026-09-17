@@ -4,7 +4,7 @@ import { prisma } from '../../services/prisma.js';
 import { Prisma } from '@prisma/client';
 import { authenticateInternal, authorize } from '../../middleware/index.js';
 import { asyncHandler, response, ApiError } from '../../utils/response.js';
-import { getInstanceContext } from '../../config/instance.js';
+
 
 const router = Router();
 router.use(authenticateInternal());
@@ -64,13 +64,11 @@ const querySchema = z.object({
 // ============================================
 
 router.get('/', authorize('penduduk.view'), asyncHandler(async (req, res) => {
-  const { desaId } = getInstanceContext();
   const { page, limit, search, jenisMutasi, tahun, tanggalMulai, tanggalSelesai } = querySchema.parse(req.query);
 
   const skip = (page - 1) * limit;
-  const where: Prisma.MutasiPendudukWhereInput = { desaId };
+  const where: Prisma.MutasiPendudukWhereInput = { };
 
-  if (desaId !== undefined) where.desaId = desaId;
   if (jenisMutasi) where.jenisMutasi = jenisMutasi;
   if (tahun) {
     const startOfYear = new Date(`${tahun}-01-01`);
@@ -121,13 +119,11 @@ router.get('/', authorize('penduduk.view'), asyncHandler(async (req, res) => {
 // ============================================
 
 router.get('/stats', authorize('penduduk.view'), asyncHandler(async (_req, res) => {
-  const { desaId } = getInstanceContext();
   const currentYear = new Date().getFullYear();
   const startOfYear = new Date(`${currentYear}-01-01`);
   const endOfYear = new Date(`${currentYear}-12-31`);
 
   const whereBase: Prisma.MutasiPendudukWhereInput = {
-    desaId,
     tanggalMutasi: { gte: startOfYear, lte: endOfYear },
   };
 
@@ -173,13 +169,11 @@ router.get('/stats', authorize('penduduk.view'), asyncHandler(async (_req, res) 
 // ============================================
 
 router.post('/', authorize('penduduk.create'), asyncHandler(async (req, res) => {
-  const { desaId } = getInstanceContext();
   const data = createSchema.parse(req.body);
 
   const created = await prisma.$transaction(async (tx) => {
     const mutasi = await tx.mutasiPenduduk.create({
       data: {
-        desaId,
         jenisMutasi: data.jenisMutasi,
         tanggalMutasi: new Date(data.tanggalMutasi),
         nik: data.nik,
@@ -206,8 +200,7 @@ router.post('/', authorize('penduduk.create'), asyncHandler(async (req, res) => 
     if (data.jenisMutasi === 'MATI' || data.jenisMutasi === 'PINDAH_PERGI') {
       const penduduk = await tx.penduduk.findFirst({
         where: {
-          nik: data.nik,
-          desaId,
+          nik: data.nik
         },
       });
       if (penduduk) {
@@ -224,18 +217,17 @@ router.post('/', authorize('penduduk.create'), asyncHandler(async (req, res) => 
       let targetKeluarga = null;
       if (data.keluargaId) {
         targetKeluarga = await tx.keluarga.findFirst({
-          where: { id: BigInt(data.keluargaId), desaId },
+          where: { id: BigInt(data.keluargaId) },
         });
       } else if (data.noKk) {
         targetKeluarga = await tx.keluarga.findFirst({
-          where: { noKk: data.noKk, desaId },
+          where: { noKk: data.noKk },
         });
       } else if (data.nikAyah || data.nikIbu) {
         // Fallback: look up parent family KK
         const parent = await tx.penduduk.findFirst({
           where: {
-            nik: { in: [data.nikAyah, data.nikIbu].filter(Boolean) as string[] },
-            desaId,
+            nik: { in: [data.nikAyah, data.nikIbu].filter(Boolean) as string[] }
           },
           include: { anggotaKeluarga: { include: { keluarga: true } } },
         });
@@ -254,8 +246,7 @@ router.post('/', authorize('penduduk.create'), asyncHandler(async (req, res) => 
       // Find or create Penduduk record for LAHIR / PINDAH_DATANG
       let penduduk = await tx.penduduk.findFirst({
         where: {
-          nik: data.nik,
-          desaId,
+          nik: data.nik
         },
       });
 
@@ -268,7 +259,6 @@ router.post('/', authorize('penduduk.create'), asyncHandler(async (req, res) => 
       if (!penduduk) {
         penduduk = await tx.penduduk.create({
           data: {
-            desaId,
             nik: data.nik,
             namaLengkap: data.namaLengkap,
             tempatLahir: birthplace,
@@ -346,12 +336,10 @@ router.post('/', authorize('penduduk.create'), asyncHandler(async (req, res) => 
 // ============================================
 
 router.get('/:id', authorize('penduduk.view'), asyncHandler(async (req, res) => {
-  const { desaId } = getInstanceContext();
   const { id } = req.params;
   const item = await prisma.mutasiPenduduk.findFirst({
     where: {
-      id,
-      desaId,
+      id
     },
   });
 
@@ -373,14 +361,12 @@ router.get('/:id', authorize('penduduk.view'), asyncHandler(async (req, res) => 
 // ============================================
 
 router.patch('/:id', authorize('penduduk.update'), asyncHandler(async (req, res) => {
-  const { desaId } = getInstanceContext();
   const { id } = req.params;
   const data = updateSchema.parse(req.body);
 
   const existing = await prisma.mutasiPenduduk.findFirst({
     where: {
-      id,
-      desaId,
+      id
     },
   });
   if (!existing) {
@@ -427,13 +413,11 @@ router.patch('/:id', authorize('penduduk.update'), asyncHandler(async (req, res)
 // ============================================
 
 router.delete('/:id', authorize('penduduk.delete'), asyncHandler(async (req, res) => {
-  const { desaId } = getInstanceContext();
   const { id } = req.params;
 
   const existing = await prisma.mutasiPenduduk.findFirst({
     where: {
-      id,
-      desaId,
+      id
     },
   });
   if (!existing) {

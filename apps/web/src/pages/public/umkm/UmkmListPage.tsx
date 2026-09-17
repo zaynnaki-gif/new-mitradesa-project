@@ -64,10 +64,11 @@ export default function UmkmListPage() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  const { data: umkms, loading, error, refetch } = useUmkmList({
+  const { data: umkmsData, isLoading: loading, error, refetch } = useUmkmList({
     search: debouncedSearch || undefined,
     kategori: selectedCategory || undefined,
   });
+  const umkms = umkmsData?.data || [];
 
   const categories = ['', 'MAKANAN', 'KERAJINAN', 'JASA', 'FASHION', 'AGRIBISNIS', 'LAINNYA'];
   const categoryLabels: Record<string, string> = {
@@ -118,7 +119,7 @@ export default function UmkmListPage() {
           {error && (
             <ErrorState
               title="Gagal Memuat UMKM"
-              message={error}
+              message={error.message || 'Terjadi kesalahan'}
               onRetry={refetch}
             />
           )}
@@ -137,7 +138,7 @@ export default function UmkmListPage() {
 
           {!loading && !error && umkms.length > 0 && (
             <div className={styles.umkmGrid}>
-              {umkms.map((umkm, index) => (
+              {umkms.map((umkm: any, index: number) => (
                 <UmkmCard key={umkm.id} umkm={umkm} index={index} />
               ))}
             </div>

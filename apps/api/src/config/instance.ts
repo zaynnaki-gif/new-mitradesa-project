@@ -1,20 +1,16 @@
-import { config } from './index';
+import { AsyncLocalStorage } from 'async_hooks';
 
 export interface InstanceContext {
   desaId: bigint;
-  desaKode: string;
-  desaNama: string;
 }
 
-/**
- * Mendapatkan konteks instance MITRADESA saat ini.
- * Berdasarkan arsitektur single-tenant, satu instance Node.js
- * hanya melayani satu entitas desa.
- */
+export const instanceContext = new AsyncLocalStorage<InstanceContext>();
+
 export function getInstanceContext(): InstanceContext {
-  return {
-    desaId: config.desaId,
-    desaKode: config.desaKode,
-    desaNama: config.desaNama,
-  };
+  const ctx = instanceContext.getStore();
+  if (!ctx) {
+    // Return a default for now to prevent compilation/runtime errors until middleware is fully implemented
+    return { desaId: 1n };
+  }
+  return ctx;
 }
