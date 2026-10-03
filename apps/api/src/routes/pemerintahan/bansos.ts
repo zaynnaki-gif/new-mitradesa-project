@@ -4,7 +4,6 @@ import { authenticateInternal, authorize } from '../../middleware/index.js';
 import { asyncHandler, response, ApiError } from '../../utils/response.js';
 import { createBansosSchema as createSchema, updateBansosSchema as updateSchema, queryBansosSchema as querySchema } from '../../dto/bansos.dto.js';
 import { Prisma } from '@prisma/client';
-import { getInstanceContext } from '../../config/instance.js';
 
 const router = Router();
 router.use(authenticateInternal());
@@ -14,14 +13,13 @@ router.use(authenticateInternal());
 // ============================================
 
 router.get('/', authorize('pemerintahan.view'), asyncHandler(async (req, res) => {
-  const { desaId } = getInstanceContext();
 
   const { page, limit, search, tahun, jenis } = querySchema.parse(req.query);
 
   const skip = (page - 1) * limit;
   const where: Prisma.BansosWhereInput = {};
 
-  if (desaId !== undefined) where.desaId = desaId;
+
   if (tahun) where.tahun = tahun;
   if (jenis) where.jenis = jenis;
   if (search) {
@@ -52,10 +50,9 @@ router.get('/', authorize('pemerintahan.view'), asyncHandler(async (req, res) =>
 // ============================================
 
 router.get('/stats', authorize('pemerintahan.view'), asyncHandler(async (_req, res) => {
-  const { desaId } = getInstanceContext();
   const currentYear = new Date().getFullYear();
 
-  const whereBase = { desaId };
+  const whereBase = {};
 
   // Summary per tahun
   const yearlySummary = await prisma.bansos.groupBy({
@@ -95,12 +92,10 @@ router.get('/stats', authorize('pemerintahan.view'), asyncHandler(async (_req, r
 // ============================================
 
 router.post('/', authorize('pemerintahan.manage'), asyncHandler(async (req, res) => {
-  const { desaId } = getInstanceContext();
   const data = createSchema.parse(req.body);
 
   const created = await prisma.bansos.create({
     data: {
-      desaId,
       nama: data.nama,
       jenis: data.jenis,
       tahun: data.tahun,
@@ -118,12 +113,11 @@ router.post('/', authorize('pemerintahan.manage'), asyncHandler(async (req, res)
 // ============================================
 
 router.get('/:id', authorize('pemerintahan.view'), asyncHandler(async (req, res) => {
-  const { desaId } = getInstanceContext();
-  const { id } = req.params;
+  const { id: idStr } = req.params;
+  const id = BigInt(idStr);
   const item = await prisma.bansos.findFirst({
     where: {
       id,
-      desaId,
     },
   });
 
@@ -139,14 +133,13 @@ router.get('/:id', authorize('pemerintahan.view'), asyncHandler(async (req, res)
 // ============================================
 
 router.patch('/:id', authorize('pemerintahan.manage'), asyncHandler(async (req, res) => {
-  const { desaId } = getInstanceContext();
-  const { id } = req.params;
+  const { id: idStr } = req.params;
+  const id = BigInt(idStr);
   const data = updateSchema.parse(req.body);
 
   const existing = await prisma.bansos.findFirst({
     where: {
       id,
-      desaId,
     },
   });
   if (!existing) {
@@ -173,13 +166,12 @@ router.patch('/:id', authorize('pemerintahan.manage'), asyncHandler(async (req, 
 // ============================================
 
 router.delete('/:id', authorize('pemerintahan.manage'), asyncHandler(async (req, res) => {
-  const { desaId } = getInstanceContext();
-  const { id } = req.params;
+  const { id: idStr } = req.params;
+  const id = BigInt(idStr);
 
   const existing = await prisma.bansos.findFirst({
     where: {
       id,
-      desaId,
     },
   });
   if (!existing) {

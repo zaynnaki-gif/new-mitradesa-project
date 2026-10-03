@@ -3,6 +3,7 @@ import { asyncHandler, response, ApiError } from '../../utils/response.js';
 import { beritaService } from '../../services/berita.service.js';
 import { queryBeritaSchema } from '../../dto/cms.dto.js';
 import { z } from 'zod';
+import { cacheMiddleware } from '../../middleware/cache.js';
 
 const router = Router();
 
@@ -15,6 +16,7 @@ const slugParamSchema = z.object({
  */
 router.get(
   '/',
+  cacheMiddleware(60 * 5, 'public:berita'), // Cache for 5 minutes
   asyncHandler(async (req, res) => {
     const query = queryBeritaSchema.parse(req.query);
     const result = await beritaService.findPublished(query);
@@ -27,6 +29,7 @@ router.get(
  */
 router.get(
   '/:slug',
+  cacheMiddleware(60 * 5, 'public:berita:slug'), // Cache for 5 minutes
   asyncHandler(async (req, res) => {
     const { slug } = slugParamSchema.parse(req.params);
 

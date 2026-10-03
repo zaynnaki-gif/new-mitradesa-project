@@ -129,7 +129,8 @@ router.patch(
   "/:id",
   authorize("keuangan.manage"),
   asyncHandler(async (req: Request, res: Response) => {
-    const { id } = req.params;
+    const { id: idStr } = req.params;
+    const id = BigInt(idStr);
     const data = updateSchema.parse(req.body);
 
     const existing = await prisma.bukuBank.findFirst({
@@ -166,7 +167,8 @@ router.delete(
   "/:id",
   authorize("keuangan.manage"),
   asyncHandler(async (req: Request, res: Response) => {
-    const { id } = req.params;
+    const { id: idStr } = req.params;
+    const id = BigInt(idStr);
 
     const existing = await prisma.bukuBank.findFirst({
       where: { id },

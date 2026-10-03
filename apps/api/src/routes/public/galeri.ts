@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { asyncHandler, response } from '../../utils/response.js';
 import { mediaService } from '../../services/media.service.js';
 import { z } from 'zod';
+import { cacheMiddleware } from '../../middleware/cache.js';
 
 const router = Router();
 
@@ -19,6 +20,7 @@ const queryMediaSchema = z.object({
  */
 router.get(
   '/',
+  cacheMiddleware(60 * 10, 'public:galeri'),
   asyncHandler(async (req, res) => {
     const query = queryMediaSchema.parse(req.query);
     // Overwrite fileType to only show images for galeri if not specified

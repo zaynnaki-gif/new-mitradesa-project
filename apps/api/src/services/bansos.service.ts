@@ -60,7 +60,7 @@ export const bansosService = {
 
   async findById(id: string) {
     const bansos = await prisma.bansos.findUnique({ 
-      where: { id },
+      where: { id: BigInt(id) },
       include: {
         _count: { select: { penerima: true } }
       }
@@ -69,7 +69,7 @@ export const bansosService = {
     return bansos;
   },
 
-  async create(data: CreateBansosDTO, desaId?: bigint) {
+  async create(data: CreateBansosDTO) {
     return await prisma.bansos.create({
       data: {
         nama: data.nama,
@@ -78,33 +78,32 @@ export const bansosService = {
         periode: data.periode,
         jumlahPenerima: data.jumlahPenerima,
         jumlahDana: data.jumlahDana || 0,
-        Desa: desaId ? { connect: { id: desaId } } : undefined
       },
     });
   },
 
   async update(id: string, data: UpdateBansosDTO) {
-    const bansos = await prisma.bansos.findUnique({ where: { id } });
+    const bansos = await prisma.bansos.findUnique({ where: { id: BigInt(id) } });
     if (!bansos) throw ApiError.notFound('Program Bansos tidak ditemukan');
 
     return await prisma.bansos.update({
-      where: { id },
+      where: { id: BigInt(id) },
       data,
     });
   },
 
   async delete(id: string) {
-    const bansos = await prisma.bansos.findUnique({ where: { id } });
+    const bansos = await prisma.bansos.findUnique({ where: { id: BigInt(id) } });
     if (!bansos) throw ApiError.notFound('Program Bansos tidak ditemukan');
 
-    await prisma.bansos.delete({ where: { id } });
+    await prisma.bansos.delete({ where: { id: BigInt(id) } });
   },
 
   // PENERIMA BANSOS
 
   async getPenerima(bansosId: string) {
     return await prisma.bansosPenerima.findMany({
-      where: { bansosId },
+      where: { bansosId: BigInt(bansosId) },
       include: {
         penduduk: {
           select: { id: true, namaLengkap: true, nik: true, alamat: true }
@@ -118,25 +117,25 @@ export const bansosService = {
   },
 
   async addPenerima(bansosId: string, data: AddPenerimaDTO) {
-    const bansos = await prisma.bansos.findUnique({ where: { id: bansosId } });
+    const bansos = await prisma.bansos.findUnique({ where: { id: BigInt(bansosId) } });
     if (!bansos) throw ApiError.notFound('Program Bansos tidak ditemukan');
 
     // Check duplicate
     if (data.pendudukId) {
       const exists = await prisma.bansosPenerima.findFirst({
-        where: { bansosId, pendudukId: BigInt(data.pendudukId) }
+        where: { bansosId: BigInt(bansosId), pendudukId: BigInt(data.pendudukId) }
       });
       if (exists) throw ApiError.badRequest('Penduduk ini sudah terdaftar sebagai penerima program ini');
     } else if (data.keluargaId) {
       const exists = await prisma.bansosPenerima.findFirst({
-        where: { bansosId, keluargaId: BigInt(data.keluargaId) }
+        where: { bansosId: BigInt(bansosId), keluargaId: BigInt(data.keluargaId) }
       });
       if (exists) throw ApiError.badRequest('Keluarga ini sudah terdaftar sebagai penerima program ini');
     }
 
     return await prisma.bansosPenerima.create({
       data: {
-        bansosId,
+        bansosId: BigInt(bansosId),
         pendudukId: data.pendudukId ? BigInt(data.pendudukId) : null,
         keluargaId: data.keluargaId ? BigInt(data.keluargaId) : null,
         statusPenerimaan: data.statusPenerimaan,

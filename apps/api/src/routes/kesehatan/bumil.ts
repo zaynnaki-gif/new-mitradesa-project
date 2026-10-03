@@ -4,7 +4,6 @@ import { prisma } from '../../services/prisma.js';
 import { authenticateInternal, authorize } from '../../middleware/index.js';
 import { response, asyncHandler, ApiError } from '../../utils/response.js';
 import { Prisma } from '@prisma/client';
-import { getInstanceContext } from '../../config/instance.js';
 
 const router = Router();
 router.use(authenticateInternal());
@@ -40,10 +39,9 @@ const querySchema = z.object({
 
 router.get('/', authorize('kesehatan.view'), asyncHandler(async (req: Request, res: Response) => {
   const { page, limit, search, trimester } = querySchema.parse(req.query);
-  const { desaId } = getInstanceContext();
   const skip = (page - 1) * limit;
 
-  const where: Prisma.BumilWhereInput = { desaId };
+  const where: Prisma.BumilWhereInput = {};
   if (search) {
     where.AND = [
       {
@@ -83,12 +81,10 @@ router.get('/', authorize('kesehatan.view'), asyncHandler(async (req: Request, r
 // ============================================
 
 router.get('/stats', asyncHandler(async (req: Request, res: Response) => {
-  const { desaId } = getInstanceContext();
   const [total, byTrimester] = await Promise.all([
-    prisma.bumil.count({ where: { desaId } }),
+    prisma.bumil.count(),
     prisma.bumil.groupBy({
       by: ['trimester'],
-      where: { desaId },
       _count: true,
     }),
   ]);
@@ -107,12 +103,11 @@ router.get('/stats', asyncHandler(async (req: Request, res: Response) => {
 // ============================================
 
 router.post('/', authorize('kesehatan.manage'), asyncHandler(async (req: Request, res: Response) => {
-  const { desaId } = getInstanceContext();
   const data = createSchema.parse(req.body);
 
   // Validate that penduduk belongs to this village
   const penduduk = await prisma.penduduk.findFirst({
-    where: { id: data.pendudukId, desaId },
+    where: { id: data.pendudukId },
   });
   if (!penduduk) {
     throw ApiError.badRequest('Penduduk tidak ditemukan atau bukan warga desa ini');
@@ -121,7 +116,6 @@ router.post('/', authorize('kesehatan.manage'), asyncHandler(async (req: Request
   // Check if already registered
   const existing = await prisma.bumil.findFirst({
     where: {
-      desaId,
       OR: [
         { pendudukId: data.pendudukId },
         { nik: data.nik },
@@ -135,7 +129,6 @@ router.post('/', authorize('kesehatan.manage'), asyncHandler(async (req: Request
 
   const created = await prisma.bumil.create({
     data: {
-      desaId,
       pendudukId: data.pendudukId,
       namaLengkap: data.namaLengkap,
       nik: data.nik,
@@ -160,9 +153,9 @@ router.post('/', authorize('kesehatan.manage'), asyncHandler(async (req: Request
 // ============================================
 
 router.get('/:id', authorize('kesehatan.view'), asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const { desaId } = getInstanceContext();
-  const item = await prisma.bumil.findFirst({ where: { id, desaId } });
+  const { id: idStr } = req.params;
+  const id = BigInt(idStr);
+  const item = await prisma.bumil.findFirst({ where: { id } });
   if (!item) {
     throw ApiError.notFound('Data tidak ditemukan');
   }
@@ -174,11 +167,11 @@ router.get('/:id', authorize('kesehatan.view'), asyncHandler(async (req: Request
 // ============================================
 
 router.patch('/:id', authorize('kesehatan.manage'), asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const { desaId } = getInstanceContext();
+  const { id: idStr } = req.params;
+  const id = BigInt(idStr);
   const data = updateSchema.parse(req.body);
 
-  const existing = await prisma.bumil.findFirst({ where: { id, desaId } });
+  const existing = await prisma.bumil.findFirst({ where: { id } });
   if (!existing) {
     throw ApiError.notFound('Data tidak ditemukan');
   }
@@ -209,9 +202,9 @@ router.patch('/:id', authorize('kesehatan.manage'), asyncHandler(async (req: Req
 // ============================================
 
 router.delete('/:id', authorize('kesehatan.manage'), asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const { desaId } = getInstanceContext();
-  const existing = await prisma.bumil.findFirst({ where: { id, desaId } });
+  const { id: idStr } = req.params;
+  const id = BigInt(idStr);
+  const existing = await prisma.bumil.findFirst({ where: { id } });
   if (!existing) {
     throw ApiError.notFound('Data tidak ditemukan');
   }

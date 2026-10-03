@@ -9,7 +9,6 @@ import {
 import { maskNik, maskEmail, maskPhone } from '../utils/pii.js';
 import { ApiError } from '../utils/response.js';
 import { Prisma } from '@prisma/client';
-import { getInstanceContext } from '../config/instance.js';
 
 /**
  * Penduduk Service - Master Identity Warga
@@ -81,7 +80,6 @@ export class PendudukService {
       nikIbu: penduduk.nikIbu ? (shouldMaskNik ? maskNik(penduduk.nikIbu) : penduduk.nikIbu) : null,
       isAktif: penduduk.isAktif,
       statusKepindahan: penduduk.statusKepindahan,
-      desaId: penduduk.desaId?.toString() || null,
       createdAt: penduduk.createdAt.toISOString(),
       updatedAt: penduduk.updatedAt.toISOString(),
       gubugId: penduduk.gubugId?.toString() || null,
@@ -98,7 +96,6 @@ export class PendudukService {
     options: { maskNik?: boolean; maskContact?: boolean } = {}
   ) {
     const { page, limit, search, nik, namaLengkap, jenisKelamin, isAktif, statusPerkawinan, agama } = query as QueryPendudukInput & { [key: string]: unknown };
-    const { desaId } = getInstanceContext();
     const pageNum = Number(page) || 1;
     const limitNum = Number(limit) || 20;
     const skip = (pageNum - 1) * limitNum;
@@ -143,9 +140,6 @@ export class PendudukService {
     if (agama) {
       where.agama = agama;
     }
-    if (desaId) {
-      where.desaId = desaId;
-    }
 
     // Execute query with pagination
     const [penduduks, total] = await Promise.all([
@@ -154,15 +148,6 @@ export class PendudukService {
         skip,
         take: limitNum,
         orderBy: { namaLengkap: 'asc' },
-        include: {
-          Desa: {
-            select: {
-              id: true,
-              nama: true,
-              kode: true,
-            },
-          },
-        },
       }),
       prisma.penduduk.count({ where }),
     ]);
@@ -182,36 +167,8 @@ export class PendudukService {
    * Get Penduduk by ID
    */
   async findById(id: bigint, options: { maskNik?: boolean; maskContact?: boolean } = {}) {
-    const { desaId } = getInstanceContext();
     const penduduk = await prisma.penduduk.findFirst({
-      where: { id, desaId },
-      include: {
-        Desa: {
-          select: {
-            id: true,
-            nama: true,
-            kode: true,
-            kecamatan: {
-              select: {
-                id: true,
-                nama: true,
-                kabupaten: {
-                  select: {
-                    id: true,
-                    nama: true,
-                    provinsi: {
-                      select: {
-                        id: true,
-                        nama: true,
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
+      where: { id },
     });
 
     if (!penduduk) {
@@ -230,17 +187,8 @@ export class PendudukService {
    * Get Penduduk by NIK
    */
   async findByNik(nik: string, options: { maskNik?: boolean; maskContact?: boolean } = {}) {
-    const { desaId } = getInstanceContext();
     const penduduk = await prisma.penduduk.findFirst({
-      where: { nik, desaId },
-      include: {
-        Desa: {
-          select: {
-            id: true,
-            nama: true,
-          },
-        },
-      },
+      where: { nik },
     });
 
     if (!penduduk) {
@@ -264,11 +212,9 @@ export class PendudukService {
     actorAgent?: string
   ) {
     const createData = data as CreatePendudukInput & { [key: string]: unknown };
-    const { desaId } = getInstanceContext();
-
     // Check for duplicate NIK
     const existing = await prisma.penduduk.findFirst({
-      where: { nik: String(createData.nik), desaId },
+      where: { nik: String(createData.nik) },
     });
 
     if (existing) {
@@ -300,7 +246,6 @@ export class PendudukService {
             nikIbu: createData.nikIbu ? String(createData.nikIbu) : null,
             isAktif: createData.isAktif !== undefined ? Boolean(createData.isAktif) : true,
             statusKepindahan: createData.statusKepindahan ? String(createData.statusKepindahan) : null,
-            desaId: desaId ?? null,
           },
         });
 
@@ -345,11 +290,9 @@ export class PendudukService {
     actorAgent?: string
   ) {
     const updateInput = data as UpdatePendudukInput & { [key: string]: unknown };
-    const { desaId } = getInstanceContext();
-
     // Check exists
     const existing = await prisma.penduduk.findFirst({
-      where: { id, desaId },
+      where: { id },
     });
 
     if (!existing) {
@@ -433,10 +376,9 @@ export class PendudukService {
     actorIp?: string,
     actorAgent?: string
   ) {
-    const { desaId } = getInstanceContext();
     // Check exists
     const existing = await prisma.penduduk.findFirst({
-      where: { id, desaId },
+      where: { id },
     });
 
     if (!existing) {
@@ -514,10 +456,7 @@ export class PendudukService {
    * Get count statistics
    */
   async getStats() {
-    const { desaId } = getInstanceContext();
     const where: Prisma.PendudukWhereInput = {};
-    if (desaId) where.desaId = desaId;
-
     const [total, aktif, nonAktif, byJenisKelamin, byAgama] = await Promise.all([
       prisma.penduduk.count({ where }),
       prisma.penduduk.count({ where: { ...where, isAktif: true } }),

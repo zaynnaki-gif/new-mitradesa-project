@@ -627,11 +627,10 @@ router.delete(
 
 /**
  * @route   GET /api/wilayah/tree
- * @desc    Get full wilayah hierarchy for a desa
+ * @desc    Get full wilayah hierarchy (Gubug → RW → RT)
  * @access  Public
  */
-router.get('/tree', asyncHandler(async (req, res) => {
-    
+router.get('/tree', asyncHandler(async (_req, res) => {
   const tree = await wilayahService.getTree();
   return response.success(res, tree);
 }));
@@ -641,11 +640,20 @@ router.get('/tree', asyncHandler(async (req, res) => {
  * @desc    Get flattened dropdown data for forms
  * @access  Public
  */
-router.get('/dropdown', asyncHandler(async (req, res) => {
-    const dropdown = await wilayahService.getDropdown(
-    
-  );
+router.get('/dropdown', asyncHandler(async (_req, res) => {
+  const dropdown = await wilayahService.getDropdown();
+  return response.success(res, dropdown);
+}));
+
+/**
+ * @route   GET /api/wilayah/gubug-rw-rt
+ * @desc    Alias for /dropdown — flat Gubug/RW/RT for cascading selectors
+ * @access  Public
+ */
+router.get('/gubug-rw-rt', asyncHandler(async (_req, res) => {
+  const dropdown = await wilayahService.getDropdown();
   return response.success(res, dropdown);
 }));
 
 export default router;
+

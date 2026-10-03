@@ -3,6 +3,7 @@ import { asyncHandler, response } from '../../utils/response.js';
 import { halamanService } from '../../services/halaman.service.js';
 import { ApiError } from '../../utils/response.js';
 import { z } from 'zod';
+import { cacheMiddleware } from '../../middleware/cache.js';
 
 const router = Router();
 
@@ -15,6 +16,7 @@ const slugParamSchema = z.object({
  */
 router.get(
   '/:slug',
+  cacheMiddleware(60 * 10, 'public:halaman'),
   asyncHandler(async (req, res) => {
     const { slug } = slugParamSchema.parse(req.params);
 

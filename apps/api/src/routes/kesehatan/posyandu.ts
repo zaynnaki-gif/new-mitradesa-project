@@ -4,7 +4,6 @@ import { prisma } from '../../services/prisma.js';
 import { authenticateInternal, authorize } from '../../middleware/index.js';
 import { response, asyncHandler, ApiError } from '../../utils/response.js';
 import { Prisma } from '@prisma/client';
-import { getInstanceContext } from '../../config/instance.js';
 
 const router = Router();
 router.use(authenticateInternal());
@@ -48,10 +47,8 @@ const querySchema = z.object({
 
 router.get('/', authorize('kesehatan.view'), asyncHandler(async (req: Request, res: Response) => {
   const { page, limit, kategori, tanggalMulai, tanggalSelesai } = querySchema.parse(req.query);
-  const { desaId } = getInstanceContext();
-
   const skip = (page - 1) * limit;
-  const where: Prisma.PosyanduKunjunganWhereInput = { desaId };
+  const where: Prisma.PosyanduKunjunganWhereInput = {};
 
   if (kategori) where.kategori = kategori;
   if (tanggalMulai || tanggalSelesai) {
@@ -84,12 +81,11 @@ router.get('/', authorize('kesehatan.view'), asyncHandler(async (req: Request, r
 // ============================================
 
 router.post('/', authorize('kesehatan.manage'), asyncHandler(async (req: Request, res: Response) => {
-  const { desaId } = getInstanceContext();
   const data = createSchema.parse(req.body);
 
   // Validate penduduk belongs to village
   const penduduk = await prisma.penduduk.findFirst({
-    where: { id: data.pendudukId, desaId },
+    where: { id: data.pendudukId },
   });
   if (!penduduk) {
     throw ApiError.badRequest('Penduduk tidak ditemukan atau bukan warga desa ini');
@@ -118,7 +114,6 @@ router.post('/', authorize('kesehatan.manage'), asyncHandler(async (req: Request
 
   const created = await prisma.posyanduKunjungan.create({
     data: {
-      desaId,
       pendudukId: data.pendudukId,
       tanggalKunjungan: new Date(data.tanggalKunjungan),
       kategori: data.kategori,
@@ -143,9 +138,9 @@ router.post('/', authorize('kesehatan.manage'), asyncHandler(async (req: Request
 // ============================================
 
 router.get('/:id', authorize('kesehatan.view'), asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const { desaId } = getInstanceContext();
-  const item = await prisma.posyanduKunjungan.findFirst({ where: { id, desaId } });
+  const { id: idStr } = req.params;
+  const id = BigInt(idStr);
+  const item = await prisma.posyanduKunjungan.findFirst({ where: { id } });
   if (!item) throw ApiError.notFound('Data tidak ditemukan');
   return response.success(res, { ...item, pendudukId: item.pendudukId.toString() });
 }));
@@ -155,10 +150,10 @@ router.get('/:id', authorize('kesehatan.view'), asyncHandler(async (req: Request
 // ============================================
 
 router.patch('/:id', authorize('kesehatan.manage'), asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const { desaId } = getInstanceContext();
+  const { id: idStr } = req.params;
+  const id = BigInt(idStr);
   const data = updateSchema.parse(req.body);
-  const existing = await prisma.posyanduKunjungan.findFirst({ where: { id, desaId } });
+  const existing = await prisma.posyanduKunjungan.findFirst({ where: { id } });
   if (!existing) throw ApiError.notFound('Data tidak ditemukan');
 
   const updated = await prisma.posyanduKunjungan.update({
@@ -189,9 +184,9 @@ router.patch('/:id', authorize('kesehatan.manage'), asyncHandler(async (req: Req
 // ============================================
 
 router.delete('/:id', authorize('kesehatan.manage'), asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const { desaId } = getInstanceContext();
-  const existing = await prisma.posyanduKunjungan.findFirst({ where: { id, desaId } });
+  const { id: idStr } = req.params;
+  const id = BigInt(idStr);
+  const existing = await prisma.posyanduKunjungan.findFirst({ where: { id } });
   if (!existing) {
     throw ApiError.notFound('Data tidak ditemukan');
   }

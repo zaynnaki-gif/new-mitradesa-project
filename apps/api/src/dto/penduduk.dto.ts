@@ -187,7 +187,6 @@ export interface PendudukResponse {
   kepemilikanAset: string | null;
   kondisiFisik: string | null;
   isAktif: boolean;
-  desaId: string | null;
   statusKepindahan: string | null;
   createdAt: string;
   updatedAt: string;

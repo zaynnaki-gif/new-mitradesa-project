@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Provinsi {
@@ -54,38 +55,20 @@ model Kecamatan {
 }
 
 model Desa {
-  id                 BigInt              @id @default(autoincrement())
-  kecamatanId        BigInt              @map("kecamatan_id")
-  kode               String              @db.VarChar(20)
-  nama               String              @db.VarChar(100)
-  createdAt          DateTime            @default(now()) @map("created_at") @db.Timestamp(6)
-  updatedAt          DateTime            @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
-  kecamatan          Kecamatan           @relation(fields: [kecamatanId], references: [id], onUpdate: NoAction, map: "desa_kecamatan_id_foreign")
-  identitasDesa      IdentitasDesa?      @relation(fields: [identitasDesaId], references: [id])
-  keluargas          Keluarga[]
-  penduduks          Penduduk[]
-  perangkatDesas     PerangkatDesa[]
-  kategoris          Kategori[]
-  halamans           Halaman[]
-  layanans           Layanan[]
-  penandaTangans     PenandaTangan[]
-  nomorDokumen       NomorDokumen[]
-  umkms              Umkm[]
-  apbdes             Apbdes[]
-  agenda             Agenda[]
-  SuratMasuk         SuratMasuk[]
-  PotensiDesa        PotensiDesa[]
-  gubugs             Gubug[]
-  banners            Banner[]
-  Blanko             Blanko[]
-  posyanduKunjungans PosyanduKunjungan[]
-  bumils             Bumil[]
-  kasUmums           KasUmum[]
-  bukuBanks          BukuBank[]
-  bansos             Bansos[]
-  saranAduans        SaranAduan[]
-  mutasiPenduduks    MutasiPenduduk[]
-  identitasDesaId    BigInt?
+  id              BigInt          @id @default(autoincrement())
+  kecamatanId     BigInt          @map("kecamatan_id")
+  kode            String          @db.VarChar(20)
+  nama            String          @db.VarChar(100)
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamp(6)
+  updatedAt       DateTime        @default(now()) @updatedAt @map("updated_at") @db.Timestamp(6)
+  kecamatan       Kecamatan       @relation(fields: [kecamatanId], references: [id], onUpdate: NoAction, map: "desa_kecamatan_id_foreign")
+  identitasDesa   IdentitasDesa?  @relation(fields: [identitasDesaId], references: [id])
+  layanans        Layanan[]
+  penandaTangans  PenandaTangan[]
+  nomorDokumen    NomorDokumen[]
+  SuratMasuk      SuratMasuk[]
+  Blanko          Blanko[]
+  identitasDesaId BigInt?
 
   @@unique([kecamatanId, kode])
   @@index([kecamatanId])
@@ -108,8 +91,6 @@ model Gubug {
   bumilFromGubug        Bumil[]          @relation("GubugToBumil")
   mutasiAsalFromGubug   MutasiPenduduk[] @relation("GubugAsal")
   mutasiTujuanFromGubug MutasiPenduduk[] @relation("GubugTujuan")
-  Desa                  Desa?            @relation(fields: [desaId], references: [id])
-  desaId                BigInt?
 
   @@map("gubug")
 }
@@ -444,8 +425,6 @@ model Penduduk {
   rtRel             Rt?                 @relation("RtToPenduduk", fields: [rtId], references: [id], onUpdate: NoAction, map: "penduduk_rt_id_foreign")
   perangkatDesas    PerangkatDesa[]
   permintaan        PermintaanLayanan[]
-  Desa              Desa?               @relation(fields: [desaId], references: [id])
-  desaId            BigInt?
   UsulanOnline      UsulanOnline[]
   bansosDiterima    BansosPenerima[]
   Lembaga           Lembaga[]           @relation("PimpinanLembaga")
@@ -483,8 +462,6 @@ model Keluarga {
   gubug  Gubug?   @relation("GubugToKeluarga", fields: [gubugId], references: [id], onUpdate: NoAction, map: "keluarga_gubug_id_foreign")
   rwRel  Rw?      @relation("RwToKeluarga", fields: [rwId], references: [id], onUpdate: NoAction, map: "keluarga_rw_id_foreign")
   rtRel  Rt?      @relation("RtToKeluarga", fields: [rtId], references: [id], onUpdate: NoAction, map: "keluarga_rt_id_foreign")
-  Desa   Desa?    @relation(fields: [desaId], references: [id])
-  desaId BigInt?
 
   bansosDiterima BansosPenerima[]
 
@@ -527,8 +504,6 @@ model PerangkatDesa {
   account   Account?  @relation(fields: [accountId], references: [id], onUpdate: NoAction)
 
   penduduk Penduduk @relation(fields: [pendudukId], references: [id], onUpdate: NoAction)
-  Desa     Desa?    @relation(fields: [desaId], references: [id])
-  desaId   BigInt?
 
   @@index([pendudukId])
   @@index([jabatan])
@@ -670,8 +645,6 @@ model Kategori {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   berita Berita[]
-  Desa   Desa?    @relation(fields: [desaId], references: [id])
-  desaId BigInt?
 
   @@index([slug])
   @@index([urutan])
@@ -734,8 +707,6 @@ model Halaman {
   // Page settings
   urutan Int     @default(0)
   isMenu Boolean @default(false) @map("is_menu")
-  Desa   Desa?   @relation(fields: [desaId], references: [id])
-  desaId BigInt?
 
   @@index([slug])
   @@index([status])
@@ -786,8 +757,6 @@ model Umkm {
   isAktif   Boolean  @default(true) @map("is_aktif")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
-  Desa      Desa?    @relation(fields: [desaId], references: [id])
-  desaId    BigInt?
 
   @@index([slug])
   @@index([kategori])
@@ -1282,9 +1251,7 @@ model Apbdes {
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
-  items  ApbdesItem[]
-  Desa   Desa?        @relation(fields: [desaId], references: [id])
-  desaId BigInt?
+  items ApbdesItem[]
 
   @@map("apbdes")
 }
@@ -1329,8 +1296,6 @@ model Agenda {
   isAktif        Boolean      @default(true) @map("is_aktif")
   createdAt      DateTime     @default(now()) @map("created_at")
   updatedAt      DateTime     @updatedAt @map("updated_at")
-  Desa           Desa?        @relation(fields: [desaId], references: [id])
-  desaId         BigInt?
 
   @@index([tanggalMulai])
   @@index([status])
@@ -1374,6 +1339,9 @@ model Disposisi {
   instruksi      String          @db.Text
   tanggalSelesai DateTime?       @map("tanggal_selesai") @db.Date
   status         DisposisiStatus @default(PENDING)
+  tanggalDibaca  DateTime?       @map("tanggal_dibaca") @db.Timestamp(6)
+  tanggalDibalas DateTime?       @map("tanggal_dibalas") @db.Timestamp(6)
+  catatanBalasan String?         @map("catatan_balasan") @db.Text
   createdAt      DateTime        @default(now()) @map("created_at")
   updatedAt      DateTime        @updatedAt @map("updated_at")
 
@@ -1392,8 +1360,11 @@ enum SuratMasukStatus {
 
 enum DisposisiStatus {
   PENDING
+  DIBACA
   DIPROSES
   SELESAI
+  DIBALAS
+  DITOLAK
 }
 
 /// Potensi Desa
@@ -1410,8 +1381,6 @@ model PotensiDesa {
   isAktif   Boolean  @default(true) @map("is_aktif")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
-  Desa      Desa?    @relation(fields: [desaId], references: [id])
-  desaId    BigInt?
 
   @@index([slug])
   @@index([kategori])
@@ -1429,8 +1398,6 @@ model Banner {
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
-  Desa      Desa?    @relation(fields: [desaId], references: [id])
-  desaId    BigInt?
 
   @@index([urutan])
   @@map("banner")
@@ -1441,7 +1408,7 @@ model Banner {
 // ============================================================
 
 model PosyanduKunjungan {
-  id String @id @default(cuid())
+  id BigInt @id @default(autoincrement())
 
   pendudukId       BigInt   @map("penduduk_id")
   tanggalKunjungan DateTime @map("tanggal_kunjungan") @db.Date
@@ -1460,8 +1427,6 @@ model PosyanduKunjungan {
   kaderId          BigInt?  @map("kader_id")
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
-  Desa             Desa?    @relation(fields: [desaId], references: [id])
-  desaId           BigInt?
 
   kader Penduduk? @relation("KaderPemeriksa", fields: [kaderId], references: [id], onDelete: SetNull)
 
@@ -1473,7 +1438,7 @@ model PosyanduKunjungan {
 }
 
 model Bumil {
-  id String @id @default(cuid())
+  id BigInt @id @default(autoincrement())
 
   pendudukId   BigInt   @unique @map("penduduk_id")
   namaLengkap  String   @map("nama_lengkap") @db.VarChar(255)
@@ -1495,8 +1460,6 @@ model Bumil {
   rwRel      Rw?       @relation("RwToBumil", fields: [rwId], references: [id], onUpdate: NoAction, map: "bumil_rw_id_foreign")
   rtRel      Rt?       @relation("RtToBumil", fields: [rtId], references: [id], onUpdate: NoAction, map: "bumil_rt_id_foreign")
   pendamping Penduduk? @relation("BidanPendamping", fields: [pendampingId], references: [id], onDelete: SetNull)
-  Desa       Desa?     @relation(fields: [desaId], references: [id])
-  desaId     BigInt?
 
   @@index([pendudukId])
   @@index([gubugId])
@@ -1506,7 +1469,7 @@ model Bumil {
 }
 
 model KasUmum {
-  id String @id @default(cuid())
+  id BigInt @id @default(autoincrement())
 
   tanggal      DateTime @db.Date
   jenis        String   @db.VarChar(20) // KAS_MASUK, KAS_KELUAR
@@ -1519,8 +1482,6 @@ model KasUmum {
 
   apbdesItem ApbdesItem? @relation(fields: [apbdesItemId], references: [id], onUpdate: NoAction)
   bukuBank   BukuBank?
-  Desa       Desa?       @relation(fields: [desaId], references: [id])
-  desaId     BigInt?
 
   @@index([apbdesItemId])
   @@index([kodeRekening])
@@ -1528,7 +1489,7 @@ model KasUmum {
 }
 
 model BukuBank {
-  id String @id @default(cuid())
+  id BigInt @id @default(autoincrement())
 
   bank         String   @db.VarChar(100)
   tanggal      DateTime @db.Date
@@ -1538,19 +1499,17 @@ model BukuBank {
   kredit       Float    @default(0)
   saldo        Float
   rekonsiliasi Boolean  @default(false) @map("rekonsiliasi")
-  kasUmumId    String?  @unique @map("kas_umum_id")
+  kasUmumId    BigInt?  @unique @map("kas_umum_id")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   kasUmum KasUmum? @relation(fields: [kasUmumId], references: [id], onDelete: SetNull)
-  Desa    Desa?    @relation(fields: [desaId], references: [id])
-  desaId  BigInt?
 
   @@map("buku_bank")
 }
 
 model Bansos {
-  id String @id @default(cuid())
+  id BigInt @id @default(autoincrement())
 
   nama           String   @db.VarChar(255)
   jenis          String   @db.VarChar(100) // BLT, PKH, BPNT, dll
@@ -1560,8 +1519,6 @@ model Bansos {
   jumlahDana     Float    @default(0) @map("jumlah_dana")
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-  Desa           Desa?    @relation(fields: [desaId], references: [id])
-  desaId         BigInt?
 
   penerima BansosPenerima[]
 
@@ -1570,7 +1527,7 @@ model Bansos {
 
 model BansosPenerima {
   id               BigInt    @id @default(autoincrement())
-  bansosId         String    @map("bansos_id")
+  bansosId         BigInt    @map("bansos_id")
   pendudukId       BigInt?   @map("penduduk_id")
   keluargaId       BigInt?   @map("keluarga_id")
   statusPenerimaan String    @default("MENUNGGU") @map("status_penerimaan") @db.VarChar(50)
@@ -1593,7 +1550,7 @@ model BansosPenerima {
 // ============================================================
 
 model SaranAduan {
-  id String @id @default(cuid())
+  id BigInt @id @default(autoincrement())
 
   judul           String           @map("judul") @db.VarChar(255)
   isi             String           @map("isi") @db.Text
@@ -1610,8 +1567,6 @@ model SaranAduan {
   updatedAt       DateTime         @updatedAt @map("updated_at")
 
   penduduk Penduduk? @relation(fields: [pendudukId], references: [id], onDelete: SetNull)
-  Desa     Desa?     @relation(fields: [desaId], references: [id])
-  desaId   BigInt?
 
   @@index([kategori])
   @@index([status])
@@ -1631,7 +1586,7 @@ enum SaranAduanStatus {
 // ============================================================
 
 model MutasiPenduduk {
-  id String @id @default(cuid())
+  id BigInt @id @default(autoincrement())
 
   jenisMutasi     MutasiJenis @map("jenis_mutasi")
   tanggalMutasi   DateTime    @map("tanggal_mutasi") @db.Date
@@ -1673,15 +1628,13 @@ model MutasiPenduduk {
   // Relations
 
   // Relations for origin wilayah
-  gubugAsal   Gubug?  @relation("GubugAsal", fields: [gubugAsalId], references: [id], onUpdate: NoAction, map: "mutasi_gubug_asal_id_foreign")
-  rwAsal      Rw?     @relation("RwAsal", fields: [rwAsalId], references: [id], onUpdate: NoAction, map: "mutasi_rw_asal_id_foreign")
-  rtAsal      Rt?     @relation("RtAsal", fields: [rtAsalId], references: [id], onUpdate: NoAction, map: "mutasi_rt_asal_id_foreign")
+  gubugAsal   Gubug? @relation("GubugAsal", fields: [gubugAsalId], references: [id], onUpdate: NoAction, map: "mutasi_gubug_asal_id_foreign")
+  rwAsal      Rw?    @relation("RwAsal", fields: [rwAsalId], references: [id], onUpdate: NoAction, map: "mutasi_rw_asal_id_foreign")
+  rtAsal      Rt?    @relation("RtAsal", fields: [rtAsalId], references: [id], onUpdate: NoAction, map: "mutasi_rt_asal_id_foreign")
   // Relations for destination wilayah
-  gubugTujuan Gubug?  @relation("GubugTujuan", fields: [gubugTujuanId], references: [id], onUpdate: NoAction, map: "mutasi_gubug_tujuan_id_foreign")
-  rwTujuan    Rw?     @relation("RwTujuan", fields: [rwTujuanId], references: [id], onUpdate: NoAction, map: "mutasi_rw_tujuan_id_foreign")
-  rtTujuan    Rt?     @relation("RtTujuan", fields: [rtTujuanId], references: [id], onUpdate: NoAction, map: "mutasi_rt_tujuan_id_foreign")
-  Desa        Desa?   @relation(fields: [desaId], references: [id])
-  desaId      BigInt?
+  gubugTujuan Gubug? @relation("GubugTujuan", fields: [gubugTujuanId], references: [id], onUpdate: NoAction, map: "mutasi_gubug_tujuan_id_foreign")
+  rwTujuan    Rw?    @relation("RwTujuan", fields: [rwTujuanId], references: [id], onUpdate: NoAction, map: "mutasi_rw_tujuan_id_foreign")
+  rtTujuan    Rt?    @relation("RtTujuan", fields: [rtTujuanId], references: [id], onUpdate: NoAction, map: "mutasi_rt_tujuan_id_foreign")
 
   @@index([jenisMutasi])
   @@index([tanggalMutasi])

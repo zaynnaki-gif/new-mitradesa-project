@@ -164,7 +164,8 @@ router.post('/', authorize('pemerintahan.manage'), asyncHandler(async (req, res)
 // ============================================
 
 router.get('/:id', authorize('pemerintahan.view'), asyncHandler(async (req, res) => {
-  const { id } = req.params;
+  const { id: idStr } = req.params;
+  const id = BigInt(idStr);
   const item = await prisma.saranAduan.findFirst({
     where: {
       id
@@ -188,7 +189,8 @@ router.get('/:id', authorize('pemerintahan.view'), asyncHandler(async (req, res)
 // ============================================
 
 router.patch('/:id', authorize('pemerintahan.manage'), asyncHandler(async (req, res) => {
-  const { id } = req.params;
+  const { id: idStr } = req.params;
+  const id = BigInt(idStr);
   const data = updateSchema.parse(req.body);
 
   const existing = await prisma.saranAduan.findFirst({
@@ -230,7 +232,8 @@ router.patch('/:id', authorize('pemerintahan.manage'), asyncHandler(async (req, 
 // ============================================
 
 router.delete('/:id', authorize('pemerintahan.manage'), asyncHandler(async (req, res) => {
-  const { id } = req.params;
+  const { id: idStr } = req.params;
+  const id = BigInt(idStr);
 
   const existing = await prisma.saranAduan.findFirst({
     where: {

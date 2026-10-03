@@ -4,6 +4,13 @@ import { asyncHandler, response, ApiError } from '../../utils/response.js';
 import { authenticateInternal, authorize } from '../../middleware/index.js';
 import { offlineAccessRateLimiter } from '../../middleware/rate-limiter.middleware.js';
 import { pendudukService } from '../../services/penduduk.service.js';
+import { pendudukImportService } from '../../services/penduduk-import.service.js';
+import multer from 'multer';
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+});
 import {
   createPendudukSchema,
   updatePendudukSchema,
@@ -37,6 +44,61 @@ router.get(
       maskContact: false,
     });
     return response.success(res, result.data, 'Penduduk list retrieved', result.meta);
+  })
+);
+
+/**
+ * @route   POST /api/penduduk/import
+ * @desc    Import penduduk dari file Excel
+ * @access  Private (Admin with penduduk.create)
+ */
+router.post(
+  '/import',
+  authenticateInternal(),
+  authorize('penduduk.create'),
+  upload.single('file'),
+  asyncHandler(async (req, res) => {
+    if (!req.file) {
+      throw ApiError.badRequest('File Excel wajib diunggah');
+    }
+
+    // Pass buffer to service
+    const result = await pendudukImportService.importFromExcel(req.file.buffer);
+    return response.success(res, result, 'Import Kependudukan selesai');
+  })
+);
+
+/**
+ * @route   GET /api/penduduk/template
+ * @desc    Download Template Excel
+ * @access  Private
+ */
+router.get(
+  '/template',
+  authenticateInternal(),
+  authorize('penduduk.create'), // require create permission to download template
+  asyncHandler(async (_req, res) => {
+    const buffer = await pendudukImportService.generateTemplate();
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=Template_Kependudukan.xlsx');
+    res.send(buffer);
+  })
+);
+
+/**
+ * @route   GET /api/penduduk/export
+ * @desc    Export data penduduk to Excel
+ * @access  Private
+ */
+router.get(
+  '/export',
+  authenticateInternal(),
+  authorize('penduduk.view'),
+  asyncHandler(async (_req, res) => {
+    const buffer = await pendudukImportService.exportToExcel();
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=Data_Kependudukan.xlsx');
+    res.send(buffer);
   })
 );
 

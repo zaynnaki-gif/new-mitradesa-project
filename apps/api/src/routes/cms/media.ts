@@ -3,7 +3,7 @@ import { asyncHandler, response } from '../../utils/response.js';
 import { authenticateInternal, authorize } from '../../middleware/index.js';
 
 import { mediaService, CreateMediaInput } from '../../services/media.service.js';
-import { validateMimeType, getStorageProvider, getFileType } from '../../services/storage/index.js';
+import { validateMimeType, validateExtension, sanitizeFilename, getStorageProvider, getFileType } from '../../services/storage/index.js';
 import { z } from 'zod';
 import multer from 'multer';
 
@@ -69,23 +69,7 @@ function validateFileUrl(url: string): boolean {
   }
 }
 
-/**
- * Security: Validate filename extension
- */
-function validateFilename(filename: string): boolean {
-  const ext = filename.toLowerCase().slice(filename.lastIndexOf('.'));
-  return ext.length > 1; // Basic extension check
-}
-
-/**
- * Security: Check for path traversal in filenames
- */
-function checkPathTraversal(filename: string): boolean {
-  return filename.includes('..') || filename.includes('/') || filename.includes('\\');
-}
-
-// Re-export for potential use
-export { validateFilename, checkPathTraversal };
+// (Security validations imported from storage/types.ts)
 
 /**
  * GET /api/media - List all media (admin)
@@ -157,8 +141,14 @@ router.post(
       return response.error(res, 400, 'BAD_REQUEST', 'Tipe file tidak diizinkan');
     }
 
+    if (!validateExtension(file.originalname)) {
+      return response.error(res, 400, 'BAD_REQUEST', 'Ekstensi file tidak valid atau berbahaya');
+    }
+
+    const safeFilename = sanitizeFilename(file.originalname);
+
     const { deskripsi, kategori, alt } = req.body;
-    let nama = req.body.nama || file.originalname.split('.')[0];
+    let nama = req.body.nama || safeFilename.split('.')[0];
     
     // Generate simple slug if not provided
     let slug = req.body.slug || nama.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '-' + Date.now();
@@ -169,7 +159,7 @@ router.post(
     // Upload to storage provider
     const storageProvider = getStorageProvider();
     const storageFile = await storageProvider.upload(file.buffer, {
-      filename: file.originalname,
+      filename: safeFilename,
       contentType: file.mimetype,
     });
 

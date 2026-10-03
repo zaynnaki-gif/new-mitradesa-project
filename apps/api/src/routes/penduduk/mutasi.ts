@@ -336,7 +336,8 @@ router.post('/', authorize('penduduk.create'), asyncHandler(async (req, res) => 
 // ============================================
 
 router.get('/:id', authorize('penduduk.view'), asyncHandler(async (req, res) => {
-  const { id } = req.params;
+  const { id: idStr } = req.params;
+  const id = BigInt(idStr);
   const item = await prisma.mutasiPenduduk.findFirst({
     where: {
       id
@@ -361,7 +362,8 @@ router.get('/:id', authorize('penduduk.view'), asyncHandler(async (req, res) => 
 // ============================================
 
 router.patch('/:id', authorize('penduduk.update'), asyncHandler(async (req, res) => {
-  const { id } = req.params;
+  const { id: idStr } = req.params;
+  const id = BigInt(idStr);
   const data = updateSchema.parse(req.body);
 
   const existing = await prisma.mutasiPenduduk.findFirst({
@@ -413,7 +415,8 @@ router.patch('/:id', authorize('penduduk.update'), asyncHandler(async (req, res)
 // ============================================
 
 router.delete('/:id', authorize('penduduk.delete'), asyncHandler(async (req, res) => {
-  const { id } = req.params;
+  const { id: idStr } = req.params;
+  const id = BigInt(idStr);
 
   const existing = await prisma.mutasiPenduduk.findFirst({
     where: {

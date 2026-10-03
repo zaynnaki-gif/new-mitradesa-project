@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { asyncHandler, response } from '../../utils/response.js';
 import { prisma } from '../../services/prisma.js';
 import { z } from 'zod';
+import { cacheMiddleware } from '../../middleware/cache.js';
 
 const router = Router();
 
@@ -46,6 +47,7 @@ function serializeAgenda(item: AgendaRow) {
  */
 router.get(
   '/',
+  cacheMiddleware(60 * 5, 'public:agenda'),
   asyncHandler(async (req, res) => {
     const { page, limit, search, status } = querySchema.parse(req.query);
     const skip = (page - 1) * limit;
@@ -96,6 +98,7 @@ router.get(
  */
 router.get(
   '/:slug',
+  cacheMiddleware(60 * 5, 'public:agenda:slug'),
   asyncHandler(async (req, res) => {
     const { slug } = slugSchema.parse(req.params);
 
