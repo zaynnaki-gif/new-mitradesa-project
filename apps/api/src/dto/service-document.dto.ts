@@ -482,7 +482,7 @@ export type ExtendedKopConfig = z.infer<typeof ExtendedKopConfigSchema>;
 export const ExtendedSignatureConfigSchema = z.object({
   title: z.object({
     enabled: z.boolean().default(true),
-    text: z.string().default('Kepala Desa Seruni Mumbul'),
+    text: z.string().default('Kepala Desa'),
     align: z.enum(['left', 'center', 'right']).default('right'),
     marginBottom: z.number().default(30),
   }),

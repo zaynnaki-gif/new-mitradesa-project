@@ -318,9 +318,10 @@ export class PdfRenderer {
     }
 
     // Right logo (Kabupaten if provided)
-    if (kop.logoKabupaten?.visible && (kop.logoKabupaten as { source?: string }).source) {
+    const rightLogoSource = (kop.logoKabupaten as { source?: string })?.source;
+    if (kop.logoKabupaten?.visible && rightLogoSource) {
       const rightX = this.pageWidth - this.doc.page.margins.right - logoWidth;
-      await this.drawLogoAsync((kop.logoKabupaten as { source?: string }).source!, rightX, startY, logoWidth);
+      await this.drawLogoAsync(rightLogoSource, rightX, startY, logoWidth);
     }
 
     let textY = startY;
@@ -329,7 +330,7 @@ export class PdfRenderer {
     if (kop.institutionNames?.pemda?.visible !== false) {
       this.doc.font('Times-Bold').fontSize(12);
       this.doc.text(
-        kop.institutionNames?.pemda?.text || 'PEMERINTAH KABUPATEN LOMBOK TIMUR',
+        kop.institutionNames?.pemda?.text || '[PEMERINTAH KABUPATEN]',
         leftX,
         textY,
         { align: 'center', width: this.contentWidth }
@@ -340,7 +341,7 @@ export class PdfRenderer {
     if (kop.institutionNames?.kecamatan?.visible !== false) {
       this.doc.font('Times-Bold').fontSize(13);
       this.doc.text(
-        kop.institutionNames?.kecamatan?.text || 'KECAMATAN PRINGGABAYA',
+        kop.institutionNames?.kecamatan?.text || '[NAMA KECAMATAN]',
         leftX,
         textY,
         { align: 'center', width: this.contentWidth }
@@ -351,7 +352,7 @@ export class PdfRenderer {
     if (kop.institutionNames?.desa?.visible !== false) {
       this.doc.font('Times-Bold').fontSize(15);
       this.doc.text(
-        kop.institutionNames?.desa?.text || 'DESA SERUNI MUMBUL',
+        kop.institutionNames?.desa?.text || '[NAMA DESA]',
         leftX,
         textY,
         { align: 'center', width: this.contentWidth }
@@ -455,13 +456,13 @@ export class PdfRenderer {
       const rightColX = this.doc.page.margins.left + colWidth + 30;
 
       // Right column: Date & Place
-      const dateText = config.dateLocation || 'Seruni Mumbul, .................................... 20...';
+      const dateText = config.dateLocation || '.................................... 20...';
       this.doc.font('Times-Roman').fontSize(10);
       this.doc.text(dateText, rightColX, startY, { width: colWidth, align: 'center' });
 
       // Titles
       const applicantTitle = config.applicantTitle || 'Yang Menyatakan / Pemohon,';
-      const officialTitle = config.title?.text || config.signatory?.title || 'Kepala Desa Seruni Mumbul,';
+      const officialTitle = config.title?.text || config.signatory?.title || 'Kepala Desa,';
 
       this.doc.font('Times-Bold').fontSize(10);
       this.doc.text(applicantTitle, leftColX, startY + 16, { width: colWidth, align: 'center' });
@@ -519,8 +520,8 @@ export class PdfRenderer {
       // QR Code for verification
       if (config.qrCode?.enabled !== false && qrData) {
         await this.renderQrCode(qrData, {
-          x: leftColX,
-          y: sigLineY + 20,
+          x: rightColX + (colWidth - this.mmToPoints(18)) / 2,
+          y: startY + 30,
           sizeMm: 18,
         });
       }
@@ -533,11 +534,11 @@ export class PdfRenderer {
       const colWidth = 230;
       const rightColX = this.pageWidth - this.doc.page.margins.right - colWidth;
 
-      const dateText = config.dateLocation || 'Seruni Mumbul, .................................... 20...';
+      const dateText = config.dateLocation || '.................................... 20...';
       this.doc.font('Times-Roman').fontSize(10);
       this.doc.text(dateText, rightColX, startY, { width: colWidth, align: 'center' });
 
-      const titleText = config.title?.text || config.signatory?.title || 'Kepala Desa Seruni Mumbul';
+      const titleText = config.title?.text || config.signatory?.title || 'Kepala Desa';
       this.doc.font('Times-Bold').fontSize(10);
       this.doc.text(titleText, rightColX, startY + 16, { width: colWidth, align: 'center' });
 
@@ -599,8 +600,8 @@ export class PdfRenderer {
       // QR Code
       if (config.qrCode?.enabled !== false && qrData) {
         await this.renderQrCode(qrData, {
-          x: this.doc.page.margins.left,
-          y: startY + 10,
+          x: rightColX + (colWidth - this.mmToPoints(22)) / 2,
+          y: startY + 30,
           sizeMm: 22,
         });
       }
@@ -877,11 +878,12 @@ export class PdfRenderer {
 
       this.doc.text(':', x + labelWidthPt, savedY, { width: colonWidthPt, align: 'center' });
 
-      const valueH = this.doc.heightOfString(element.value || '', {
+      const valueText = element.value !== undefined && element.value !== null ? String(element.value) : '';
+      const valueH = this.doc.heightOfString(valueText, {
         width: valueWidth,
         lineGap: fontSize * (lineHeight - 1),
       });
-      this.doc.text(element.value || '', valueX, savedY, {
+      this.doc.text(valueText, valueX, savedY, {
         width: valueWidth,
         align: 'left',
         lineGap: fontSize * (lineHeight - 1),

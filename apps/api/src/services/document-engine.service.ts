@@ -19,6 +19,8 @@ import {
   resolveBinding,
   BindingContext,
   validateTemplateBindings,
+  getVillageContext,
+  validateContextBindings,
 } from '../utils/binding-resolver.js';
 import {
   evaluateConditionString,
@@ -45,6 +47,12 @@ export interface DocumentGenerationOptions {
   judul: string;
   permintaanId?: bigint;
   generatePdf?: boolean;
+  /** Pre-loaded citizen notification data to avoid a redundant DB round-trip */
+  citizenNotificationHint?: {
+    phone?: string | null;
+    nomorPermintaan?: string;
+    layananNama?: string;
+  };
 }
 
 export interface DocumentGenerationResult {
@@ -106,9 +114,63 @@ export class DocumentEngineService {
       throw ApiError.badRequest('Template harus dalam status PUBLISHED');
     }
 
-    // 2. Fetch village identity configurations
-    
-    // 3. Generate document number
+    // 2. Load permintaan data to extract dataJson (form DNA) and penduduk profile
+    let customData: Record<string, unknown> = {};
+    let pendudukFromPermintaan: Record<string, unknown> | undefined;
+
+    if (permintaanId) {
+      const permintaan = await this.db.permintaanLayanan.findUnique({
+        where: { id: permintaanId },
+        include: {
+          penduduk: {
+            include: {
+              gubug: true,
+              rwRel: true,
+              rtRel: true,
+            }
+          },
+        },
+      });
+
+      if (permintaan) {
+        // Inject dataJson fields as custom.* — these are the DNA form fields from the warga
+        const dataJson = (permintaan.dataJson as Record<string, unknown>) || {};
+        customData = dataJson;
+
+        // Also enrich penduduk bindings from actual DB record if available
+        if (permintaan.penduduk) {
+          const pd = permintaan.penduduk as Record<string, unknown>;
+          pendudukFromPermintaan = {
+            nik: pd.nik,
+            namaLengkap: pd.namaLengkap || pd.nama_lengkap,
+            nama_lengkap: pd.namaLengkap || pd.nama_lengkap,
+            tempatLahir: pd.tempatLahir || pd.tempat_lahir,
+            tempat_lahir: pd.tempatLahir || pd.tempat_lahir,
+            tanggalLahir: pd.tanggalLahir || pd.tanggal_lahir,
+            tanggal_lahir: pd.tanggalLahir || pd.tanggal_lahir,
+            jenisKelamin: pd.jenisKelamin || pd.jenis_kelamin,
+            jenis_kelamin: pd.jenisKelamin || pd.jenis_kelamin,
+            agama: pd.agama,
+            statusPerkawinan: pd.statusPerkawinan || pd.status_perkawinan,
+            status_perkawinan: pd.statusPerkawinan || pd.status_perkawinan,
+            pekerjaan: pd.pekerjaan,
+            pendidikan: pd.pendidikan,
+            golDarah: pd.golDarah || pd.gol_darah,
+            gol_darah: pd.golDarah || pd.gol_darah,
+            alamat: pd.alamat,
+            rt: pd.rt || (pd.rtRel as any)?.nama || '-',
+            rw: pd.rw || (pd.rwRel as any)?.nama || '-',
+            dusun: pd.dusun || (pd.gubug as any)?.nama || '-',
+            kewarganegaraan: pd.kewarganegaraan || 'WNI',
+            wargaNegara: pd.wargaNegara || pd.kewarganegaraan || 'Indonesia',
+            telepon: pd.telepon,
+            email: pd.email,
+          };
+        }
+      }
+    }
+
+    // 3. Generate document number using NomorSuratConfig from DB
     const nomorDokumen = await generateDocumentNumber(
       this.db,
       version.template.dokumen.kode
@@ -124,8 +186,42 @@ export class DocumentEngineService {
     });
 
     // 5.5 Merge village & system context into context so standard village/signatory/system bindings resolve
-    const { getVillageContext } = await import('../utils/binding-resolver.js');
     const villageCtx = await getVillageContext(this.db);
+
+    // 5.6 Build auto kop config from village identity if kopConfig is minimal
+    let kopConfig = version.kopConfig as Record<string, unknown> | undefined;
+    if (!kopConfig || (kopConfig as Record<string, unknown>).show === true) {
+      // Build rich kop from village context
+      const desaCtx = villageCtx.desa as Record<string, unknown>;
+      kopConfig = {
+        logoDesa: {
+          visible: !!desaCtx?.logoDesa,
+          position: 'left',
+          size: 24,
+          source: desaCtx?.logoDesa || null,
+        },
+        logoKabupaten: {
+          visible: !!desaCtx?.logoKabupaten,
+          position: 'right',
+          size: 24,
+          source: desaCtx?.logoKabupaten || null,
+        },
+        institutionNames: {
+          pemda: { visible: true, text: `PEMERINTAH KABUPATEN ${String(desaCtx?.kabupaten || '').toUpperCase()}` },
+          kecamatan: { visible: true, text: `KECAMATAN ${String(desaCtx?.kecamatan || '').toUpperCase()}` },
+          desa: { visible: true, text: `DESA ${String(desaCtx?.nama || '').toUpperCase().replace(/^DESA\s*/i, '')}` },
+        },
+        addressBlock: {
+          enabled: true,
+          lines: [
+            desaCtx?.alamat ? `Alamat: ${desaCtx.alamat}` : null,
+            desaCtx?.telepon ? `Telp: ${desaCtx.telepon}` : null,
+            desaCtx?.email ? `Email: ${desaCtx.email}` : null,
+          ].filter(Boolean) as string[],
+        },
+        divider: { style: 'double', thickness: 2 },
+      };
+    }
 
     const now = new Date();
     const fullContext: BindingContext = {
@@ -137,12 +233,28 @@ export class DocumentEngineService {
         nomor: nomorDokumen,
         penandatangan: defaultSignatory?.nama || (villageCtx.kepala_desa?.nama as string) || 'Kepala Desa',
         jabatanPenandatangan: defaultSignatory?.jabatan || (villageCtx.kepala_desa?.jabatan as string) || 'Kepala Desa',
+        jabatan: defaultSignatory?.jabatan || (villageCtx.kepala_desa?.jabatan as string) || 'Kepala Desa',
         tahun: now.getFullYear().toString(),
         bulan: now.getMonth() + 1,
+        bulanRomawi: ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'][now.getMonth()],
+        hari: ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'][now.getDay()],
       },
+      // Inject custom.* from dataJson so DNA form fields resolve in templates
+      custom: {
+        ...customData,
+        // Also spread explicit context.custom if any
+        ...((context.custom as Record<string, unknown>) || {}),
+      },
+      // Merge incoming context (may override some fields)
       ...context,
+      // Override penduduk with DB data if available
+      penduduk: {
+        ...(pendudukFromPermintaan || (context.penduduk as Record<string, unknown>) || {}),
+        // incoming context.penduduk can still override specific fields
+        ...((context.penduduk as Record<string, unknown>) || {}),
+      },
       kepala_desa: {
-        nama: defaultSignatory?.nama || villageCtx.kepala_desa?.nama || 'H. Tajuddin',
+        nama: defaultSignatory?.nama || villageCtx.kepala_desa?.nama || 'Kepala Desa',
         jabatan: defaultSignatory?.jabatan || villageCtx.kepala_desa?.jabatan || 'Kepala Desa',
         nip: (villageCtx.kepala_desa?.nip as string) || '-',
         ...((context.kepala_desa as Record<string, unknown>) || {}),
@@ -150,16 +262,21 @@ export class DocumentEngineService {
       sekretaris_desa: { ...villageCtx.sekretaris_desa, ...((context.sekretaris_desa as Record<string, unknown>) || {}) },
     };
 
-    // 6. Validate context bindings
-    const { validateContextBindings } = await import('../utils/binding-resolver.js');
+    // 6. Validate context bindings — but in LENIENT mode: custom.* fields are always OK
+    // We skip strict validation for custom.* to avoid false positives on optional DNA fields
+    const contentForValidation = version.content as Record<string, unknown>;
     const bindingValidation = validateContextBindings(
-      version.content as Record<string, unknown>,
+      contentForValidation,
       fullContext as unknown as Record<string, unknown>
     );
 
-    if (!bindingValidation.valid) {
+    // Only block on NON-custom missing bindings (custom.* missing = optional DNA field = OK)
+    const hardMissingBindings = bindingValidation.missingBindings.filter(
+      (b) => !b.startsWith('custom.')
+    );
+    if (hardMissingBindings.length > 0) {
       throw ApiError.badRequest(
-        `Template gagal di-generate karena ada data yang kosong atau belum diisi: ${bindingValidation.missingBindings.join(', ')}`
+        `Template gagal di-generate karena ada data yang kosong atau belum diisi: ${hardMissingBindings.join(', ')}`
       );
     }
 
@@ -187,16 +304,46 @@ export class DocumentEngineService {
     // 8. Generate PDF if requested
     if (generatePdf) {
       try {
+        // Auto-enrich signatureConfig with real data from DB before rendering
+        const baseSignatureConfig = (version.signatureConfig as Record<string, unknown>) || {};
+        const signatoryName = defaultSignatory?.nama || (villageCtx.kepala_desa?.nama as string) || '';
+        const signatoryTitle = defaultSignatory?.jabatan || (villageCtx.kepala_desa?.jabatan as string) || 'Kepala Desa';
+        const signatoryNip = (defaultSignatory?.nip as string) || (villageCtx.kepala_desa?.nip as string) || '';
+        const desaNama = (villageCtx.desa as Record<string, unknown>)?.nama as string || '';
+        const dateLocationStr = desaNama
+          ? `${desaNama}, ${now.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}`
+          : now.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+
+        const enrichedSignatureConfig: Record<string, unknown> = {
+          ...baseSignatureConfig,
+          // Override dateLocation with real village name + current date
+          dateLocation: (baseSignatureConfig.dateLocation as string) || dateLocationStr,
+          // Override title text with real jabatan penandatangan
+          title: {
+            ...((baseSignatureConfig.title as Record<string, unknown>) || {}),
+            enabled: true,
+            text: ((baseSignatureConfig.title as Record<string, unknown>)?.text as string) || `${signatoryTitle},`,
+          },
+          // Override signatory with real data from DB
+          signatory: {
+            ...((baseSignatureConfig.signatory as Record<string, unknown>) || {}),
+            name: ((baseSignatureConfig.signatory as Record<string, unknown>)?.name as string) || signatoryName,
+            nip: ((baseSignatureConfig.signatory as Record<string, unknown>)?.nip as string) || signatoryNip,
+            title: ((baseSignatureConfig.signatory as Record<string, unknown>)?.title as string) || signatoryTitle,
+          },
+        };
+
         const pdfBuffer = await this.generatePdfFromContent(
           processedContent,
           fullContext,
-          version.kopConfig as Record<string, unknown> | undefined,
-          version.signatureConfig as Record<string, unknown> | undefined,
+          kopConfig as Record<string, unknown> | undefined,
+          enrichedSignatureConfig,
           version.template.blanko,
           {
             nomorDokumen,
             judul,
           }
+
         );
 
         // Store PDF with randomized UUID name in documents folder
@@ -219,30 +366,36 @@ export class DocumentEngineService {
 
           // If linked to a service request, notify citizen via WhatsApp (non-blocking)
           if (permintaanId) {
-            this.db.permintaanLayanan
-              .findUnique({
-                where: { id: permintaanId },
-                include: { penduduk: true, layanan: true },
-              })
-              .then((req) => {
-                const targetPhone = req?.penduduk?.telepon;
-                if (targetPhone && req) {
-                  notificationService
-                    .notifyDocumentReady(
-                      targetPhone,
-                      req.nomorPermintaan,
-                      req.layanan.nama,
-                      nomorDokumen,
-                      storageFile.url
-                    )
-                    .catch((waErr) => {
-                      console.error(`Failed to send WhatsApp document ready notification for ${nomorDokumen}:`, waErr);
-                    });
-                }
-              })
-              .catch((fetchErr) => {
-                console.error(`Failed to fetch request for document ready notification:`, fetchErr);
-              });
+            const hint = options.citizenNotificationHint;
+            // Use pre-loaded hint if available, otherwise fall back to a DB fetch
+            const notifyWithData = (phone: string, nomorPermintaan: string, layananNama: string) => {
+              notificationService
+                .notifyDocumentReady(phone, nomorPermintaan, layananNama, nomorDokumen, storageFile.url)
+                .catch((waErr) => {
+                  console.error(`[WA] Gagal kirim notifikasi dokumen siap untuk ${nomorDokumen}:`, waErr);
+                });
+            };
+
+            if (hint?.phone && hint?.nomorPermintaan && hint?.layananNama) {
+              // Fast path: use already-loaded data
+              notifyWithData(hint.phone, hint.nomorPermintaan, hint.layananNama);
+            } else {
+              // Fallback: fetch from DB (e.g. when called from re-generate endpoint)
+              this.db.permintaanLayanan
+                .findUnique({
+                  where: { id: permintaanId },
+                  include: { penduduk: true, layanan: true },
+                })
+                .then((req) => {
+                  const targetPhone = req?.penduduk?.telepon;
+                  if (targetPhone && req) {
+                    notifyWithData(targetPhone, req.nomorPermintaan, req.layanan.nama);
+                  }
+                })
+                .catch((fetchErr) => {
+                  console.error(`[WA] Gagal fetch data request untuk notifikasi dokumen siap:`, fetchErr);
+                });
+            }
           }
 
           return {
@@ -262,9 +415,22 @@ export class DocumentEngineService {
         }
       } catch (error) {
         const errMsg = error instanceof Error ? error.stack || error.message : String(error);
-        console.error('PDF generation failed, cleaning up created document record:', errMsg);
-        await this.db.instanDokumen.delete({ where: { id: document.id } }).catch((delErr) => {
-          console.error('Failed to cleanup orphan document after PDF generation failure:', delErr);
+        console.error('PDF generation failed, marking document as REVOKED (orphan):', errMsg);
+        // Mark document as REVOKED (not deleted) to maintain audit trail of the numbering sequence.
+        // ISO kearsipan standard: numbers are never recycled; revoked ones remain in sequence.
+        const errorNote = `[REVOKED] Gagal generate PDF: ${error instanceof Error ? error.message : String(error)}`;
+        await this.db.instanDokumen.update({
+          where: { id: document.id },
+          data: {
+            status: DocumentStatus.REVOKED,
+            // Store error note in tujuan field (re-used here as audit note for revoked docs)
+            tujuan: errorNote.substring(0, 250),
+          },
+        }).catch((updateErr) => {
+          console.error('Failed to mark document as REVOKED, attempting delete as fallback:', updateErr);
+          this.db.instanDokumen.delete({ where: { id: document.id } }).catch((delErr) => {
+            console.error('Failed to cleanup orphan document after PDF generation failure:', delErr);
+          });
         });
         throw ApiError.internal('Gagal menghasilkan PDF: ' + (error instanceof Error ? error.message : String(error)));
       }
@@ -633,7 +799,7 @@ export class DocumentEngineService {
           value?: string;
         };
 
-        if (fieldElement.binding) {
+        if (fieldElement.binding && fieldElement.value === undefined) {
           const value = this.resolveInContext(fieldElement.binding, context);
           processed.push({
             ...element,
@@ -711,6 +877,141 @@ export class DocumentEngineService {
 
     checkElement(content);
     return errors;
+  }
+
+  // ============================================================
+  // High-Level: Generate Blanko from DB PermintaanLayanan
+  // ============================================================
+
+  /**
+   * Generate a blanko PDF document for a given PermintaanLayanan ID.
+   *
+   * This is the main "connect DB to blanko" method:
+   *  1. Load permintaan + penduduk + layanan + template chain
+   *  2. Find the PUBLISHED template version for the service
+   *  3. Build full context from real DB fields (penduduk, desa, kepala_desa, custom DNA)
+   *  4. Call generateDocument() to produce and store the PDF
+   */
+  async generateDocumentForPermintaan(
+    permintaanId: bigint,
+    options?: { overrideContext?: Partial<BindingContext> }
+  ): Promise<DocumentGenerationResult> {
+    // 1. Load the full permintaan with all relations
+    const permintaan = await this.db.permintaanLayanan.findUnique({
+      where: { id: permintaanId },
+      include: {
+        penduduk: {
+          include: {
+            gubug: true,
+            rwRel: true,
+            rtRel: true,
+          }
+        },
+        layanan: {
+          include: {
+            dokumen: {
+              include: {
+                templates: {
+                  include: {
+                    versions: {
+                      where: { status: 'PUBLISHED' },
+                      orderBy: { version: 'desc' },
+                      take: 1,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!permintaan) {
+      throw ApiError.notFound('Permintaan layanan tidak ditemukan');
+    }
+
+    // 2. Find the PUBLISHED template version
+    const dokumenList = permintaan.layanan.dokumen;
+    if (!dokumenList || dokumenList.length === 0) {
+      throw ApiError.badRequest(
+        `Layanan "${permintaan.layanan.nama}" belum memiliki template dokumen. Hubungi administrator.`
+      );
+    }
+
+    let templateVersion: { id: bigint } | null = null;
+    for (const dok of dokumenList) {
+      for (const tmpl of dok.templates) {
+        if (tmpl.versions.length > 0) {
+          templateVersion = tmpl.versions[0];
+          break;
+        }
+      }
+      if (templateVersion) break;
+    }
+
+    if (!templateVersion) {
+      throw ApiError.badRequest(
+        `Template surat untuk layanan "${permintaan.layanan.nama}" belum dipublikasi. Hubungi administrator.`
+      );
+    }
+
+    // 3. Build context from DB data
+    //    - penduduk.* comes from the actual Penduduk record
+    //    - custom.* comes from dataJson (form DNA submitted by the warga)
+    //    - desa/kepala_desa/system come from identitas desa (resolved inside generateDocument)
+    const pd = permintaan.penduduk as Record<string, unknown> | null;
+    const pendudukCtx: Record<string, unknown> = pd
+      ? {
+          nik: pd.nik,
+          namaLengkap: pd.namaLengkap || pd.nama_lengkap,
+          nama_lengkap: pd.namaLengkap || pd.nama_lengkap,
+          tempatLahir: pd.tempatLahir || pd.tempat_lahir,
+          tempat_lahir: pd.tempatLahir || pd.tempat_lahir,
+          tanggalLahir: pd.tanggalLahir || pd.tanggal_lahir,
+          tanggal_lahir: pd.tanggalLahir || pd.tanggal_lahir,
+          jenisKelamin: pd.jenisKelamin || pd.jenis_kelamin,
+          jenis_kelamin: pd.jenisKelamin || pd.jenis_kelamin,
+          agama: pd.agama,
+          statusPerkawinan: pd.statusPerkawinan || pd.status_perkawinan,
+          status_perkawinan: pd.statusPerkawinan || pd.status_perkawinan,
+          pekerjaan: pd.pekerjaan,
+          pendidikan: pd.pendidikan,
+          golDarah: pd.golDarah || pd.gol_darah,
+          gol_darah: pd.golDarah || pd.gol_darah,
+          alamat: pd.alamat,
+          rt: pd.rt || (pd.rtRel as any)?.nama || '-',
+          rw: pd.rw || (pd.rwRel as any)?.nama || '-',
+          dusun: pd.dusun || (pd.gubug as any)?.nama || '-',
+          kewarganegaraan: pd.kewarganegaraan || 'WNI',
+          wargaNegara: pd.wargaNegara || pd.kewarganegaraan || 'Indonesia',
+          telepon: pd.telepon,
+          email: pd.email,
+        }
+      : {};
+
+    const customCtx = (permintaan.dataJson as Record<string, unknown>) || {};
+
+    const context: BindingContext = {
+      penduduk: pendudukCtx,
+      custom: customCtx,
+      ...((options?.overrideContext as BindingContext) || {}),
+    };
+
+    // 4. Generate (and store) the document, passing citizen data as a hint to avoid re-fetching
+    const targetPhone = (permintaan.penduduk as any)?.telepon;
+    return this.generateDocument({
+      templateVersionId: templateVersion.id,
+      context,
+      judul: permintaan.layanan.nama,
+      permintaanId,
+      generatePdf: true,
+      citizenNotificationHint: {
+        phone: targetPhone || null,
+        nomorPermintaan: permintaan.nomorPermintaan,
+        layananNama: permintaan.layanan.nama,
+      },
+    });
   }
 }
 

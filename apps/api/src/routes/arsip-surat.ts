@@ -10,6 +10,7 @@ import {
   UpdateSuratMasukStatusSchema, 
   CreateDisposisiSchema, 
   UpdateDisposisiStatusSchema, 
+  BalasDisposisiSchema,
   GetSuratKeluarSchema 
 } from '../dto/arsip-surat.dto.js';
 
@@ -151,12 +152,46 @@ router.patch('/disposisi/:id/status', authorize('surat.manage'), asyncHandler(as
     return res.status(404).json({ success: false, message: 'Disposisi tidak ditemukan' });
   }
 
+  const updateData: any = { status: data.status };
+  
+  if (data.status === DisposisiStatus.DIBACA && !disposisi.tanggalDibaca) {
+    updateData.tanggalDibaca = new Date();
+  }
+  
+  if (data.status === DisposisiStatus.DIBALAS && !disposisi.tanggalDibalas) {
+    updateData.tanggalDibalas = new Date();
+  }
+
   const updated = await prisma.disposisi.update({
     where: { id: disposisi.id },
-    data: { status: data.status }
+    data: updateData
   });
 
   return res.json({ success: true, data: updated, message: 'Status disposisi diperbarui' });
+}));
+
+// Balas Disposisi
+router.post('/disposisi/:id/balas', authorize('surat.manage'), asyncHandler(async (req, res) => {
+  const data = BalasDisposisiSchema.parse(req.body);
+
+  const disposisi = await prisma.disposisi.findFirst({
+    where: { id: BigInt(req.params.id) }
+  });
+
+  if (!disposisi) {
+    return res.status(404).json({ success: false, message: 'Disposisi tidak ditemukan' });
+  }
+
+  const updated = await prisma.disposisi.update({
+    where: { id: disposisi.id },
+    data: { 
+      status: DisposisiStatus.DIBALAS,
+      catatanBalasan: data.catatanBalasan,
+      tanggalDibalas: new Date()
+    }
+  });
+
+  return res.json({ success: true, data: updated, message: 'Disposisi berhasil dibalas' });
 }));
 
 // --- Surat Keluar (Generated Documents) ---

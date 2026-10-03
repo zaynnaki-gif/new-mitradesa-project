@@ -7,6 +7,8 @@
  */
 
 import { applyFormatter, parseBindingWithFormatter } from './formatter-registry.js';
+import { identitasDesaService } from '../services/identitas-desa.service.js';
+import { PrismaClient, Prisma } from '@prisma/client';
 
 // ============================================================
 // Allowed Bindings (Whitelist)
@@ -328,6 +330,11 @@ function formatByFieldType(value: unknown, fieldPath: string): string {
     return value ? 'Ya' : 'Tidak';
   }
 
+  // Array formatting
+  if (Array.isArray(value)) {
+    return value.map(item => String(item)).join(', ');
+  }
+
   return String(value);
 }
 
@@ -447,42 +454,42 @@ export function getSampleData(): BindingContext {
       golDarah: 'O',
       agama: 'Islam',
       statusPerkawinan: 'Kawin',
-      alamat: 'Jl. Raya Pringgabaya No. 1',
+      alamat: 'Jl. Raya No. 1',
       rt: '01',
       rw: '02',
-      dusun: 'Dusun Seruni',
+      dusun: 'Dusun Contoh',
       pekerjaan: 'Petani',
       wargaNegara: 'Indonesia',
       telepon: '081234567890',
-      email: 'bambang@email.com',
+      email: 'warga@email.com',
     },
     keluarga: {
-      noKk: '5203010101010001001',
-      alamat: 'Jl. Raya Pringgabaya No. 1',
+      noKk: '1234567890123456',
+      alamat: 'Jl. Raya No. 1',
       rt: '01',
       rw: '02',
-      dusun: 'Dusun Seruni',
+      dusun: 'Dusun Contoh',
     },
     wilayah: {
-      dusun: 'Dusun Seruni',
+      dusun: 'Dusun Contoh',
       rt: '01',
       rw: '02',
-      desa: 'Seruni Mumbul',
-      kecamatan: 'Pringgabaya',
-      kabupaten: 'Lombok Timur',
-      provinsi: 'Nusa Tenggara Barat',
+      desa: '[Nama Desa]',
+      kecamatan: '[Nama Kecamatan]',
+      kabupaten: '[Nama Kabupaten]',
+      provinsi: '[Nama Provinsi]',
     },
     desa: {
-      nama: 'Desa Seruni Mumbul',
-      kode: '520301001',
-      singkatan: 'SRM',
-      kecamatan: 'Pringgabaya',
-      kabupaten: 'Lombok Timur',
-      provinsi: 'Nusa Tenggara Barat',
-      alamat: 'Jl. Raya Pringgabaya, Lombok Timur, NTB',
-      email: 'desaserunimumbul@gmail.com',
-      telepon: '(0370) 123456',
-      website: 'https://desaserunimumbul.desa.id',
+      nama: '[Nama Desa]',
+      kode: '000000000',
+      singkatan: '',
+      kecamatan: '[Nama Kecamatan]',
+      kabupaten: '[Nama Kabupaten]',
+      provinsi: '[Nama Provinsi]',
+      alamat: '[Alamat Kantor Desa]',
+      email: '',
+      telepon: '',
+      website: '',
     },
     kepala_desa: {
       nama: 'H. Ahmad Zainuri, S.Pd.',
@@ -523,28 +530,15 @@ export { ALLOWED_BINDINGS };
  * Get dynamic village context from database
  * This function fetches actual village identity and government data
  */
-export async function getVillageContext(prisma: any): Promise<{
+export async function getVillageContext(
+  _db?: PrismaClient | Prisma.TransactionClient
+): Promise<{
   desa: Record<string, unknown>;
   kepala_desa: Record<string, unknown>;
   sekretaris_desa: Record<string, unknown>;
 }> {
-  // Fetch village identity
-  const identitas = await prisma.identitasDesa.findFirst({
-    
-    include: {
-      desa: {
-        include: {
-          kecamatan: {
-            include: {
-              kabupaten: {
-                include: { provinsi: true }
-              }
-            }
-          }
-        }
-      }
-    }
-  });
+  // Fetch village identity using cached service
+  const identitas = await identitasDesaService.getIdentitasDesa();
 
   if (!identitas) {
     // Return empty context if village identity not configured
@@ -555,28 +549,14 @@ export async function getVillageContext(prisma: any): Promise<{
     };
   }
 
-  // Fetch kepala desa
-  const kepalaDesa = await prisma.perangkatDesa.findFirst({
-    where: {
-            jabatan: { contains: 'KEPALA_DESA', mode: 'insensitive' },
-      status: 'AKTIF',
-    },
-    include: { penduduk: true },
-  });
-
-  // Fetch sekretaris desa
-  const sekretarisDesa = await prisma.perangkatDesa.findFirst({
-    where: {
-            jabatan: { contains: 'SEKRETARIS', mode: 'insensitive' },
-      status: 'AKTIF',
-    },
-    include: { penduduk: true },
-  });
+  const desaRecord = identitas.Desa?.[0] || {};
+  const kadesInfo = (identitas as Record<string, unknown>).kadesInfo as Record<string, unknown>;
+  const sekdesInfo = (identitas as Record<string, unknown>).sekdesInfo as Record<string, unknown>;
 
   return {
     desa: {
       nama: identitas.namaDesa,
-      kode: identitas.kodeDesa || identitas.desa.kode,
+      kode: identitas.kodeDesa || desaRecord.kode,
       singkatan: identitas.singkatanDesa,
       alamat: identitas.alamat,
       telepon: identitas.telepon,
@@ -585,24 +565,24 @@ export async function getVillageContext(prisma: any): Promise<{
       website: identitas.website,
       logoDesa: identitas.logoDesaUrl,
       logoKabupaten: identitas.logoKabupatenUrl,
-      kecamatan: identitas.desa.kecamatan.nama,
-      kabupaten: identitas.desa.kecamatan.kabupaten.nama,
-      provinsi: identitas.desa.kecamatan.kabupaten.provinsi.nama,
+      kecamatan: desaRecord.kecamatan?.nama || '',
+      kabupaten: desaRecord.kecamatan?.kabupaten?.nama || '',
+      provinsi: desaRecord.kecamatan?.kabupaten?.provinsi?.nama || '',
       kepalaDesa: identitas.kepalaDesa,
       sekretarisDesa: identitas.sekretarisDesa,
     },
-    kepala_desa: kepalaDesa ? {
-      nama: kepalaDesa.penduduk.namaLengkap,
-      nip: kepalaDesa.penduduk.nik,
-      jabatan: kepalaDesa.jabatan,
+    kepala_desa: kadesInfo ? {
+      nama: (kadesInfo.penduduk as Record<string, unknown>)?.namaLengkap as string || identitas.kepalaDesa,
+      nip: (kadesInfo.penduduk as Record<string, unknown>)?.nik as string,
+      jabatan: kadesInfo.jabatan,
     } : {
       nama: identitas.kepalaDesa || 'Kepala Desa',
       jabatan: 'Kepala Desa',
     },
-    sekretaris_desa: sekretarisDesa ? {
-      nama: sekretarisDesa.penduduk.namaLengkap,
-      nip: sekretarisDesa.penduduk.nik,
-      jabatan: sekretarisDesa.jabatan,
+    sekretaris_desa: sekdesInfo ? {
+      nama: (sekdesInfo.penduduk as Record<string, unknown>)?.namaLengkap as string || identitas.sekretarisDesa,
+      nip: (sekdesInfo.penduduk as Record<string, unknown>)?.nik as string,
+      jabatan: sekdesInfo.jabatan,
     } : {
       nama: identitas.sekretarisDesa || 'Sekretaris Desa',
       jabatan: 'Sekretaris Desa',

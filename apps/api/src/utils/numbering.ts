@@ -1,5 +1,6 @@
 import { PrismaClient, Prisma } from '@prisma/client';
 import { randomBytes } from 'crypto';
+import { identitasDesaService } from '../services/identitas-desa.service.js';
 
 /**
  * Month names in Roman numerals
@@ -82,10 +83,10 @@ export function parseFormatTemplate(
  * Get village identity info for numbering
  */
 async function getVillageInfo(
-  prisma: PrismaClient | Prisma.TransactionClient,
+  _prisma: PrismaClient | Prisma.TransactionClient,
   
 ): Promise<{ nama: string; singkatan?: string | null }> {
-  const identitasDesa = await (prisma as PrismaClient).identitasDesa.findFirst();
+  const identitasDesa = await identitasDesaService.getIdentitasDesa();
 
   return {
     nama: identitasDesa?.namaDesa || 'Desa',
@@ -97,31 +98,28 @@ async function getVillageInfo(
  * Get village head (kades) info
  */
 async function getJabatanInfo(
-  prisma: PrismaClient | Prisma.TransactionClient,
+  _prisma: PrismaClient | Prisma.TransactionClient,
   
 ): Promise<{ inisial: string; nama: string }> {
-  await prisma.perangkatDesa.findFirst({
-    where: {
-      
-      jabatan: {
-        contains: 'Kepala Desa',
-        mode: 'insensitive',
-      },
-      status: 'AKTIF',
-    },
-  });
+  // Use cached kades info from IdentitasDesaService
+  const identitas = await identitasDesaService.getIdentitasDesa();
+  const kadesInfo = (identitas as Record<string, unknown>)?.kadesInfo as Record<string, unknown>;
+  
+  if (kadesInfo) {
+    return { inisial: 'KDS', nama: (kadesInfo.penduduk as Record<string, unknown>)?.namaLengkap as string || 'Kepala Desa' };
+  }
 
   // Default initials for Kepala Desa is KDS
-  return { inisial: 'KDS', nama: 'Kepala Desa' };
+  return { inisial: 'KDS', nama: identitas?.kepalaDesa || 'Kepala Desa' };
 }
 
 /**
- * Generate document number with race condition protection
- * Uses database transaction with pessimistic locking
+ * Generate document number with race condition protection.
+ * Reads NomorSuratConfig from DB for this layanan to get the proper format template
+ * and kodeKlasifikasi. Falls back to hardcoded format if no config found.
  */
 export async function generateDocumentNumber(
   db: PrismaClient | Prisma.TransactionClient,
-  
   kode?: string
 ): Promise<string> {
   const now = new Date();
@@ -167,21 +165,45 @@ export async function generateDocumentNumber(
 
   // Get village info for replacements
   const [villageInfo, jabatanInfo] = await Promise.all([
-    getVillageInfo(db, ),
-    getJabatanInfo(db, ),
+    getVillageInfo(db),
+    getJabatanInfo(db),
   ]);
 
-  // Use config format if config is set (assuming config logic is handled by caller in the future)
-  // For now, default to the requested structure: KODE/SEQ/JABATAN.DESA/BULAN/TAHUN
-  const template = kode
-    ? `{kode}/{seq:3}/{jabatan}.{desa}/{bulanRomawi}/{tahun}`
-    : `000/{seq:3}/{jabatan}.{desa}/{bulanRomawi}/{tahun}`;
+  // === FETCH NomorSuratConfig from DB for this layanan by kode ===
+  let formatTemplate: string | null = null;
+  let kodeKlasifikasi: string | undefined = kode;
+
+  if (kode) {
+    try {
+      const layanan = await (db as PrismaClient).layanan.findFirst({
+        where: { kode },
+        include: { nomorConfig: true },
+      });
+      const config = layanan?.nomorConfig?.[0];
+      if (config?.isActive && config.formatTemplate) {
+        formatTemplate = config.formatTemplate;
+        // Extract kodeKlasifikasi from formatTemplate (first segment before '/')
+        const firstSegment = formatTemplate.split('/')[0];
+        if (firstSegment && !firstSegment.includes('{')) {
+          kodeKlasifikasi = firstSegment;
+        }
+      }
+    } catch {
+      // Silently fall through to default template
+    }
+  }
+
+  // Use DB config template if available, otherwise fallback to standard format
+  const template = formatTemplate ||
+    (kode
+      ? `{kode}/{seq:3}/{jabatan}.{desa}/{bulanRomawi}/{tahun}`
+      : `000/{seq:3}/{jabatan}.{desa}/{bulanRomawi}/{tahun}`);
 
   return parseFormatTemplate(template, {
     sequence: newSequence,
     tahun,
     bulan,
-    kode,
+    kode: kodeKlasifikasi,
     jabatan: jabatanInfo.inisial,
     desa: villageInfo.singkatan || villageInfo.nama.substring(0, 4).toUpperCase(),
   });
@@ -192,30 +214,41 @@ export async function generateDocumentNumber(
  */
 export async function generateRequestNumber(
   db: PrismaClient | Prisma.TransactionClient,
-  
   layananKode: string
 ): Promise<string> {
   const now = new Date();
   const tahun = now.getFullYear();
   const bulan = now.getMonth() + 1;
 
-  // Get numbering config for this service
-  const config = await db.nomorSuratConfig.findUnique({
-    where: { layananId: (await db.layanan.findFirst({ where: { kode: layananKode, } }))?.id },
+  // Fetch the layanan to get its ID
+  const layanan = await (db as PrismaClient).layanan.findFirst({
+    where: { kode: layananKode },
+    include: { nomorConfig: true },
   });
 
-  const format = config?.formatTemplate || `REQ-{kode}/{tahun}/{seq}`;
+  // Get numbering config for this service
+  const config = layanan?.nomorConfig?.[0];
+  const format = config?.formatTemplate || `REQ-{kode}/{tahun}/{seq:3}`;
+
+  // Extract kodeKlasifikasi: use first segment of formatTemplate if it's a static code
+  let kodeKlasifikasi = layananKode;
+  if (config?.formatTemplate) {
+    const firstSegment = config.formatTemplate.split('/')[0];
+    if (firstSegment && !firstSegment.includes('{')) {
+      kodeKlasifikasi = firstSegment;
+    }
+  }
 
   // Get village info
-  const villageInfo = await getVillageInfo(db, );
+  const [villageInfo, jabatanInfo] = await Promise.all([
+    getVillageInfo(db),
+    getJabatanInfo(db),
+  ]);
 
-  // For simplicity, use layananKode as the klasifikasi code
-  const klasifikasi = layananKode;
-
-  // Get count of existing requests for this service in this year to determine next sequence
-  const count = await db.permintaanLayanan.count({
+  // Count existing requests for THIS specific layanan in this year (per-layanan sequence)
+  const count = await (db as PrismaClient).permintaanLayanan.count({
     where: {
-      
+      layananId: layanan?.id,
       createdAt: {
         gte: new Date(tahun, 0, 1),
         lt: new Date(tahun + 1, 0, 1),
@@ -229,9 +262,10 @@ export async function generateRequestNumber(
     sequence: nextSeq,
     tahun,
     bulan,
-    kode: klasifikasi,
-    kades: villageInfo.singkatan || villageInfo.nama.substring(0, 3).toUpperCase(),
-    desa: villageInfo.singkatan || villageInfo.nama.substring(0, 3).toUpperCase(),
+    kode: kodeKlasifikasi,
+    jabatan: jabatanInfo.inisial,
+    kades: jabatanInfo.inisial,
+    desa: villageInfo.singkatan || villageInfo.nama.substring(0, 4).toUpperCase(),
   });
 }
 

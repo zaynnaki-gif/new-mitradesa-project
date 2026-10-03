@@ -78,15 +78,14 @@ export async function exportDokumenRegisterXlsx(
   // Define columns
   worksheet.columns = [
     { header: 'No', key: 'no', width: 6 },
-    { header: 'No. Dokumen', key: 'nomorDokumen', width: 30 },
-    { header: 'Jenis Layanan', key: 'jenisLayanan', width: 25 },
-    { header: 'Judul', key: 'judul', width: 40 },
-    { header: 'Tujuan', key: 'tujuan', width: 30 },
-    { header: 'Tgl Generate', key: 'generatedAt', width: 18 },
-    { header: 'Status', key: 'status', width: 15 },
+    { header: 'Tanggal Pengiriman', key: 'tanggalPengiriman', width: 18 },
+    { header: 'Nomor Surat', key: 'nomorDokumen', width: 30 },
+    { header: 'Tanggal Surat', key: 'tanggalSurat', width: 18 },
+    { header: 'Tujuan (Ditujukan Kepada)', key: 'tujuan', width: 35 },
+    { header: 'Isi Singkat / Perihal', key: 'judul', width: 40 },
+    { header: 'Keterangan (Jenis Layanan)', key: 'jenisLayanan', width: 30 },
     { header: 'Penanda Tangan', key: 'penandaTangan', width: 25 },
-    { header: 'Tgl Tanda Tangan', key: 'signedAt', width: 18 },
-    { header: 'Token Verifikasi', key: 'verificationToken', width: 35 },
+    { header: 'Status', key: 'status', width: 15 },
   ];
 
   // Style header row
@@ -103,15 +102,14 @@ export async function exportDokumenRegisterXlsx(
   for (const doc of dokumen) {
     const row = worksheet.addRow({
       no: no++,
+      tanggalPengiriman: doc.signedAt ? formatDate(doc.signedAt) : '-',
       nomorDokumen: doc.nomorDokumen,
-      jenisLayanan: doc.dokumen.layanan.nama,
-      judul: doc.judul,
+      tanggalSurat: formatDate(doc.generatedAt),
       tujuan: doc.tujuan || '-',
-      generatedAt: formatDate(doc.generatedAt),
-      status: formatStatus(doc.status),
+      judul: doc.judul,
+      jenisLayanan: doc.dokumen.layanan.nama,
       penandaTangan: doc.signature?.penandatangan?.nama || '-',
-      signedAt: doc.signedAt ? formatDate(doc.signedAt) : '-',
-      verificationToken: doc.verificationToken || '-',
+      status: formatStatus(doc.status),
     });
 
     // Color status cells

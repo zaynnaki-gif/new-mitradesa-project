@@ -32,6 +32,10 @@ export const UpdateDisposisiStatusSchema = z.object({
   status: z.nativeEnum(DisposisiStatus),
 });
 
+export const BalasDisposisiSchema = z.object({
+  catatanBalasan: z.string().min(1),
+});
+
 export const GetSuratKeluarSchema = z.object({
   status: z.nativeEnum(DocumentStatus).optional(),
   search: z.string().optional(),

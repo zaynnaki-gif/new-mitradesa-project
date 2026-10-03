@@ -492,9 +492,9 @@ export class TemplateDesignerService {
   private renderKop(config: Record<string, unknown>, context?: { desa?: Record<string, unknown> }): string {
     const institutionNames = (config.institutionNames as Record<string, { visible: boolean; text?: string }>) || {};
     const desa = context?.desa || {};
-    const namaDesa = (desa.nama as string) || 'SERUNI MUMBUL';
-    const kecamatan = (desa.kecamatan as string) || 'PRINGGABAYA';
-    const kabupaten = (desa.kabupaten as string) || 'LOMBOK TIMUR';
+    const namaDesa = (desa.nama as string) || '[NAMA DESA]';
+    const kecamatan = (desa.kecamatan as string) || '[NAMA KECAMATAN]';
+    const kabupaten = (desa.kabupaten as string) || '[NAMA KABUPATEN]';
 
     const pemdaText = institutionNames.pemda?.text || `PEMERINTAH KABUPATEN ${kabupaten.toUpperCase()}`;
     const kecText = institutionNames.kecamatan?.text || `KECAMATAN ${kecamatan.toUpperCase()}`;
@@ -537,13 +537,13 @@ export class TemplateDesignerService {
     const mode = config.mode || 'online_tte';
     const isOffline = mode === 'offline_physical';
     // Read dateLocation from config, fallback to blank template
-    const dateLocation = (config.dateLocation as string) || 'Seruni Mumbul, ......................... 20...';
+    const dateLocation = (config.dateLocation as string) || '........................., ......................... 20...';
 
     if (isOffline) {
       const applicantTitle = (config.applicantTitle as string) || 'Yang Menyatakan / Pemohon,';
       const applicantNameRaw = (config.applicantName as string) || '';
       const title = (config.title as Record<string, unknown>) || {};
-      const officialTitle = (title.text as string) || 'Kepala Desa Seruni Mumbul,';
+      const officialTitle = (title.text as string) || 'Kepala Desa,';
       const signatory = (config.signatory as Record<string, unknown>) || {};
       const officialName = (signatory.name as string) || '....................................................';
       const nip = (signatory.nip as string) || '';
@@ -578,7 +578,7 @@ export class TemplateDesignerService {
 
     // Online TTE
     const title = (config.title as Record<string, unknown>) || {};
-    const officialTitle = (title.text as string) || 'Kepala Desa Seruni Mumbul';
+    const officialTitle = (title.text as string) || 'Kepala Desa';
     const signatory = (config.signatory as Record<string, unknown>) || {};
     const officialName = (signatory.name as string) || 'Kepala Desa';
     const nip = (signatory.nip as string) || '';
