@@ -3,6 +3,7 @@ import { Router, Request } from 'express';
 import { asyncHandler, response } from '../../utils/response.js';
 import { authenticateInternal, authorize } from '../../middleware/index.js';
 import { permintaanLayananService } from '../../services/permintaan-layanan.service.js';
+import { documentEngineService } from '../../services/document-engine.service.js';
 import {
   createPermintaanLayananSchema,
   updatePermintaanLayananSchema,
@@ -185,12 +186,62 @@ router.post(
     const data = updatePermintaanStatusSchema.parse(body);
     const actorId = getAccountId(req);
 
+    // 1. Update status to APPROVED
     const permintaan = await permintaanLayananService.updateStatus(
       BigInt(id),
       data,
       actorId
     );
-    return response.success(res, permintaan, 'Permintaan berhasil disetujui');
+
+    // 2. Auto-generate blanko PDF from DB data (non-blocking on error, so approval itself never fails)
+    let dokumenResult: { nomorDokumen?: string; pdfUrl?: string; verificationToken?: string } | null = null;
+    try {
+      dokumenResult = await documentEngineService.generateDocumentForPermintaan(BigInt(id));
+    } catch (genErr) {
+      // Log but do not reject the approval — admin can re-generate later
+      console.error(`[generate-blanko] Failed to auto-generate dokumen for permintaan ${id}:`, genErr);
+    }
+
+    return response.success(res, {
+      ...permintaan,
+      dokumen: dokumenResult || null,
+    }, dokumenResult
+      ? `Permintaan disetujui & blanko surat berhasil dibuat (${dokumenResult.nomorDokumen})`
+      : 'Permintaan berhasil disetujui. Blanko dapat di-generate ulang via endpoint /generate-document.'
+    );
+  })
+);
+
+/**
+ * POST /api/service-requests/:id/generate-document
+ * Re-generate (or first-generate) a blanko PDF for a given request
+ */
+router.post(
+  '/:id/generate-document',
+  authenticateInternal(),
+  authorize('request.approve'),
+  asyncHandler(async (req, res) => {
+    const { id } = idParamSchema.parse(req.params);
+
+    // Ensure the request exists and is in a state that allows document generation
+    const existing = await permintaanLayananService.findById(BigInt(id));
+    if (!existing) {
+      throw ApiError.notFound('Permintaan tidak ditemukan');
+    }
+
+    const allowedStatuses: RequestStatus[] = [
+      RequestStatus.APPROVED,
+      RequestStatus.COMPLETED,
+    ];
+    if (!allowedStatuses.includes(existing.status as RequestStatus)) {
+      throw ApiError.badRequest(
+        `Dokumen hanya bisa di-generate untuk permintaan yang sudah disetujui (status: ${existing.status})`
+      );
+    }
+
+    const dokumenResult = await documentEngineService.generateDocumentForPermintaan(BigInt(id));
+
+    return response.created(res, dokumenResult, `Blanko surat berhasil dibuat (${dokumenResult.nomorDokumen})`);
   })
 );
 

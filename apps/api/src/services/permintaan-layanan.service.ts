@@ -46,31 +46,48 @@ export class PermintaanLayananService {
       }
     }
 
-    return this.prismaClient.$transaction(async (tx) => {
-      // Generate request number
-      const nomorPermintaan = await generateRequestNumber(
-        tx,
-        
-        layanan.kode
-      );
+    const MAX_RETRIES = 3;
+    let retries = 0;
 
-      return tx.permintaanLayanan.create({
-        data: {
-          layananId: data.layananId,
-          pendudukId: data.pendudukId,
-          
-          nomorPermintaan,
-          status: RequestStatus.DRAFT,
-          dataJson: data.dataJson as Prisma.JsonObject,
-          catatan: data.catatan,
-          createdBy,
-        },
-        include: {
-          layanan: true,
-          penduduk: true,
-        },
-      });
-    });
+    while (retries < MAX_RETRIES) {
+      try {
+        return await this.prismaClient.$transaction(async (tx) => {
+          // Generate request number
+          const nomorPermintaan = await generateRequestNumber(
+            tx,
+            
+            layanan.kode
+          );
+
+          return await tx.permintaanLayanan.create({
+            data: {
+              layananId: data.layananId,
+              pendudukId: data.pendudukId,
+              
+              nomorPermintaan,
+              status: RequestStatus.DRAFT,
+              dataJson: data.dataJson as Prisma.JsonObject,
+              catatan: data.catatan,
+              createdBy,
+            },
+            include: {
+              layanan: true,
+              penduduk: true,
+            },
+          });
+        });
+      } catch (error: any) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002' && retries < MAX_RETRIES) {
+          retries++;
+          // Small delay before retry to let concurrent request finish
+          await new Promise((resolve) => setTimeout(resolve, Math.random() * 50));
+          continue;
+        }
+        throw error;
+      }
+    }
+    
+    throw new Error('Failed to create permintaan layanan after max retries');
   }
 
   /**
@@ -260,13 +277,18 @@ export class PermintaanLayananService {
       catatan: data.catatan !== undefined ? data.catatan : existing.catatan,
     };
 
-    // Set timestamp based on new status
+    // Set timestamp and actor based on new status
     switch (data.status) {
       case RequestStatus.SUBMITTED:
         updateData.submittedAt = new Date();
         break;
+      case RequestStatus.VERIFICATION:
       case RequestStatus.PROCESSING:
         updateData.processedAt = new Date();
+        updateData.processor = { connect: { id: _actorId } };
+        break;
+      case RequestStatus.APPROVED:
+        updateData.approver = { connect: { id: _actorId } };
         break;
       case RequestStatus.COMPLETED:
         updateData.completedAt = new Date();
@@ -441,7 +463,7 @@ export class PermintaanLayananService {
       fields = validationResult.data as Record<string, unknown>;
     }
 
-    return this.prismaClient.$transaction(async (tx) => {
+    const permintaan = await this.prismaClient.$transaction(async (tx) => {
       // Generate request number
       const nomorPermintaan = await generateRequestNumber(
         tx,
@@ -460,9 +482,28 @@ export class PermintaanLayananService {
         },
         include: {
           layanan: true,
+          penduduk: true,
         },
       });
     });
+
+    // Send WA confirmation to citizen (non-blocking)
+    const targetPhone = (permintaan as any).penduduk?.telepon;
+    if (targetPhone) {
+      notificationService
+        .notifyRequestStatusChanged(
+          targetPhone,
+          permintaan.nomorPermintaan,
+          permintaan.layanan.nama,
+          RequestStatus.SUBMITTED,
+          catatan
+        )
+        .catch((err) => {
+          console.error(`[WA] Gagal kirim konfirmasi pengajuan untuk ${permintaan.nomorPermintaan}:`, err);
+        });
+    }
+
+    return permintaan;
   }
 
   /**

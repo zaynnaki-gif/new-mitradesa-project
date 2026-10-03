@@ -100,6 +100,25 @@ export type CreateAnggotaInput = z.infer<typeof createAnggotaSchema>;
 export type UpdateAnggotaInput = z.infer<typeof updateAnggotaSchema>;
 
 // ============================================
+// Pecah KK (Split Family)
+// ============================================
+export const pecahKeluargaSchema = z.object({
+  anggotaIds: z.array(z.string().regex(/^\d+$/, 'ID anggota harus angka').transform(s => BigInt(s))).min(1, 'Minimal pilih 1 anggota untuk pecah KK'),
+  kepalaBaruId: z.string().regex(/^\d+$/, 'Kepala ID harus angka').transform(s => BigInt(s)),
+  noKkBaru: noKkSchema,
+  alamatBaru: z.string().optional(),
+  rtBaru: z.string().max(10).optional(),
+  rwBaru: z.string().max(10).optional(),
+  dusunBaru: z.string().max(100).optional(),
+  kodePosBaru: z.string().max(10).optional(),
+  gubugId: z.string().optional().nullable(),
+  rwId: z.string().optional().nullable(),
+  rtId: z.string().optional().nullable(),
+});
+
+export type PecahKeluargaInput = z.infer<typeof pecahKeluargaSchema>;
+
+// ============================================
 // Response DTOs
 // ============================================
 export interface KeluargaResponse {
@@ -160,3 +179,4 @@ export interface ImportResult {
   failed: number;
   errors: string[];
 }
+

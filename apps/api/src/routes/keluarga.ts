@@ -10,6 +10,7 @@ import {
   createAnggotaSchema,
   updateAnggotaSchema,
   anggotaIdParamSchema,
+  pecahKeluargaSchema,
 } from '../dto/keluarga.dto';
 
 const router = Router({ mergeParams: true });
@@ -175,6 +176,27 @@ router.delete(
       req.headers['user-agent']
     );
     return response.success(res, null, 'Anggota berhasil dihapus dari keluarga');
+  })
+);
+
+/**
+ * POST /api/keluarga/:id/pecah-kk - Split family
+ */
+router.post(
+  '/:id/pecah-kk',
+  authenticateInternal(),
+  authorize('keluarga.update'),
+  asyncHandler(async (req, res) => {
+    const { id } = idParamSchema.parse(req.params);
+    const data = pecahKeluargaSchema.parse(req.body);
+    const newKeluarga = await keluargaService.pecahKeluarga(
+      id,
+      data,
+      req.user?.accountId,
+      req.ip,
+      req.headers['user-agent']
+    );
+    return response.created(res, newKeluarga, 'Berhasil memecah anggota ke KK baru');
   })
 );
 

@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client';
+import ExcelJS from 'exceljs';
 import { prisma } from './prisma.js';
 import { CreateKasUmumInput, UpdateKasUmumInput, QueryKasUmumInput } from '../dto/kas-umum.dto.js';
 import { ApiError } from '../utils/response.js';
@@ -67,7 +68,7 @@ export class KasUmumService {
   async findById(id: string) {
     const item = await prisma.kasUmum.findFirst({
       where: {
-        id,
+        id: BigInt(id),
         
       },
     });
@@ -149,6 +150,13 @@ export class KasUmumService {
     });
   }
 
+  private async validateApbdesBudget(tx: Prisma.TransactionClient, apbdesItemId: bigint) {
+    const updatedItem = await tx.apbdesItem.findUnique({ where: { id: apbdesItemId } });
+    if (updatedItem && updatedItem.kategori === 'BELANJA' && updatedItem.realization > updatedItem.anggaran) {
+      throw ApiError.badRequest(`Pengeluaran melebihi pagu anggaran untuk item ${updatedItem.nama}. (Anggaran: ${updatedItem.anggaran}, Realisasi: ${updatedItem.realization})`);
+    }
+  }
+
   async create(data: CreateKasUmumInput) {
     const entryDate = new Date(data.tanggal);
 
@@ -194,6 +202,7 @@ export class KasUmumService {
       // Automatically sync realization on linked ApbdesItem
       if (targetApbdesItem) {
         await this.syncApbdesRealization(tx, targetApbdesItem.id);
+        await this.validateApbdesBudget(tx, targetApbdesItem.id);
       }
 
       return tx.kasUmum.findUnique({
@@ -209,7 +218,7 @@ export class KasUmumService {
 
       const entry = await tx.kasUmum.findFirst({
         where: {
-          id,
+          id: BigInt(id),
           
         },
       });
@@ -245,7 +254,7 @@ export class KasUmumService {
       }
 
       await tx.kasUmum.update({
-        where: { id },
+        where: { id: BigInt(id) },
         data: {
           ...(data.tanggal && { tanggal: newDate }),
           ...(data.jenis && { jenis: data.jenis }),
@@ -261,13 +270,15 @@ export class KasUmumService {
       // Resync realization for old item and new item
       if (oldApbdesItemId) {
         await this.syncApbdesRealization(tx, oldApbdesItemId);
+        await this.validateApbdesBudget(tx, oldApbdesItemId);
       }
       if (newApbdesItemId && (!oldApbdesItemId || newApbdesItemId !== oldApbdesItemId)) {
         await this.syncApbdesRealization(tx, newApbdesItemId);
+        await this.validateApbdesBudget(tx, newApbdesItemId);
       }
 
       return tx.kasUmum.findUnique({
-        where: { id },
+        where: { id: BigInt(id) },
         include: { apbdesItem: true },
       });
     });
@@ -279,7 +290,7 @@ export class KasUmumService {
 
       const entry = await tx.kasUmum.findFirst({
         where: {
-          id,
+          id: BigInt(id),
           
         },
       });
@@ -288,7 +299,7 @@ export class KasUmumService {
       const deletedDate = entry.tanggal;
       const linkedApbdesItemId = entry.apbdesItemId;
 
-      await tx.kasUmum.delete({ where: { id } });
+      await tx.kasUmum.delete({ where: { id: BigInt(id) } });
 
       await this.recalculateBalances(tx, deletedDate);
 
@@ -300,14 +311,110 @@ export class KasUmumService {
   }
 
   async getSaldoAkhir(): Promise<number> {
-    const where: Prisma.KasUmumWhereInput = {};
-    const last = await prisma.kasUmum.findFirst({
-      where,
+    const entry = await prisma.kasUmum.findFirst({
       orderBy: [{ tanggal: 'desc' }, { createdAt: 'desc' }],
     });
-    return last?.saldo || 0;
+    return entry?.saldo || 0;
+  }
+
+  async exportKasUmumXlsx(query: QueryKasUmumInput): Promise<Buffer> {
+    const { tahun, bulan } = query;
+    const where: Prisma.KasUmumWhereInput = {};
+
+    let titlePrefix = 'Buku Kas Umum';
+    
+    if (tahun) {
+      where.tanggal = {
+        gte: new Date(`${tahun}-01-01`),
+        lte: new Date(`${tahun}-12-31`),
+      };
+      titlePrefix += ` Tahun ${tahun}`;
+    }
+
+    if (bulan && tahun) {
+      const year = tahun || new Date().getFullYear();
+      const startDate = new Date(year, bulan - 1, 1);
+      const endDate = new Date(year, bulan, 0, 23, 59, 59, 999);
+      where.tanggal = {
+        gte: startDate,
+        lte: endDate,
+      };
+      titlePrefix = `Buku Kas Umum Bulan ${bulan} Tahun ${tahun}`;
+    }
+
+    const data = await prisma.kasUmum.findMany({
+      where,
+      orderBy: [{ tanggal: 'asc' }, { createdAt: 'asc' }],
+    });
+
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet('Kas Umum');
+
+    // Title
+    sheet.mergeCells('A1:G1');
+    const titleCell = sheet.getCell('A1');
+    titleCell.value = titlePrefix.toUpperCase();
+    titleCell.font = { size: 14, bold: true };
+    titleCell.alignment = { horizontal: 'center' };
+    
+    sheet.addRow([]);
+
+    // Headers
+    const headers = ['No.', 'Tanggal', 'Kode Rekening', 'Uraian', 'Penerimaan', 'Pengeluaran', 'Saldo Kumulatif'];
+    const headerRow = sheet.addRow(headers);
+    headerRow.font = { bold: true };
+    headerRow.eachCell((cell) => {
+      cell.border = {
+        top: { style: 'thin' },
+        left: { style: 'thin' },
+        bottom: { style: 'thin' },
+        right: { style: 'thin' }
+      };
+    });
+
+    sheet.columns = [
+      { width: 5 },  // No
+      { width: 15 }, // Tanggal
+      { width: 20 }, // Kode Rekening
+      { width: 40 }, // Uraian
+      { width: 20 }, // Penerimaan
+      { width: 20 }, // Pengeluaran
+      { width: 20 }, // Saldo
+    ];
+
+    let no = 1;
+    for (const item of data) {
+      const penerimaan = item.jenis === 'KAS_MASUK' ? item.jumlah : 0;
+      const pengeluaran = item.jenis === 'KAS_KELUAR' ? item.jumlah : 0;
+      
+      const row = sheet.addRow([
+        no++,
+        item.tanggal.toISOString().slice(0, 10),
+        item.kodeRekening || '-',
+        item.uraian,
+        penerimaan,
+        pengeluaran,
+        item.saldo
+      ]);
+
+      row.eachCell((cell) => {
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' }
+        };
+      });
+      
+      // Formatting numbers
+      row.getCell(5).numFmt = '#,##0.00';
+      row.getCell(6).numFmt = '#,##0.00';
+      row.getCell(7).numFmt = '#,##0.00';
+    }
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    return Buffer.from(buffer);
   }
 }
 
 export const kasUmumService = new KasUmumService();
-

@@ -27,6 +27,26 @@ router.get(
 );
 
 /**
+ * GET /api/kas-umum/export - Export Buku Kas Umum (Excel)
+ */
+router.get(
+  '/export',
+  authenticateInternal(),
+  authorize('kas_umum.view'),
+  asyncHandler(async (req, res) => {
+    const query = queryKasUmumSchema.parse(req.query);
+    const buffer = await kasUmumService.exportKasUmumXlsx(query);
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="Buku_Kas_Umum_${query.tahun || 'All'}${query.bulan ? `_${query.bulan}` : ''}.xlsx"`
+    );
+    return res.send(buffer);
+  })
+);
+
+/**
  * GET /api/kas-umum/saldo - Get current saldo
  */
 router.get(
