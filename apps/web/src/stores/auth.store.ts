@@ -98,7 +98,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           localStorage.removeItem('token');
           set({ token: null, user: null, isAuthenticated: false });
         } else {
+          // Server error (5xx) — clear auth state so UI doesn't hang in loading limbo
           console.error('Failed to fetch user profile:', response.status);
+          set({ token: null, user: null, isAuthenticated: false });
         }
       }
     } catch (err) {

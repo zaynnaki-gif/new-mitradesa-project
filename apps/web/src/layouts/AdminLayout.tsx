@@ -76,6 +76,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Pengaturan Kependudukan', href: '/admin/master/penduduk/pengaturan', icon: '⚙️' },
     ],
   },
+  /* TODO: Modul Kesehatan sengaja ditunda pengerjaannya. Di-hide sementara.
   {
     title: 'Kesehatan',
     items: [
@@ -83,6 +84,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Ibu Hamil', href: '/admin/kesehatan/bumil', icon: '🤰' },
     ],
   },
+  */
   {
     title: 'Keuangan',
     items: [

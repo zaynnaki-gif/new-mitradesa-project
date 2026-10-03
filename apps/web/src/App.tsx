@@ -24,6 +24,7 @@ const TrackingPage = lazy(() => import('./pages/public/layanan/TrackingPage'));
 const RiwayatLayananPage = lazy(() => import('./pages/public/layanan/RiwayatLayananPage').then(m => ({ default: m.RiwayatLayananPage })));
 const UsulanPublicPage = lazy(() => import('./pages/public/layanan-warga/UsulanPublicPage'));
 const VotingPublicPage = lazy(() => import('./pages/public/layanan-warga/VotingPublicPage'));
+const SaranPublicPage = lazy(() => import('./pages/public/layanan-warga/SaranPublicPage').then(m => ({ default: m.SaranPublicPage })));
 
 // Berita pages
 const BeritaListPage = lazy(() => import('./pages/public/berita/BeritaListPage'));
@@ -99,8 +100,9 @@ const RpjmdesDetailPage = lazy(() => import('./pages/admin/perencanaan/RpjmdesDe
 const UsulanPage = lazy(() => import('./pages/admin/perencanaan/UsulanPage'));
 const VotingPage = lazy(() => import('./pages/admin/perencanaan/VotingPage'));
 const VotingDetailPage = lazy(() => import('./pages/admin/perencanaan/VotingDetailPage'));
-const AdminPosyanduPage = lazy(() => import('./pages/admin/kesehatan/AdminPosyanduKunjungan'));
-const BumilAdminPage = lazy(() => import('./pages/admin/kesehatan/BumilPage'));
+// TODO: Modul Kesehatan sengaja ditunda pengerjaannya
+// const AdminPosyanduPage = lazy(() => import('./pages/admin/kesehatan/AdminPosyanduKunjungan'));
+// const BumilAdminPage = lazy(() => import('./pages/admin/kesehatan/BumilPage'));
 const KasUmumAdminPage = lazy(() => import('./pages/admin/keuangan/KasUmumPage'));
 const ApbdesEntryAdminPage = lazy(() => import('./pages/admin/keuangan/ApbdesEntryPage'));
 
@@ -158,6 +160,7 @@ function App() {
             <Route path="/layanan/:slug" element={<LayananDetailPage />} />
             <Route path="/usulan-warga" element={<UsulanPublicPage />} />
             <Route path="/e-voting" element={<VotingPublicPage />} />
+            <Route path="/saran-aduan" element={<SaranPublicPage />} />
 
             {/* Berita routes */}
             <Route path="/berita" element={<BeritaListPage />} />
@@ -530,7 +533,7 @@ function App() {
               }
             />
 
-            {/* Admin Kesehatan routes */}
+            {/* TODO: Modul Kesehatan sengaja ditunda pengerjaannya 
             <Route
               path="/admin/kesehatan/posyandu"
               element={
@@ -547,6 +550,7 @@ function App() {
                 </AdminRoute>
               }
             />
+            */}
 
             {/* Admin Keuangan routes */}
             <Route

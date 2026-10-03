@@ -526,90 +526,27 @@ export function DynamicForm({
     [fields, values, onSubmit]
   );
 
-  // Group fields by type for better layout
-  const textFields = sortedFields.filter((f) =>
-    ['TEXT', 'NIK', 'EMAIL', 'PHONE'].includes(f.type)
-  );
-  const textareaFields = sortedFields.filter((f) => ['TEXTAREA', 'ADDRESS'].includes(f.type));
-  const selectFields = sortedFields.filter((f) =>
-    ['SELECT', 'RADIO'].includes(f.type)
-  );
-  const otherFields = sortedFields.filter(
-    (f) =>
-      !textFields.includes(f) &&
-      !textareaFields.includes(f) &&
-      !selectFields.includes(f)
-  );
-
   return (
-    <form onSubmit={handleSubmit} className={`space-y-6 ${className}`}>
-      {/* Text inputs - 2 columns */}
-      {textFields.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {textFields.map((field) => (
-            <div key={field.key as string}>
-              <FieldInput
-                field={field}
-                value={values[field.key]}
-                onChange={handleChange}
-                error={errors[field.key]}
-                disabled={disabled}
-                readOnly={readOnlyFields.includes(field.key)}
-                showLabel={showLabels}
-              />
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Textarea fields - full width */}
-      {textareaFields.map((field) => (
-        <div key={field.key as string}>
-          <FieldInput
-            field={field}
-            value={values[field.key]}
-            onChange={handleChange}
-            error={errors[field.key]}
-            disabled={disabled}
-            readOnly={readOnlyFields.includes(field.key)}
-            showLabel={showLabels}
-          />
-        </div>
-      ))}
-
-      {/* Select fields */}
-      {selectFields.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {selectFields.map((field) => (
-            <div key={field.key as string}>
-              <FieldInput
-                field={field}
-                value={values[field.key]}
-                onChange={handleChange}
-                error={errors[field.key]}
-                disabled={disabled}
-                readOnly={readOnlyFields.includes(field.key)}
-                showLabel={showLabels}
-              />
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Other fields */}
-      {otherFields.map((field) => (
-        <div key={field.key as string}>
-          <FieldInput
-            field={field}
-            value={values[field.key]}
-            onChange={handleChange}
-            error={errors[field.key]}
-            disabled={disabled}
-            readOnly={readOnlyFields.includes(field.key)}
-            showLabel={showLabels}
-          />
-        </div>
-      ))}
+    <form onSubmit={handleSubmit} className={`grid grid-cols-1 md:grid-cols-2 gap-6 ${className}`}>
+      {sortedFields.map((field) => {
+        const isFullWidth = ['TEXTAREA', 'ADDRESS', 'FILE', 'MULTISELECT'].includes(field.type);
+        return (
+          <div 
+            key={field.key as string} 
+            className={isFullWidth ? "col-span-1 md:col-span-2" : "col-span-1"}
+          >
+            <FieldInput
+              field={field}
+              value={values[field.key]}
+              onChange={handleChange}
+              error={errors[field.key]}
+              disabled={disabled}
+              readOnly={readOnlyFields.includes(field.key)}
+              showLabel={showLabels}
+            />
+          </div>
+        );
+      })}
 
       {/* Submit trigger (hidden, can be triggered programmatically) */}
       <input type="submit" hidden />

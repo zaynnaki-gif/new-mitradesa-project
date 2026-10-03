@@ -9,6 +9,7 @@ import {
   usePermintaanAction, 
   useGenerateDocument 
 } from '@/hooks/usePermintaan';
+import { useLayananFields } from '@/hooks/useLayanan';
 
 export default function PermintaanDetailPage() {
   const { token } = useAuthStore();
@@ -31,6 +32,12 @@ export default function PermintaanDetailPage() {
 
   const actionMutation = usePermintaanAction();
   const generateMutation = useGenerateDocument();
+
+  // Fetch field definitions so dataJson can be rendered with proper labels and formats
+  const { data: fieldsResponse } = useLayananFields(request?.layananId || null, token || '');
+  const fieldMap = Object.fromEntries(
+    (fieldsResponse?.data || []).map(f => [f.key, f])
+  );
 
   const error = queryError?.message;
   const actionLoading = actionMutation.isPending;
@@ -260,14 +267,39 @@ export default function PermintaanDetailPage() {
             <div className={styles.section}>
               <h3 className={styles.sectionTitle}>Data Permohonan</h3>
               <div className={styles.formDataGrid}>
-                {Object.entries(request.dataJson).map(([key, value]) => (
-                  <div key={key} className={styles.formDataItem}>
-                    <span className={styles.formDataLabel}>{key.replace(/_/g, ' ')}</span>
-                    <span className={styles.formDataValue}>
-                      {Array.isArray(value) ? value.join(', ') : String(value || '-')}
-                    </span>
-                  </div>
-                ))}
+                {Object.entries(request.dataJson).map(([key, value]) => {
+                  const field = fieldMap[key];
+                  const label = field?.label || key.replace(/_/g, ' ');
+                  let displayValue: React.ReactNode = String(value || '-');
+                  
+                  if (Array.isArray(value)) {
+                    displayValue = value.join(', ');
+                  } else if (field?.type === 'DATE' && value) {
+                    displayValue = new Date(value as string).toLocaleDateString('id-ID');
+                  } else if (field?.type === 'CHECKBOX') {
+                    displayValue = value ? 'Ya' : 'Tidak';
+                  } else if (field?.type === 'FILE' && value) {
+                    displayValue = (
+                      <a 
+                        href={value as string} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        style={{ color: '#059669', textDecoration: 'underline' }}
+                      >
+                        Lihat Berkas
+                      </a>
+                    );
+                  }
+
+                  return (
+                    <div key={key} className={styles.formDataItem}>
+                      <span className={styles.formDataLabel}>{label}</span>
+                      <span className={styles.formDataValue}>
+                        {displayValue}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

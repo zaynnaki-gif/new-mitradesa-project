@@ -35,3 +35,4 @@ export { useHealthCheck } from './useHealthCheck';
 
 // Auth API helpers (not React hooks)
 export { authApi } from './useAuth';
+export * from './useVoting';

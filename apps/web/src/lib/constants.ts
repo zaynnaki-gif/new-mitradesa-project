@@ -143,7 +143,8 @@ export const ADMIN_NAV_LINKS = [
   { label: 'Lembaga', href: '/admin/master/lembaga' },
   { label: 'Identitas Desa', href: '/admin/master/identitas-desa' },
   { label: 'Perangkat Desa', href: '/admin/master/perangkat-desa' },
-  { label: 'Kunjungan Posyandu', href: '/admin/kesehatan/posyandu' },
+  // TODO: Modul Kesehatan ditunda pengerjaannya
+  // { label: 'Kunjungan Posyandu', href: '/admin/kesehatan/posyandu' },
   { label: 'Layanan', href: '/admin/layanan' },
   { label: 'Permintaan', href: '/admin/permintaan' },
   { label: 'Dokumen', href: '/admin/dokumen' },
