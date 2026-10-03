@@ -10,7 +10,8 @@ class ConfigCache {
     if (now - this.lastFetch > this.TTL || this.cache.size === 0) {
       await this.refresh();
     }
-    return this.cache.has(key) ? this.cache.get(key)! : defaultValue;
+    const val = this.cache.get(key);
+    return val !== undefined ? val : defaultValue;
   }
 
   async getBoolean(

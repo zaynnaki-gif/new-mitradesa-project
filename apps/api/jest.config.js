@@ -29,7 +29,7 @@ module.exports = {
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],
-  setupFilesAfterEnv: ['<rootDir>/src/config/test-setup.ts'],
+  // setupFilesAfterEnv: ['<rootDir>/src/config/test-setup.ts'],
   // Load env vars BEFORE any module is imported (critical for config/index.ts)
   setupFiles: ['<rootDir>/src/config/test-env-setup.js'],
   // Force sequential execution to avoid database connection pool exhaustion

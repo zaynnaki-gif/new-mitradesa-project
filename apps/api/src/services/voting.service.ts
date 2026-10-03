@@ -120,7 +120,7 @@ export class VotingService {
   // ============================================================
   // Kandidat
   // ============================================================
-  async addKandidat(votingId: bigint, input: CreateKandidatInput, actorId?: bigint) {
+  async addKandidat(votingId: bigint, input: CreateKandidatInput, _actorId?: bigint) {
     const voting = await prisma.voting.findUnique({ where: { id: votingId } });
     if (!voting) throw ApiError.notFound('Voting tidak ditemukan');
 

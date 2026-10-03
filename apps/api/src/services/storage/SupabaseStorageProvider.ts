@@ -8,6 +8,7 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { IStorageProvider, StorageFile, UploadOptions } from './types.js';
 import { config } from '../../config/index.js';
+import ws from 'ws';
 
 export class SupabaseStorageProvider implements IStorageProvider {
   private client: SupabaseClient;
@@ -27,8 +28,10 @@ export class SupabaseStorageProvider implements IStorageProvider {
         autoRefreshToken: false,
         persistSession: false,
       },
-      // Disable realtime websocket connection since this client is strictly used for storage
+      // Provide ws transport to fix Node 20 runtime issues
       realtime: {
+        // @ts-expect-error ws types are slightly incompatible with realtime-js WebSocketLikeConstructor but work at runtime
+        transport: ws,
         params: {
           eventsPerSecond: 0,
         },
