@@ -175,26 +175,41 @@ export class NotificationService {
     newStatus: string,
     notes?: string
   ): Promise<boolean> {
-    const statusText = newStatus === 'APPROVED' ? 'DISETUJUI (Menunggu TTE Pejabat)'
+    const statusEmoji = newStatus === 'APPROVED' ? '✅'
+                      : newStatus === 'REJECTED' ? '❌'
+                      : newStatus === 'COMPLETED' ? '🎉'
+                      : newStatus === 'PROCESSING' ? '⚙️'
+                      : newStatus === 'VERIFICATION' ? '🔍'
+                      : newStatus === 'SUBMITTED' ? '📋'
+                      : newStatus === 'SIGNED' ? '✍️'
+                      : '📌';
+    const statusText = newStatus === 'APPROVED' ? 'DISETUJUI — Dokumen sedang disiapkan'
                      : newStatus === 'REJECTED' ? 'DITOLAK'
-                     : newStatus === 'COMPLETED' ? 'SELESAI (Dapat Diunduh / Diambil)'
-                     : newStatus === 'PROCESSING' ? 'SEDANG DIPROSES'
-                     : newStatus === 'VERIFICATION' ? 'SEDANG DIVERIFIKASI OPERATOR'
-                     : newStatus === 'SUBMITTED' ? 'TELAH DIAJUKAN (Menunggu Verifikasi)'
+                     : newStatus === 'COMPLETED' ? 'SELESAI — Siap diunduh / diambil'
+                     : newStatus === 'PROCESSING' ? 'SEDANG DIPROSES oleh petugas'
+                     : newStatus === 'VERIFICATION' ? 'VERIFIKASI BERKAS oleh operator'
+                     : newStatus === 'SUBMITTED' ? 'DIAJUKAN — Menunggu verifikasi'
                      : newStatus === 'SIGNED' ? 'DITANDATANGANI (TTE Selesai)'
                      : newStatus;
 
-    let message = `*Informasi Layanan Surat Desa*\n\n`;
-    message += `Status pengajuan surat Anda telah diperbarui.\n\n`;
-    message += `*No. Registrasi:* ${requestNumber}\n`;
-    message += `*Layanan:* ${serviceName}\n`;
-    message += `*Status:* ${statusText}\n`;
+    const now = new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', dateStyle: 'short', timeStyle: 'short' });
+
+    let message = `${statusEmoji} *Pembaruan Status Surat Desa*\n`;
+    message += `_${now} WIB_\n\n`;
+    message += `Pengajuan surat Anda telah diperbarui.\n\n`;
+    message += `📄 *No. Registrasi:* ${requestNumber}\n`;
+    message += `📌 *Layanan:* ${serviceName}\n`;
+    message += `📊 *Status:* ${statusText}\n`;
 
     if (notes) {
-      message += `*Catatan:* ${notes}\n`;
+      message += `\n💬 *Catatan Petugas:*\n${notes}\n`;
     }
 
-    message += `\nTerima kasih,\n*Pemerintah Desa*`;
+    if (newStatus === 'REJECTED') {
+      message += `\nJika ada pertanyaan, silakan hubungi kantor desa.\n`;
+    }
+
+    message += `\nTerima kasih atas kepercayaan Anda.\n*Pemerintah Desa* 🏛️`;
 
     return this.sendWhatsApp(target, message);
   }
@@ -209,18 +224,21 @@ export class NotificationService {
     documentNumber: string,
     downloadUrl?: string
   ): Promise<boolean> {
-    let message = `*Dokumen Siap Diunduh!*\n\n`;
-    message += `Surat yang Anda minta telah selesai diproses.\n\n`;
-    message += `*No. Registrasi:* ${requestNumber}\n`;
-    message += `*Layanan:* ${serviceName}\n`;
-    message += `*No. Surat:* ${documentNumber}\n`;
+    const now = new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', dateStyle: 'short', timeStyle: 'short' });
+
+    let message = `🎉 *Dokumen Anda Siap Diunduh!*\n`;
+    message += `_${now} WIB_\n\n`;
+    message += `Surat yang Anda minta telah selesai diproses dan siap diambil.\n\n`;
+    message += `📄 *No. Registrasi:* ${requestNumber}\n`;
+    message += `📌 *Layanan:* ${serviceName}\n`;
+    message += `🔖 *No. Surat:* ${documentNumber}\n`;
 
     if (downloadUrl) {
-      message += `\n📎 *Link Unduh:*\n${downloadUrl}\n`;
+      message += `\n📎 *Link Unduh Dokumen:*\n${downloadUrl}\n`;
+      message += `\n_Link berlaku untuk penggunaan resmi. Simpan dokumen dengan baik._\n`;
     }
 
-    message += `\nSilakan unduh dokumen melalui link di atas atau kunjungi website desa.\n\n`;
-    message += `Terima kasih,\n*Pemerintah Desa*`;
+    message += `\nJika ada kendala, hubungi kantor desa.\nTerima kasih atas kepercayaan Anda.\n*Pemerintah Desa* 🏛️`;
 
     return this.sendWhatsApp(target, message);
   }

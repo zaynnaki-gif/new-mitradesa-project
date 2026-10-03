@@ -87,11 +87,24 @@ export function errorHandler(err: Error, _req: Request, res: Response, _next: Ne
 
   // Handle Prisma errors
   if (err.name === 'PrismaClientKnownRequestError') {
-    return res.status(500).json({
+    const prismaError = err as unknown as { code: string; message: string; meta?: Record<string, unknown> };
+    let statusCode = 400; // Bad Request by default for known Prisma errors
+    let code = 'DATABASE_ERROR';
+    
+    if (prismaError.code === 'P2025') {
+      statusCode = 404;
+      code = 'NOT_FOUND';
+    } else if (prismaError.code === 'P2002') {
+      statusCode = 409;
+      code = 'CONFLICT';
+    }
+    
+    return res.status(statusCode).json({
       success: false,
       error: {
-        code: 'DATABASE_ERROR',
-        message: 'Database operation failed',
+        code,
+        message: 'Database operation failed: ' + (process.env.NODE_ENV === 'development' ? prismaError.message : prismaError.code),
+        ...(process.env.NODE_ENV === 'development' && prismaError.meta ? { details: prismaError.meta } : {}),
       },
     });
   }

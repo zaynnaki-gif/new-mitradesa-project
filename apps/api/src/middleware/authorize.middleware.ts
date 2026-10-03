@@ -2,6 +2,31 @@ import { Request, Response, NextFunction } from 'express';
 import { ApiError } from '../utils/response.js';
 
 /**
+ * Helper to check if user has a bypass role
+ */
+function hasBypassRole(roles: string[]): boolean {
+  const upperRoles = roles.map(r => r.toUpperCase());
+  return (
+    upperRoles.includes('ADMIN') ||
+    upperRoles.includes('DEVELOPER') ||
+    upperRoles.includes('SUPERADMIN') ||
+    upperRoles.includes('SUPER_ADMIN') ||
+    upperRoles.includes('PIMPINAN')
+  );
+}
+
+/**
+ * Helper to check if user has a bypass permission
+ */
+function hasBypassPermission(permissions: string[]): boolean {
+  return (
+    permissions.includes('*') ||
+    permissions.includes('*.*') ||
+    permissions.includes('system.*')
+  );
+}
+
+/**
  * Authorization middleware factory
  * @param permissions - Required permissions (all must be present)
  */
@@ -13,17 +38,7 @@ export function authorize(...permissions: string[]) {
     }
 
     // Admin/Developer/Pimpinan bypass with wildcard permission or role
-    if (
-      req.user.permissions.includes('*') || 
-      req.user.permissions.includes('*.*') || 
-      req.user.permissions.includes('system.*') ||
-      req.user.roles.includes('ADMIN') ||
-      req.user.roles.includes('DEVELOPER') ||
-      req.user.roles.includes('SUPERADMIN') ||
-      req.user.roles.includes('superadmin') ||
-      req.user.roles.includes('PIMPINAN') ||
-      req.user.roles.includes('pimpinan')
-    ) {
+    if (hasBypassPermission(req.user.permissions) || hasBypassRole(req.user.roles)) {
       return next();
     }
 
@@ -53,16 +68,7 @@ export function authorizeAny(...permissions: string[]) {
     }
 
     // Admin/Developer bypass
-    if (
-      req.user.permissions.includes('*.*') || 
-      req.user.permissions.includes('system.*') ||
-      req.user.roles.includes('ADMIN') ||
-      req.user.roles.includes('DEVELOPER') ||
-      req.user.roles.includes('SUPERADMIN') ||
-      req.user.roles.includes('superadmin') ||
-      req.user.roles.includes('PIMPINAN') ||
-      req.user.roles.includes('pimpinan')
-    ) {
+    if (hasBypassPermission(req.user.permissions) || hasBypassRole(req.user.roles)) {
       return next();
     }
 
@@ -92,11 +98,7 @@ export function authorizeRoles(...roles: string[]) {
     }
 
     // Developer and Superadmin bypass
-    if (
-      req.user.roles.includes('DEVELOPER') ||
-      req.user.roles.includes('SUPERADMIN') ||
-      req.user.roles.includes('superadmin')
-    ) {
+    if (hasBypassRole(req.user.roles)) {
       return next();
     }
 
@@ -124,11 +126,7 @@ export function authorizeAnyRole(...roles: string[]) {
     }
 
     // Developer and Superadmin bypass
-    if (
-      req.user.roles.includes('DEVELOPER') ||
-      req.user.roles.includes('SUPERADMIN') ||
-      req.user.roles.includes('superadmin')
-    ) {
+    if (hasBypassRole(req.user.roles)) {
       return next();
     }
 

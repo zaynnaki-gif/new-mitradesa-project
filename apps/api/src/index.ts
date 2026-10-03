@@ -1,5 +1,6 @@
 import 'dotenv/config';
-
+import { initSentry } from './config/sentry.js';
+initSentry();
 // Patch BigInt serialization for JSON
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 (BigInt.prototype as any).toJSON = function () {
@@ -14,6 +15,7 @@ import http from 'http';
 
 // Verify instance identity against database (single-tenant: just check IdentitasDesa exists)
 async function verifyInstanceIdentity() {
+  // eslint-disable-next-line no-console
   console.info(`[VERIFICATION] Memverifikasi Instance Desa (${config.desaNama})...`);
   try {
     const desa = await prisma.identitasDesa.findFirst();
@@ -21,6 +23,7 @@ async function verifyInstanceIdentity() {
     if (!desa) {
       console.warn(`[VERIFICATION] IdentitasDesa belum dikonfigurasi di database. Silakan isi data identitas desa melalui panel admin.`);
     } else {
+      // eslint-disable-next-line no-console
       console.info(`[VERIFICATION] Instance valid: ${desa.namaDesa}`);
     }
   } catch (err) {

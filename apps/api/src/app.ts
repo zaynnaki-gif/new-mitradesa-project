@@ -82,6 +82,7 @@ export function createApp(): express.Express {
   // 4. Core administrative & master routes
   app.use('/api/audit-log', auditRouter);
   app.use('/api/identitas', identitasRouter);
+  app.use('/api/penduduk/mutasi', mutasiRoutes);
   app.use('/api/penduduk', pendudukRouter);
   app.use('/api/keluarga', keluargaRouter);
   app.use('/api/lembaga', lembagaRouter);
@@ -127,7 +128,6 @@ export function createApp(): express.Express {
   app.use('/api/saran-aduan', saranRoutes);
 
   // Penduduk Mutasi: Canonical is /api/penduduk/mutasi, legacy alias is /api/mutasi-penduduk
-  app.use('/api/penduduk/mutasi', mutasiRoutes);
   app.use('/api/mutasi-penduduk', mutasiRoutes);
 
   // 7. Service Document Engine routes
